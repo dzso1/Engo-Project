@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ENGO</title>
+  <link rel="icon" type="image/png" href="./images/engologo.png">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+  <section class="auth-screen" id="authScreen">
+    <button class="icon-btn theme-toggle auth-theme-toggle" type="button" aria-label="Chuyển giao diện" title="Chuyển sang giao diện tối"><span class="theme-icon">☾</span></button>
+    <div class="auth-brand-panel">
+      <div class="auth-brand">
+        <img
+  src="./images/engologo.png"
+  alt="Logo ENGO"
+  class="brand-logo"
+/>
+        <div><h1>Global 9 Learning Hub</h1><span>Hệ thống học và kiểm tra tiếng Anh</span></div>
+      </div>
+      <div class="auth-copy">
+        <span class="badge" style="background:rgba(255,255,255,.14);color:white">Dành cho khối 9 · Global Success</span>
+        <h2>Học chủ động, kiểm tra thuận tiện, quản lý tập trung.</h2>
+        <p>Một không gian chung cho học sinh, giáo viên, phụ huynh và quản trị viên với bài tập, flashcard, chấm điểm và báo cáo tiến độ.</p>
+        <div class="auth-features">
+          <div class="auth-feature">✓ Đăng nhập theo vai trò</div>
+          <div class="auth-feature">✓ Tự động lưu bài làm</div>
+          <div class="auth-feature">✓ Flashcard tương tác</div>
+          <div class="auth-feature">✓ Quản lý dữ liệu tập trung</div>
+        </div>
+      </div>
+      <div class="small" style="position:relative;z-index:1;color:#c7d2fe">© 2026 Global 9 Learning Hub · Frontend Demo</div>
+    </div>
+
+    <div class="auth-form-panel">
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-auth-tab="login">Đăng nhập</button>
+          <button class="auth-tab" data-auth-tab="register">Đăng ký</button>
+        </div>
+
+        <div id="loginPane">
+          <h2>Chào mừng trở lại</h2>
+          <p>Đăng nhập để tiếp tục bài học và xem tiến độ cá nhân.</p>
+          <form class="auth-form" id="loginForm">
+            <div class="auth-error" id="loginError"></div>
+            <div class="field"><label>Email hoặc mã tài khoản</label><input id="loginEmail" type="text" placeholder="email@example.com" autocomplete="username" required /></div>
+            <div class="field"><label>Mật khẩu</label><div class="password-row"><input id="loginPassword" type="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required /><button type="button" class="password-toggle" data-password-target="loginPassword">◉</button></div></div>
+            <div class="field"><label>Vai trò</label><select id="loginRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option><option value="admin">Quản trị viên</option></select></div>
+            <button class="btn btn-primary" type="submit" style="width:100%;margin-top:3px">Đăng nhập</button>
+          </form>
+          <div class="demo-accounts"><strong>Dữ liệu thật:</strong><br>Tài khoản được xác thực trực tiếp từ MySQL. Không còn đăng nhập bằng tài khoản demo hoặc dữ liệu cũ trong trình duyệt.</div>
+        </div>
+
+        <div id="registerPane" class="hidden">
+          <h2>Tạo tài khoản</h2>
+          <p>Đăng ký tài khoản mới. Trong hệ thống thật, tài khoản giáo viên và quản trị viên cần được nhà trường phê duyệt.</p>
+          <form class="auth-form" id="registerForm">
+            <div class="auth-error" id="registerError"></div>
+            <div class="form-grid">
+              <div class="field full"><label>Họ và tên</label><input id="registerName" required placeholder="Nguyễn Minh Anh" /></div>
+              <div class="field full"><label>Email</label><input id="registerEmail" type="email" required placeholder="email@example.com" /></div>
+              <div class="field"><label>Mật khẩu</label><input id="registerPassword" type="password" minlength="6" required /></div>
+              <div class="field"><label>Nhập lại mật khẩu</label><input id="registerConfirm" type="password" minlength="6" required /></div>
+              <div class="field full"><label>Vai trò</label><select id="registerRole"><option value="student">Học sinh</option><option value="parent">Phụ huynh</option><option value="teacher">Giáo viên</option></select></div>
+            </div>
+            <button class="btn btn-primary" type="submit" style="width:100%;margin-top:3px">Đăng ký tài khoản</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img
+  src="./images/engologo.png"
+  alt="Logo ENGO"
+  class="brand-logo"
+/>
+        <div>
+          <h1>ENGO Learning Hub</h1>
+          <span>Học tiếng Anh thông minh</span>
+        </div>
+      </div>
+
+      <div class="nav-label">Không gian học tập</div>
+      <nav class="nav-list" id="mainNav">
+        <button class="nav-btn active" data-view="student-home">
+          <span class="nav-icon">⌂</span> Dashboard
+        </button>
+        <button class="nav-btn" data-view="assignments">
+          <span class="nav-icon">✓</span> Bài tập
+        </button>
+        <button class="nav-btn" data-view="practice">
+          <span class="nav-icon">✦</span> Luyện tập
+        </button>
+        <button class="nav-btn" data-view="flashcards">
+          <span class="nav-icon">▣</span> Flashcard
+        </button>
+        <button class="nav-btn" data-view="results">
+          <span class="nav-icon">▥</span> Kết quả
+        </button>
+        <button class="nav-btn" data-view="smart-review">
+          <span class="nav-icon">🧠</span> Ôn thông minh
+        </button>
+        <button class="nav-btn" data-view="focus-room">
+          <span class="nav-icon">◷</span> Tập trung
+        </button>
+        <button class="nav-btn" data-view="achievements">
+          <span class="nav-icon">🏆</span> Thành tích
+        </button>
+      </nav>
+
+      <div class="nav-label">Quản lý</div>
+      <nav class="nav-list">
+        <button class="nav-btn role-nav teacher-only hidden" data-view="teacher-home">
+          <span class="nav-icon">▤</span> Giáo viên
+        </button>
+        <button class="nav-btn role-nav parent-only hidden" data-view="parent-home">
+          <span class="nav-icon">♡</span> Phụ huynh
+        </button>
+        <button class="nav-btn role-nav admin-only hidden" data-view="data-admin">
+          <span class="nav-icon">⌘</span> Quản lý dữ liệu
+        </button>
+      </nav>
+
+      <div class="sidebar-card">
+        <strong>Chuỗi 7 ngày học tập</strong>
+        <p>Hoàn thành một bài mỗi ngày để giữ vững chuỗi học tập.</p>
+        <button class="btn btn-light btn-sm" data-view="practice">Luyện ngay</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn mobile-menu" id="menuBtn" aria-label="Mở menu">☰</button>
+        <div class="search">
+          <input type="search" placeholder="Tìm bài tập, kỹ năng hoặc từ vựng..." />
+        </div>
+        <div class="top-actions">
+          <select class="role-select" id="roleSelect" aria-label="Vai trò hiện tại" disabled>
+            <option value="student">Học sinh</option>
+            <option value="teacher">Giáo viên</option>
+            <option value="parent">Phụ huynh</option>
+            <option value="admin">Quản trị viên</option>
+          </select>
+          <button class="btn btn-light dashboard-btn" id="dashboardBtn" type="button" title="Mở Dashboard"><b>⌂</b><span>Dashboard</span></button>
+          <button class="icon-btn theme-toggle" type="button" aria-label="Chuyển giao diện" title="Chuyển sang giao diện tối"><span class="theme-icon">☾</span></button>
+          <button class="icon-btn" id="notificationBtn" aria-label="Thông báo" title="Thông báo">♢<span class="dot" id="notificationDot"></span></button>
+          <div class="avatar" id="avatar">MA</div>
+          <button class="icon-btn logout-btn" id="logoutBtn" aria-label="Đăng xuất" title="Đăng xuất">↪</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- STUDENT HOME -->
+        <section class="view active" id="student-home">
+          <div class="page-heading">
+            <div>
+              <h2>Dashboard học tập</h2>
+              <p>Theo dõi tiến độ và tiếp tục bài học hôm nay.</p>
+            </div>
+            <button class="btn btn-primary start-quiz">Bắt đầu luyện tập</button>
+          </div>
+
+          <section class="hero">
+            <div>
+              <span class="badge" style="background:rgba(255,255,255,.15);color:white">Tuần học số 8</span>
+              <h3 id="welcomeHeading">Chào mừng, hôm nay cùng hoàn thành Unit 5 nhé!</h3>
+              <p>Bài luyện giữa kỳ gồm Pronunciation, Vocabulary, Word form, Reading và Writing. Hệ thống tự lưu đáp án trong quá trình làm bài.</p>
+              <div class="hero-actions">
+                <button class="btn btn-light start-quiz">Làm bài giữa kỳ</button>
+                <button class="btn btn-soft" style="background:rgba(255,255,255,.12);color:white" data-view="practice">Ôn từ vựng</button>
+              </div>
+            </div>
+            <div class="hero-visual">
+              <div class="hero-ring"><strong>78%</strong></div>
+              <p>Tiến độ mục tiêu tuần này</p>
+            </div>
+          </section>
+
+          <div class="grid stats-grid">
+            <div class="card stat-card">
+              <div class="stat-icon">✓</div>
+              <div><strong id="dashboardCompleted">0</strong><span>Bài đã hoàn thành</span></div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon" style="background:#ecfdf5">★</div>
+              <div><strong id="dashboardAverage">0.0</strong><span>Điểm trung bình</span></div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon" style="background:#fff7ed">⚡</div>
+              <div><strong id="dashboardStreak">1 ngày</strong><span>Chuỗi học liên tục</span></div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-icon" style="background:#f0f9ff">◷</div>
+              <div><strong id="dashboardStudyTime">0 phút</strong><span>Thời gian ôn tập</span></div>
+            </div>
+          </div>
+
+          <section class="section learning-progress-section">
+            <div class="section-head">
+              <div><h3>Tiến trình & năng lực</h3><p class="small muted">Thống kê được cập nhật từ bài luyện, thời gian tập trung và lộ trình ngữ pháp của bạn.</p></div>
+              <span class="badge green" id="progressStatus">Đang khởi động</span>
+            </div>
+            <div class="grid learning-overview-grid">
+              <article class="card panel competency-card">
+                <div class="section-head"><div><h3>Đánh giá năng lực</h3><p class="small muted" id="competencyMessage">Hoàn thành bài luyện để ENGO đánh giá chính xác hơn.</p></div></div>
+                <div class="radar-wrap" aria-label="Biểu đồ năng lực 6 kỹ năng">
+                  <svg class="radar-chart" viewBox="0 0 320 280" role="img">
+                    <polygon class="radar-grid" points="160,38 244,86 244,182 160,230 76,182 76,86"></polygon>
+                    <polygon class="radar-grid radar-grid-mid" points="160,70 216,102 216,166 160,198 104,166 104,102"></polygon>
+                    <line x1="160" y1="38" x2="160" y2="230"></line><line x1="76" y1="86" x2="244" y2="182"></line><line x1="244" y1="86" x2="76" y2="182"></line>
+                    <polygon class="radar-value" id="radarPolygon" points="160,85 215,116 207,161 160,194 108,164 102,112"></polygon>
+                    <circle class="radar-dot" id="radarDotListening" cx="160" cy="85" r="4"></circle><circle class="radar-dot" id="radarDotSpeaking" cx="215" cy="116" r="4"></circle><circle class="radar-dot" id="radarDotVocabulary" cx="207" cy="161" r="4"></circle><circle class="radar-dot" id="radarDotGrammar" cx="160" cy="194" r="4"></circle><circle class="radar-dot" id="radarDotWriting" cx="108" cy="164" r="4"></circle><circle class="radar-dot" id="radarDotReading" cx="102" cy="112" r="4"></circle>
+                    <text x="160" y="22">Nghe</text><text x="258" y="91">Nói</text><text x="251" y="197">Từ vựng</text><text x="160" y="255">Ngữ pháp</text><text x="25" y="197">Viết</text><text x="34" y="91">Đọc</text>
+                  </svg>
+                </div>
+              </article>
+              <article class="card panel overall-card">
+                <div class="section-head"><h3>Chỉ số tổng quan</h3><span class="small muted">Theo thời gian thực</span></div>
+                <div class="overall-score"><div class="score-orbit"><strong id="overallProgress">0%</strong><span>Mức độ thành thạo</span></div><div><strong id="overallLevel">Người học khởi động</strong><p class="small muted" id="overallHint">Hoàn thành bài luyện đầu tiên để mở thống kê.</p></div></div>
+                <div class="skill-stat-list" id="skillStatList"></div>
+                <div class="mini-stat-row"><div><span>🔥 Chuỗi học</span><strong id="progressStreak">1 ngày</strong></div><div><span>🏆 XP tích lũy</span><strong id="progressPoints">0 XP</strong></div><div><span>✓ Bài đã làm</span><strong id="progressQuizzes">0</strong></div></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="section grammar-learning-section">
+            <div class="section-head"><div><h3>Khóa học ngữ pháp</h3><p class="small muted">Học theo từng cấu trúc, từ nhận biết công thức đến các dạng bài tập phổ biến.</p></div><button class="btn btn-light btn-sm" id="resetGrammarProgress">Đặt lại tiến độ</button></div>
+            <div class="grid grammar-layout">
+              <div class="grammar-course-grid" id="grammarCourseGrid"></div>
+              <article class="card panel grammar-detail" id="grammarDetail" aria-live="polite"></article>
+            </div>
+          </section>
+
+          <section class="section card panel imported-tests-panel">
+            <div class="section-head"><div><h3>Bài kiểm tra từ giáo viên</h3><p class="small muted">Đề được tạo từ DOCX sẽ hiển thị đủ các phần; Writing được gửi riêng để chấm thủ công.</p></div><button class="btn btn-light btn-sm" id="refreshImportedTests">Làm mới</button></div>
+            <div class="imported-test-list" id="importedTestList"><p class="small muted">Đang tải bài kiểm tra...</p></div>
+          </section>
+
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><div><h3>Kế hoạch hôm nay</h3><span class="small muted" id="dailyPlanDate"></span></div><span class="badge" id="dailyPlanBadge">0/3 hoàn thành</span></div>
+              <div class="daily-plan" id="dailyPlan">
+                <label class="plan-item" data-plan-item="flashcard"><input type="checkbox" data-plan="flashcard"><div><strong>Ôn 10 flashcard</strong><span>Củng cố từ vựng đang học</span></div><b>+10 XP</b></label>
+                <label class="plan-item" data-plan-item="quiz"><input type="checkbox" data-plan="quiz"><div><strong>Hoàn thành 1 bài luyện</strong><span>Ưu tiên kỹ năng còn yếu</span></div><b>+30 XP</b></label>
+                <label class="plan-item" data-plan-item="focus"><input type="checkbox" data-plan="focus"><div><strong>Tập trung một phiên</strong><span>Học không gián đoạn với đồng hồ ENGO</span></div><b>+20 XP</b></label>
+              </div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Mục tiêu ngày</h3><span class="small muted">Tự động cập nhật</span></div>
+              <div class="goal-ring" id="dailyGoalRing"><strong id="dailyGoalPercent">0%</strong></div>
+              <p class="small muted" style="text-align:center;margin:0" id="dailyGoalMessage">Bắt đầu một nhiệm vụ nhỏ để tạo đà học tập.</p>
+              <div class="quick-actions">
+                <button class="quick-action" data-view="smart-review"><b>🧠</b>Ôn thông minh</button>
+                <button class="quick-action" data-view="focus-room"><b>◷</b>Tập trung</button>
+                <button class="quick-action" data-view="achievements"><b>🏆</b>Thành tích</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h3>Bài tập cần hoàn thành</h3>
+              <a href="#" data-view="assignments">Xem tất cả</a>
+            </div>
+            <div class="grid assignment-grid">
+              <article class="card assignment-card">
+                <div class="assignment-top">
+                  <span class="badge red">Hạn hôm nay</span>
+                  <button class="icon-btn btn-sm qr-open" title="Mở mã QR" style="width:34px;height:34px">▦</button>
+                </div>
+                <h4>Mid-term Practice 01</h4>
+                <p>Ôn tập tổng hợp Unit 1–5 theo cấu trúc bài kiểm tra giữa kỳ.</p>
+                <div class="meta"><span>⏱ 35 phút</span><span>▤ 30 câu</span></div>
+                <div class="progress"><span style="width:35%"></span></div>
+                <div class="card-footer"><span class="small muted">Đã làm 35%</span><button class="btn btn-primary btn-sm start-quiz">Tiếp tục</button></div>
+              </article>
+
+              <article class="card assignment-card">
+                <div class="assignment-top"><span class="badge orange">Còn 2 ngày</span></div>
+                <h4>Vocabulary – Unit 5</h4>
+                <p>Ôn từ vựng qua hình ảnh, flashcard và dạng gap fill.</p>
+                <div class="meta"><span>⏱ 15 phút</span><span>▤ 20 câu</span></div>
+                <div class="progress"><span style="width:0%"></span></div>
+                <div class="card-footer"><span class="small muted">Chưa bắt đầu</span><button class="btn btn-light btn-sm start-quiz">Làm bài</button></div>
+              </article>
+
+              <article class="card assignment-card">
+                <div class="assignment-top"><span class="badge green">Đã hoàn thành</span></div>
+                <h4>Reading – Community Life</h4>
+                <p>Đọc hiểu và trả lời câu hỏi theo nội dung đoạn văn.</p>
+                <div class="meta"><span>⏱ 18 phút</span><span>▤ 12 câu</span></div>
+                <div class="progress"><span style="width:100%;background:#22c55e"></span></div>
+                <div class="card-footer"><span class="small muted">Điểm 9.0</span><button class="btn btn-success btn-sm" data-view="results">Xem lại</button></div>
+              </article>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><h3>Luyện tập theo kỹ năng</h3><a href="#" data-view="practice">Khám phá</a></div>
+            <div class="grid skill-grid">
+              <article class="card skill-card start-quiz">
+                <div class="skill-icon" style="background:#eef2ff">Aa</div>
+                <h4>Vocabulary</h4><p>Flashcard, hình ảnh và điền từ.</p>
+              </article>
+              <article class="card skill-card start-quiz">
+                <div class="skill-icon" style="background:#ecfeff">◉</div>
+                <h4>Pronunciation</h4><p>Phát âm, trọng âm và nhận diện âm.</p>
+              </article>
+              <article class="card skill-card start-quiz">
+                <div class="skill-icon" style="background:#f0fdf4">▤</div>
+                <h4>Reading</h4><p>Đọc hiểu và matching headings.</p>
+              </article>
+              <article class="card skill-card start-quiz">
+                <div class="skill-icon" style="background:#fff7ed">✎</div>
+                <h4>Writing</h4><p>Word form, viết lại câu và đoạn văn.</p>
+              </article>
+            </div>
+          </div>
+
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Kết quả gần đây</h3><a href="#" data-view="results">Chi tiết</a></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Bài luyện</th><th>Ngày làm</th><th>Thời gian</th><th>Điểm</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>Reading – Unit 4</strong></td><td>25/07/2026</td><td>14 phút</td><td><span class="score-pill">9.0</span></td></tr>
+                    <tr><td><strong>Vocabulary – Unit 5</strong></td><td>23/07/2026</td><td>12 phút</td><td><span class="score-pill">8.5</span></td></tr>
+                    <tr><td><strong>Pronunciation Review</strong></td><td>21/07/2026</td><td>10 phút</td><td><span class="score-pill" style="background:#fef3c7;color:#92400e">7.5</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Thông báo</h3></div>
+              <div class="notice-list">
+                <div class="notice"><strong>Giáo viên đã giao bài mới</strong><p>Mid-term Practice 01, hạn hoàn thành hôm nay.</p></div>
+                <div class="notice"><strong>Phản hồi bài viết</strong><p>Bài Writing Unit 4 đã được giáo viên nhận xét.</p></div>
+                <div class="notice"><strong>Giữ chuỗi học tập</strong><p>Chỉ cần hoàn thành thêm 1 bài trong hôm nay.</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ASSIGNMENTS -->
+        <section class="view" id="assignments">
+          <div class="page-heading">
+            <div><h2>Bài tập của tôi</h2><p>Danh sách bài được giáo viên giao qua lớp, đường link hoặc mã QR.</p></div>
+            <button class="btn btn-primary start-quiz">Làm bài gần nhất</button>
+          </div>
+          <div class="card panel">
+            <div class="section-head">
+              <h3>6 bài tập</h3>
+              <select class="role-select"><option>Tất cả trạng thái</option><option>Chưa làm</option><option>Đang làm</option><option>Đã hoàn thành</option></select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Tên bài</th><th>Dạng bài</th><th>Hạn nộp</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Mid-term Practice 01</strong><div class="small muted">30 câu · 35 phút</div></td><td>Tổng hợp</td><td>Hôm nay, 22:00</td><td>35%</td><td><button class="btn btn-primary btn-sm start-quiz">Tiếp tục</button></td></tr>
+                  <tr><td><strong>Vocabulary – Unit 5</strong><div class="small muted">20 câu · 15 phút</div></td><td>Từ vựng</td><td>29/07/2026</td><td>Chưa làm</td><td><button class="btn btn-light btn-sm start-quiz">Bắt đầu</button></td></tr>
+                  <tr><td><strong>Reading – Community Life</strong><div class="small muted">12 câu · 18 phút</div></td><td>Đọc hiểu</td><td>Đã nộp</td><td>100%</td><td><button class="btn btn-success btn-sm" data-view="results">Xem kết quả</button></td></tr>
+                  <tr><td><strong>Word Form Review</strong><div class="small muted">15 câu · 12 phút</div></td><td>Ngữ pháp</td><td>31/07/2026</td><td>Chưa làm</td><td><button class="btn btn-light btn-sm start-quiz">Bắt đầu</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- PRACTICE -->
+        <section class="view" id="practice">
+          <div class="page-heading">
+            <div><h2>Kho luyện tập</h2><p>Chọn kỹ năng, Unit hoặc trò chơi phù hợp để ôn tập.</p></div>
+          </div>
+          <div class="grid skill-grid">
+            <article class="card feature-card"><div class="big-icon">🎯</div><h3>Multiple Choice</h3><p>Trắc nghiệm nhanh theo từng Unit và chủ điểm.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">🧩</div><h3>Matching</h3><p>Nối từ, nghĩa, hình ảnh và câu ví dụ.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">🎵</div><h3>Song Gap Fill</h3><p>Nghe bài hát và điền từ còn thiếu.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">🗺</div><h3>Mindmap</h3><p>Ôn từ vựng theo sơ đồ chủ đề trực quan.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">📖</div><h3>Reading</h3><p>Đọc hiểu, đúng/sai và matching headings.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">🎧</div><h3>Listening</h3><p>Nghe chọn đáp án và điền thông tin.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">🗣</div><h3>Pronunciation</h3><p>Phát âm, trọng âm và ghi âm bài đọc.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+            <article class="card feature-card"><div class="big-icon">✍</div><h3>Writing</h3><p>Word form, viết lại câu và đoạn văn ngắn.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
+          </div>
+        </section>
+
+
+        <!-- FLASHCARDS -->
+        <section class="view" id="flashcards">
+          <div class="page-heading">
+            <div><h2>Flashcard từ vựng</h2><p>Lật thẻ, tự đánh giá mức độ ghi nhớ và ôn lại những từ còn yếu.</p></div>
+            <div class="data-toolbar"><button class="btn btn-light" id="shuffleCards">⤨ Trộn thẻ</button><button class="btn btn-primary" id="restartCards">Học lại bộ thẻ</button></div>
+          </div>
+
+          <div class="grid flashcard-layout">
+            <div class="card flashcard-stage">
+              <div class="section-head">
+                <div><span class="badge" id="flashDeckName">Unit 5 · Community</span><h3 style="margin-top:9px" id="flashProgressText">Thẻ 1 / 8</h3></div>
+                <span class="small muted">Bấm vào thẻ để lật</span>
+              </div>
+              <div class="progress"><span id="flashProgressBar" style="width:12.5%"></span></div>
+
+              <div class="flashcard-shell" id="flashcardShell" role="button" tabindex="0" aria-label="Lật flashcard">
+                <div class="flashcard-inner" id="flashcardInner">
+                  <div class="flash-face front">
+                    <div class="flash-label">Từ vựng</div>
+                    <div class="flash-word" id="flashWord">community</div>
+                    <div class="flash-phonetic" id="flashPhonetic">/kəˈmjuːnəti/</div>
+                  </div>
+                  <div class="flash-face back">
+                    <div class="flash-label">Nghĩa và ví dụ</div>
+                    <div class="flash-meaning" id="flashMeaning">cộng đồng</div>
+                    <div class="flash-example" id="flashExample">Our school works closely with the local community.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="flash-hint">Mặt trước: từ và phiên âm · Mặt sau: nghĩa và câu ví dụ</div>
+              <div class="flash-controls" style="margin-top:16px">
+                <button class="btn btn-light" id="flashPrev">← Thẻ trước</button>
+                <button class="btn btn-soft" id="flashFlip">Lật thẻ</button>
+                <button class="btn btn-light" id="flashNext">Thẻ tiếp →</button>
+              </div>
+              <div class="flash-rating">
+                <button class="btn btn-danger" id="markReview">Chưa nhớ · Ôn lại</button>
+                <button class="btn btn-success" id="markKnown">Đã nhớ</button>
+              </div>
+            </div>
+
+            <aside class="card flash-sidebar">
+              <div class="section-head"><h3>Chọn bộ thẻ</h3></div>
+              <div class="deck-list" id="deckList">
+                <button class="deck-item active" data-deck="community"><div><strong>Unit 5 · Community</strong><span>8 từ vựng</span></div><b>→</b></button>
+                <button class="deck-item" data-deck="environment"><div><strong>Unit 7 · Environment</strong><span>6 từ vựng</span></div><b>→</b></button>
+                <button class="deck-item" data-deck="pronunciation"><div><strong>Pronunciation · -ed</strong><span>6 ví dụ</span></div><b>→</b></button>
+              </div>
+              <div class="memory-stat">
+                <div class="memory-box"><strong id="knownCards">0</strong><span class="small muted">Đã nhớ</span></div>
+                <div class="memory-box"><strong id="reviewCards">0</strong><span class="small muted">Cần ôn</span></div>
+              </div>
+              <div class="notice" style="margin-top:15px"><strong>Mẹo ghi nhớ</strong><p>Đọc to từ, đoán nghĩa trước khi lật và tự đặt thêm một câu mới.</p></div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- RESULTS -->
+        <section class="view" id="results">
+          <div class="page-heading">
+            <div><h2>Kết quả học tập</h2><p>Điểm số, lỗi sai và kỹ năng cần cải thiện.</p></div>
+            <button class="btn btn-light" onclick="window.print()">In báo cáo</button>
+          </div>
+          <div class="grid stats-grid">
+            <div class="card stat-card"><div class="stat-icon">★</div><div><strong>8.6</strong><span>Điểm trung bình</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">✓</div><div><strong>82%</strong><span>Tỷ lệ chính xác</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">↻</div><div><strong>4</strong><span>Bài đã làm lại</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2">!</div><div><strong>16</strong><span>Câu cần ôn lại</span></div></div>
+          </div>
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Lịch sử bài làm</h3></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Bài làm</th><th>Lần làm</th><th>Điểm</th><th>Trạng thái</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>Reading – Unit 4</strong></td><td>1/3</td><td><span class="score-pill">9.0</span></td><td><span class="badge green">Hoàn thành</span></td><td><button class="btn btn-light btn-sm start-quiz">Làm lại</button></td></tr>
+                    <tr><td><strong>Vocabulary – Unit 5</strong></td><td>2/5</td><td><span class="score-pill">8.5</span></td><td><span class="badge green">Hoàn thành</span></td><td><button class="btn btn-light btn-sm start-quiz">Làm lại</button></td></tr>
+                    <tr><td><strong>Pronunciation Review</strong></td><td>1/3</td><td><span class="score-pill" style="background:#fef3c7;color:#92400e">7.5</span></td><td><span class="badge orange">Cần ôn</span></td><td><button class="btn btn-soft btn-sm start-quiz">Ôn lỗi sai</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Hiệu suất theo kỹ năng</h3></div>
+              <div class="chart">
+                <div class="bar-wrap"><div class="bar" data-value="86%" style="height:86%"></div>Vocab</div>
+                <div class="bar-wrap"><div class="bar" data-value="72%" style="height:72%"></div>Pron.</div>
+                <div class="bar-wrap"><div class="bar" data-value="90%" style="height:90%"></div>Reading</div>
+                <div class="bar-wrap"><div class="bar" data-value="76%" style="height:76%"></div>Writing</div>
+                <div class="bar-wrap"><div class="bar" data-value="80%" style="height:80%"></div>Listening</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TEACHER -->
+        <section class="view" id="teacher-home">
+          <div class="page-heading">
+            <div><h2>Không gian giáo viên</h2><p>Quản lý ngân hàng câu hỏi, tạo đề và theo dõi tiến độ lớp học.</p></div>
+            <button class="btn btn-primary" id="createTestBtn">+ Tạo bài kiểm tra</button>
+          </div>
+
+          <div class="grid stats-grid">
+            <div class="card stat-card"><div class="stat-icon">▤</div><div><strong>126</strong><span>Câu hỏi trong kho</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">♙</div><div><strong>82</strong><span>Học sinh lớp 9</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">✓</div><div><strong>71%</strong><span>Đã hoàn thành bài</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#f0f9ff">▥</div><div><strong>12</strong><span>Bài kiểm tra đã tạo</span></div></div>
+          </div>
+
+          <div class="section grid teacher-grid">
+            <div class="card feature-card">
+              <div class="big-icon">📄</div><h3>Nhập câu hỏi từ DOCX</h3>
+              <p>Tải file Word, kiểm tra dữ liệu nhận diện rồi nhập vào ngân hàng câu hỏi.</p>
+              <button class="btn btn-soft btn-sm" id="uploadDocxBtn">Tải file DOCX</button>
+              <input id="docxInput" type="file" accept=".docx" hidden />
+            </div>
+            <div class="card feature-card">
+              <div class="big-icon">🧠</div><h3>Ngân hàng câu hỏi</h3>
+              <p>Lọc theo Unit, kỹ năng, dạng bài và độ khó.</p>
+              <button class="btn btn-soft btn-sm">Quản lý câu hỏi</button>
+            </div>
+            <div class="card feature-card">
+              <div class="big-icon">📊</div><h3>Báo cáo lớp học</h3>
+              <p>Xem điểm, thời gian làm, câu sai phổ biến và xuất Excel.</p>
+              <button class="btn btn-soft btn-sm">Xem báo cáo</button>
+            </div>
+          </div>
+
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Bài kiểm tra gần đây</h3><button class="btn btn-light btn-sm">Xem tất cả</button></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Tên bài</th><th>Lớp</th><th>Đã nộp</th><th>Điểm TB</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>Mid-term Practice 01</strong></td><td>9A1</td><td>31/42</td><td>8.2</td><td><button class="btn btn-light btn-sm qr-open">Mã QR</button></td></tr>
+                    <tr><td><strong>Vocabulary – Unit 5</strong></td><td>9A2</td><td>28/40</td><td>8.5</td><td><button class="btn btn-light btn-sm qr-open">Mã QR</button></td></tr>
+                    <tr><td><strong>Reading – Unit 4</strong></td><td>9A1</td><td>42/42</td><td>8.8</td><td><button class="btn btn-success btn-sm">Chi tiết</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Tiến độ theo lớp</h3></div>
+              <div class="chart">
+                <div class="bar-wrap"><div class="bar" data-value="74%" style="height:74%"></div>9A1</div>
+                <div class="bar-wrap"><div class="bar" data-value="70%" style="height:70%"></div>9A2</div>
+                <div class="bar-wrap"><div class="bar" data-value="82%" style="height:82%"></div>9A3</div>
+                <div class="bar-wrap"><div class="bar" data-value="65%" style="height:65%"></div>9A4</div>
+              </div>
+            </div>
+          </div>
+          <section class="section card panel writing-queue-panel">
+            <div class="section-head"><div><h3>Writing chờ chấm thủ công</h3><p class="small muted">Bài viết của học sinh được tách khỏi điểm tự động để giáo viên nhận xét và cho điểm.</p></div><button class="btn btn-light btn-sm" id="refreshWritingQueue">Làm mới</button></div>
+            <div class="writing-queue-list" id="writingQueueList"><p class="small muted">Đang tải hàng đợi chấm bài...</p></div>
+          </section>
+        </section>
+
+        <!-- PARENT -->
+        <section class="view" id="parent-home">
+          <div class="page-heading">
+            <div><h2>Theo dõi học tập</h2><p>Tổng hợp tiến độ, điểm số và bài tập của học sinh.</p></div>
+            <button class="btn btn-light">Tải báo cáo tháng</button>
+          </div>
+
+          <div class="hero" style="min-height:190px">
+            <div>
+              <span class="badge" style="background:rgba(255,255,255,.15);color:white">Học sinh: Nguyễn Văn A · Lớp 9A1</span>
+              <h3>Tiến độ tuần này đang ở mức tốt</h3>
+              <p>Đã hoàn thành 5/6 bài được giao. Kỹ năng Reading nổi bật; Pronunciation cần luyện thêm.</p>
+            </div>
+            <div class="hero-visual">
+              <div class="hero-ring" style="background:conic-gradient(#34d399 0 83%,rgba(255,255,255,.16) 83%)"><strong>8.6</strong></div>
+              <p>Điểm trung bình hiện tại</p>
+            </div>
+          </div>
+
+          <div class="grid stats-grid">
+            <div class="card stat-card"><div class="stat-icon">✓</div><div><strong>5/6</strong><span>Bài đã hoàn thành</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">★</div><div><strong>8.6</strong><span>Điểm trung bình</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">◷</div><div><strong>4h 20m</strong><span>Thời gian học tuần</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2">!</div><div><strong>1</strong><span>Bài sắp đến hạn</span></div></div>
+          </div>
+
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Bài tập gần đây</h3></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Bài tập</th><th>Trạng thái</th><th>Điểm</th></tr></thead>
+                  <tbody>
+                    <tr><td><strong>Reading – Unit 4</strong></td><td><span class="badge green">Đã làm</span></td><td>9.0</td></tr>
+                    <tr><td><strong>Vocabulary – Unit 5</strong></td><td><span class="badge green">Đã làm</span></td><td>8.5</td></tr>
+                    <tr><td><strong>Mid-term Practice 01</strong></td><td><span class="badge orange">Đang làm</span></td><td>—</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Điểm theo kỹ năng</h3></div>
+              <div class="chart">
+                <div class="bar-wrap"><div class="bar" data-value="8.8" style="height:88%"></div>Vocab</div>
+                <div class="bar-wrap"><div class="bar" data-value="7.4" style="height:74%"></div>Pron.</div>
+                <div class="bar-wrap"><div class="bar" data-value="9.1" style="height:91%"></div>Reading</div>
+                <div class="bar-wrap"><div class="bar" data-value="8.0" style="height:80%"></div>Writing</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- WEB DATA MANAGEMENT -->
+        <section class="view" id="data-admin">
+          <div class="page-heading">
+            <div><h2>Hệ quản lý dữ liệu web</h2><p>Quản lý tài khoản, câu hỏi, bài kiểm tra, sao lưu và nhật ký hoạt động.</p></div>
+            <div class="data-toolbar">
+              <input id="jsonImportInput" type="file" accept="application/json,.json" hidden />
+              <button class="btn btn-light" id="importDataBtn">Nhập JSON</button>
+              <button class="btn btn-light" id="exportDataBtn">Xuất dữ liệu</button>
+              <button class="btn btn-primary" id="openAddUser">+ Thêm tài khoản</button>
+            </div>
+          </div>
+
+          <div class="grid stats-grid">
+            <div class="card stat-card"><div class="stat-icon">♙</div><div><strong id="dbUserCount">0</strong><span>Tài khoản</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">?</div><div><strong id="dbQuestionCount">0</strong><span>Câu hỏi</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">▤</div><div><strong id="dbTestCount">0</strong><span>Bài kiểm tra</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#f0f9ff">◫</div><div><strong id="dbStorageCount">0 KB</strong><span>Dữ liệu cục bộ</span></div></div>
+          </div>
+
+          <div class="section card panel">
+            <div class="section-head">
+              <div class="data-tabs" id="dataTabs">
+                <button class="data-tab active" data-data-tab="users">Tài khoản</button>
+                <button class="data-tab" data-data-tab="questions">Câu hỏi</button>
+                <button class="data-tab" data-data-tab="tests">Bài kiểm tra</button>
+                <button class="data-tab" data-data-tab="logs">Nhật ký</button>
+              </div>
+              <div class="data-toolbar"><input id="dataSearch" type="search" placeholder="Tìm trong dữ liệu..." style="border:1px solid var(--line);border-radius:12px;padding:9px 11px"><button class="btn btn-danger btn-sm" id="resetDemoData">Khôi phục dữ liệu mẫu</button></div>
+            </div>
+
+            <div class="data-panel active" id="data-users">
+              <div class="table-wrap"><table><thead><tr><th>Họ tên</th><th>Tài khoản</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="userTableBody"></tbody></table></div>
+            </div>
+            <div class="data-panel" id="data-questions">
+              <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Nội dung</th><th>Dạng bài</th><th>Unit</th><th>Trạng thái</th></tr></thead><tbody id="questionTableBody"></tbody></table></div>
+            </div>
+            <div class="data-panel" id="data-tests">
+              <div class="table-wrap"><table><thead><tr><th>Tên bài</th><th>Lớp</th><th>Số câu</th><th>Đã nộp</th><th>Trạng thái</th></tr></thead><tbody id="testTableBody"></tbody></table></div>
+            </div>
+            <div class="data-panel" id="data-logs"><div class="activity-log" id="activityLog"></div></div>
+          </div>
+
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Tình trạng hệ thống</h3><span class="badge green">Hoạt động tốt</span></div>
+              <div class="system-health">
+                <div class="health-row"><strong>Ứng dụng</strong><div class="health-meter"><span style="width:42%"></span></div><b>42%</b></div>
+                <div class="health-row"><strong>Cơ sở dữ liệu</strong><div class="health-meter"><span style="width:31%"></span></div><b>31%</b></div>
+                <div class="health-row"><strong>Lưu trữ</strong><div class="health-meter"><span style="width:18%"></span></div><b>18%</b></div>
+              </div>
+              <p class="small muted" style="margin:16px 0 0">Các chỉ số trên là dữ liệu minh họa cho giao diện frontend.</p>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Sao lưu dữ liệu</h3></div>
+              <p class="muted" style="font-size:13px;line-height:1.6">Tạo bản sao dữ liệu tài khoản, câu hỏi, bài kiểm tra và nhật ký dưới dạng JSON.</p>
+              <div class="notice"><strong>Lần sao lưu gần nhất</strong><p id="lastBackupText">Chưa có bản sao lưu trong phiên này.</p></div>
+              <button class="btn btn-primary" id="backupNow" style="width:100%;margin-top:13px">Sao lưu ngay</button>
+            </div>
+          </div>
+        </section>
+
+
+
+        <!-- SMART REVIEW -->
+        <section class="view" id="smart-review">
+          <div class="page-heading">
+            <div><h2>Ôn tập thông minh</h2><p>ENGO phân tích bài làm gần nhất để ưu tiên kỹ năng cần cải thiện.</p></div>
+            <button class="btn btn-primary start-quiz">Bắt đầu bài ôn đề xuất</button>
+          </div>
+          <div class="grid smart-grid">
+            <div class="card stat-card"><div class="stat-icon">🎯</div><div><strong id="smartAccuracy">0%</strong><span>Độ chính xác tổng</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">★</div><div><strong id="smartBest">0.0</strong><span>Điểm cao nhất</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">↻</div><div><strong id="smartAttempts">0</strong><span>Lượt luyện đã hoàn thành</span></div></div>
+          </div>
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Kỹ năng nên ôn trước</h3><span class="badge orange">Phân tích cá nhân</span></div>
+              <div class="weak-skill-list" id="weakSkillList"></div>
+            </div>
+            <div class="card recommendation-card">
+              <span class="badge" style="background:rgba(255,255,255,.15);color:white">Đề xuất hôm nay</span>
+              <h3 style="font-size:24px;margin:15px 0 8px" id="smartRecommendationTitle">Làm bài chẩn đoán ngắn</h3>
+              <p id="smartRecommendation">Bạn chưa có đủ dữ liệu. Hãy hoàn thành một bài luyện để ENGO xác định kỹ năng cần ưu tiên.</p>
+              <button class="btn btn-light start-quiz">Luyện theo đề xuất</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- FOCUS ROOM -->
+        <section class="view" id="focus-room">
+          <div class="page-heading">
+            <div><h2>Phòng tập trung</h2><p>Học theo phiên ngắn, hạn chế xao nhãng và ghi nhận thời gian học.</p></div>
+          </div>
+          <div class="grid focus-layout">
+            <div class="card focus-stage">
+              <div class="focus-label" id="focusLabel">Phiên học tập</div>
+              <div class="focus-modes">
+                <button class="focus-mode active" data-focus-minutes="25" data-focus-label="Phiên học tập">25 phút</button>
+                <button class="focus-mode" data-focus-minutes="5" data-focus-label="Nghỉ ngắn">Nghỉ 5 phút</button>
+                <button class="focus-mode" data-focus-minutes="15" data-focus-label="Nghỉ dài">Nghỉ 15 phút</button>
+              </div>
+              <div class="focus-time" id="focusTime">25:00</div>
+              <div class="focus-controls">
+                <button class="btn btn-primary" id="focusStart">Bắt đầu</button>
+                <button class="btn btn-light" id="focusReset">Đặt lại</button>
+              </div>
+              <p class="small muted" style="margin:20px 0 0">Mẹo: tắt thông báo, chỉ mở tài liệu cần thiết và học đến khi chuông kết thúc.</p>
+            </div>
+            <aside class="card focus-side">
+              <div class="section-head"><h3>Thống kê tập trung</h3></div>
+              <div class="focus-stat-grid">
+                <div class="focus-stat"><strong id="focusSessions">0</strong><span class="small muted">Phiên hoàn thành</span></div>
+                <div class="focus-stat"><strong id="focusMinutes">0</strong><span class="small muted">Phút tập trung</span></div>
+              </div>
+              <div class="notice" style="margin-top:14px"><strong>Quy tắc một việc</strong><p>Trong mỗi phiên chỉ chọn một mục tiêu: làm bài, học từ hoặc chữa lỗi sai.</p></div>
+              <div class="notice" style="margin-top:10px"><strong>Phần thưởng</strong><p>Mỗi phiên hoàn thành nhận 20 XP và mở khóa huy hiệu tập trung.</p></div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ACHIEVEMENTS -->
+        <section class="view" id="achievements">
+          <div class="page-heading">
+            <div><h2>Thành tích học tập</h2><p>Tích lũy XP, duy trì thói quen và mở khóa huy hiệu.</p></div>
+          </div>
+          <div class="card achievement-summary">
+            <div class="level-badge"><div><strong id="achievementLevel">1</strong><span>Cấp độ ENGO</span></div></div>
+            <div>
+              <span class="badge orange">Tổng điểm: <b id="achievementPoints">0 XP</b></span>
+              <h3 style="font-size:25px;margin:13px 0 7px" id="achievementLevelName">Người học khởi động</h3>
+              <p class="muted" style="line-height:1.65;margin:0">Hoàn thành kế hoạch ngày, bài luyện và phiên tập trung để tăng cấp.</p>
+              <div class="progress" style="margin-top:15px"><span id="achievementProgress" style="width:0%"></span></div>
+              <div class="small muted" id="achievementProgressText" style="margin-top:7px">0/100 XP đến cấp tiếp theo</div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-head"><h3>Bộ sưu tập huy hiệu</h3><span class="small muted" id="achievementCount">0/8 đã mở khóa</span></div>
+            <div class="grid achievement-grid" id="achievementGrid"></div>
+          </div>
+        </section>
+
+
+        <!-- QUIZ -->
+        <section class="view" id="quiz">
+          <div class="page-heading">
+            <div><h2>Mid-term Practice 01</h2><p>Hệ thống tự động lưu đáp án trên thiết bị này.</p></div>
+            <button class="btn btn-light" id="exitQuiz">Thoát bài</button>
+          </div>
+
+          <div class="grid quiz-layout">
+            <div class="card quiz-card">
+              <div class="quiz-head">
+                <div>
+                  <span class="badge" id="questionType">Multiple Choice</span>
+                  <h3 style="margin-top:9px">Phần luyện tập tổng hợp</h3>
+                </div>
+                <div class="timer" id="timer">20:00</div>
+              </div>
+
+              <div class="question-box">
+                <div class="small muted" id="questionCounter">Câu 1 / 6</div>
+                <div id="questionContent"></div>
+                <div id="answerArea"></div>
+                <div class="explanation hidden" id="explanationBox"></div>
+              </div>
+
+              <div class="quiz-actions">
+                <button class="btn btn-light" id="prevQuestion">← Câu trước</button>
+                <div style="display:flex;gap:10px">
+                  <button class="btn btn-soft" id="checkAnswer">Kiểm tra</button>
+                  <button class="btn btn-primary" id="nextQuestion">Câu tiếp →</button>
+                </div>
+              </div>
+            </div>
+
+            <aside class="card question-nav">
+              <div class="section-head"><h3>Danh sách câu</h3><span class="small muted" id="saveStatus">Đã tự lưu</span></div>
+              <div class="progress"><span id="quizProgress" style="width:16.6%"></span></div>
+              <div class="q-grid" id="questionGrid"></div>
+              <div class="legend">
+                <span class="lg-current">Câu hiện tại</span>
+                <span class="lg-done">Đã trả lời</span>
+                <span>Chưa trả lời</span>
+              </div>
+              <button class="btn btn-primary" id="submitQuiz" style="width:100%;margin-top:18px">Nộp bài</button>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+
+
+  <aside class="notification-panel" id="notificationPanel" aria-label="Trung tâm thông báo">
+    <div class="notification-head"><h3>Thông báo</h3><button class="btn btn-soft btn-sm" id="markNotificationsRead">Đánh dấu đã đọc</button></div>
+    <div class="notification-list" id="notificationList"></div>
+  </aside>
+
+
+  <!-- RESULT MODAL -->
+  <div class="modal hidden" id="resultModal">
+    <div class="modal-card">
+      <div class="modal-head"><h3>Kết quả bài làm</h3><button class="close-btn modal-close">×</button></div>
+      <div class="result-score"><div><strong id="finalScore">8.3</strong><span class="small muted">điểm</span></div></div>
+      <h3 style="text-align:center;margin:0">Hoàn thành tốt!</h3>
+      <p class="muted" style="text-align:center">Đáp án và lời giải đã sẵn sàng để xem lại.</p>
+      <div class="grid result-grid">
+        <div class="result-item"><strong id="correctCount">5</strong><span class="small muted">Câu đúng</span></div>
+        <div class="result-item"><strong id="wrongCount">1</strong><span class="small muted">Câu sai</span></div>
+        <div class="result-item"><strong id="attemptCount">1</strong><span class="small muted">Lần làm</span></div>
+      </div>
+      <div class="explanation">
+        <strong>Gợi ý ôn tập:</strong> Xem lại cách dùng thì hiện tại đơn, word form và trọng âm từ có ba âm tiết.
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button class="btn btn-light modal-close" style="flex:1">Về trang chủ</button>
+        <button class="btn btn-primary" id="retryQuiz" style="flex:1">Làm lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR MODAL -->
+  <div class="modal hidden" id="qrModal">
+    <div class="modal-card">
+      <div class="modal-head"><h3>Chia sẻ bài tập</h3><button class="close-btn qr-close">×</button></div>
+      <p class="muted" style="text-align:center">Học sinh quét mã hoặc mở đường link bên dưới.</p>
+      <div class="qr-grid" id="qrGrid" aria-label="Mã QR minh họa"></div>
+      <div class="field">
+        <label>Đường link bài tập</label>
+        <div style="display:flex;gap:8px">
+          <input id="shareLink" value="https://global9.edu.vn/bai-tap/midterm-01" readonly />
+          <button class="btn btn-primary" id="copyLink">Sao chép</button>
+        </div>
+      </div>
+      <p class="small muted" style="text-align:center">Mã QR trong bản demo chỉ mang tính minh họa giao diện.</p>
+    </div>
+  </div>
+
+  <!-- CREATE TEST MODAL -->
+  <div class="modal hidden" id="createTestModal">
+    <div class="modal-card">
+      <div class="modal-head"><h3>Tạo bài kiểm tra mới</h3><button class="close-btn create-close">×</button></div>
+      <div class="form-grid">
+        <div class="field full"><label>Tên bài kiểm tra</label><input value="Mid-term Practice 02" /></div>
+        <div class="field"><label>Lớp</label><select><option>9A1</option><option>9A2</option><option>9A3</option></select></div>
+        <div class="field"><label>Thời gian</label><input type="number" value="35" /></div>
+        <div class="field"><label>Số lần được làm</label><input type="number" value="3" /></div>
+        <div class="field"><label>Hiện đáp án</label><select><option>Sau khi nộp bài</option><option>Sau khi hết hạn</option><option>Không hiện</option></select></div>
+        <div class="field full"><label>Mô tả</label><textarea>Ôn tập tổng hợp Unit 1–5 theo cấu trúc giữa kỳ.</textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button class="btn btn-light create-close" style="flex:1">Hủy</button>
+        <button class="btn btn-primary" id="saveTest" style="flex:1">Tạo bài</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ADD USER MODAL -->
+  <div class="modal hidden" id="addUserModal">
+    <div class="modal-card">
+      <div class="modal-head"><h3>Thêm tài khoản</h3><button class="close-btn add-user-close">×</button></div>
+      <form id="addUserForm" class="form-grid">
+        <div class="field full"><label>Họ và tên</label><input id="newUserName" required placeholder="Nguyễn Văn A" /></div>
+        <div class="field full"><label>Email hoặc mã tài khoản</label><input id="newUserEmail" required placeholder="student02@global9.edu.vn" /></div>
+        <div class="field"><label>Vai trò</label><select id="newUserRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option><option value="admin">Quản trị viên</option></select></div>
+        <div class="field"><label>Trạng thái</label><select id="newUserStatus"><option value="active">Đang hoạt động</option><option value="pending">Chờ duyệt</option><option value="locked">Đã khóa</option></select></div>
+        <div class="field full"><label>Mật khẩu tạm</label><input id="newUserPassword" value="123456" minlength="6" required /></div>
+        <div class="field full" style="display:flex;gap:10px;grid-template-columns:none"><button type="button" class="btn btn-light add-user-close" style="flex:1">Hủy</button><button type="submit" class="btn btn-primary" style="flex:1">Lưu tài khoản</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Đã lưu</div>
+
+  <script src="./script.js" defer></script>
+</body>
+</html>
