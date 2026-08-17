@@ -48,6 +48,9 @@
       });
       sidebar.classList.remove("open");
       window.scrollTo({top:0,behavior:"smooth"});
+      if(id==="results" && currentUser && currentUser.role==="student"){
+        renderStudentResults();
+      }
     }
 
     navButtons.forEach(btn=>{
@@ -111,16 +114,19 @@
     function cloneDefaultDB(){return JSON.parse(JSON.stringify(defaultDatabase))}
     function getDB(){
       try{
-        const stored=JSON.parse(localStorage.getItem("global9ContentDB"));
+        const stored=JSON.parse(localStorage.getItem("engoContentDB"));
         return stored&&stored.questions&&stored.tests&&stored.logs?stored:cloneDefaultDB();
       }catch{return cloneDefaultDB()}
     }
-    function saveDB(db){localStorage.setItem("global9ContentDB",JSON.stringify(db))}
-    if(!localStorage.getItem("global9ContentDB")) saveDB(cloneDefaultDB());
+    function saveDB(db){localStorage.setItem("engoContentDB",JSON.stringify(db))}
+    if(!localStorage.getItem("engoContentDB")) saveDB(cloneDefaultDB());
 
     // Xóa dữ liệu đăng nhập giả từ phiên bản cũ.
+    localStorage.removeItem("engoSession");
+    localStorage.removeItem("engoDB");
     localStorage.removeItem("global9Session");
     localStorage.removeItem("global9DB");
+    localStorage.removeItem("global9ContentDB");
 
     function setAuthError(element,message=""){
       element.textContent=message;
@@ -142,10 +148,18 @@
       const welcome=document.getElementById("welcomeHeading");
       if(welcome&&user.role==="student"){
         const shortName=String(user.fullName||"học sinh").trim().split(/\s+/).slice(-2).join(" ");
-        welcome.textContent=`Chào ${shortName}, hôm nay cùng hoàn thành Unit 5 nhé!`;
+        const classBadge=user.className ? ` · Lớp ${escapeHTML(user.className)}` : "";
+        welcome.textContent=`Chào ${shortName}${classBadge}, hôm nay cùng hoàn thành Unit 5 nhé!`;
       }
-      if(user.role==="student") renderImportedTests();
-      if(user.role==="teacher") renderWritingQueue();
+      if(user.role==="student"){
+        renderImportedTests();
+        renderStudentResults();
+      }
+      if(user.role==="teacher"){
+        renderTeacherResults();
+        renderTeacherStats();
+        renderTeacherRecentTests();
+      }
     }
 
     function completeLogin(user){
@@ -180,6 +194,17 @@
       input.type=input.type==="password"?"text":"password";
     }));
 
+    // Toggle hiển thị chọn Lớp khi đổi vai trò ở form đăng ký
+    const registerRoleSelect=document.getElementById("registerRole");
+    const registerClassGroup=document.getElementById("registerClassGroup");
+    if(registerRoleSelect && registerClassGroup){
+      registerRoleSelect.addEventListener("change",()=>{
+        const isStudent=registerRoleSelect.value==="student";
+        registerClassGroup.style.display=isStudent?"block":"none";
+        if(!isStudent) document.getElementById("registerClass").value="";
+      });
+    }
+
     document.getElementById("loginForm").addEventListener("submit",async e=>{
       e.preventDefault();
       const error=document.getElementById("loginError");
@@ -212,16 +237,24 @@
       const password=document.getElementById("registerPassword").value;
       const confirm=document.getElementById("registerConfirm").value;
       const role=document.getElementById("registerRole").value;
+      const className=document.getElementById("registerClass")?.value || "";
+
       if(password!==confirm){setAuthError(error,"Hai mật khẩu chưa trùng khớp.");return}
+      if(role==="student" && !className){
+        setAuthError(error,"Vui lòng chọn lớp học của bạn.");
+        return;
+      }
+
       const submit=e.submitter;
       if(submit) submit.disabled=true;
       try{
         const data=await apiRequest("/api/auth/register",{
           method:"POST",
-          body:JSON.stringify({fullName,email,password,role})
+          body:JSON.stringify({fullName,email,password,role,className})
         });
         showToast(data.message||"Đăng ký thành công.");
         e.target.reset();
+        if(registerClassGroup) registerClassGroup.style.display="block";
         document.getElementById("loginEmail").value=email;
         document.querySelector('[data-auth-tab="login"]').click();
       }catch(err){
@@ -336,8 +369,11 @@
       document.getElementById("dbTestCount").textContent=db.tests.length;
       document.getElementById("dbStorageCount").textContent=`${Math.max(1,Math.round(new Blob([JSON.stringify(db)]).size/1024))} KB`;
 
-      const users=adminUsers.filter(u=>`${u.fullName} ${u.email} ${u.role}`.toLowerCase().includes(term));
-      document.getElementById("userTableBody").innerHTML=users.map(u=>`<tr><td><strong>${escapeHTML(u.fullName)}</strong></td><td>${escapeHTML(u.email)}</td><td>${roleLabels[u.role]||u.role}</td><td><span class="badge ${u.status==="active"?"green":u.status==="locked"?"red":"orange"}">${statusLabels[u.status]||u.status}</span></td><td><button class="btn btn-light btn-sm user-toggle" data-user-id="${u.id}" data-user-status="${u.status}">${u.status==="locked"?"Mở khóa":u.status==="pending"?"Duyệt":"Khóa"}</button> <button class="btn btn-danger btn-sm user-delete" data-user-id="${u.id}">Xóa</button></td></tr>`).join("")||`<tr><td colspan="5" class="empty-state">Không tìm thấy tài khoản.</td></tr>`;
+      const users=adminUsers.filter(u=>`${u.fullName} ${u.email} ${u.role} ${u.className||""}`.toLowerCase().includes(term));
+      document.getElementById("userTableBody").innerHTML=users.map(u=>{
+        const roleText = u.role === "student" && u.className ? `Học sinh (${escapeHTML(u.className)})` : (roleLabels[u.role]||u.role);
+        return `<tr><td><strong>${escapeHTML(u.fullName)}</strong></td><td>${escapeHTML(u.email)}</td><td>${roleText}</td><td><span class="badge ${u.status==="active"?"green":u.status==="locked"?"red":"orange"}">${statusLabels[u.status]||u.status}</span></td><td><button class="btn btn-light btn-sm user-toggle" data-user-id="${u.id}" data-user-status="${u.status}">${u.status==="locked"?"Mở khóa":u.status==="pending"?"Duyệt":"Khóa"}</button> <button class="btn btn-danger btn-sm user-delete" data-user-id="${u.id}">Xóa</button></td></tr>`;
+      }).join("")||`<tr><td colspan="5" class="empty-state">Không tìm thấy tài khoản.</td></tr>`;
 
       const qs=db.questions.filter(q=>`${q.id} ${q.content} ${q.type} ${q.unit}`.toLowerCase().includes(term));
       document.getElementById("questionTableBody").innerHTML=qs.map(q=>`<tr><td><strong>${escapeHTML(q.id)}</strong></td><td>${escapeHTML(q.content)}</td><td>${escapeHTML(q.type)}</td><td>${escapeHTML(q.unit)}</td><td><span class="badge ${q.status==="Đã duyệt"?"green":"orange"}">${escapeHTML(q.status)}</span></td></tr>`).join("")||`<tr><td colspan="5" class="empty-state">Không tìm thấy câu hỏi.</td></tr>`;
@@ -375,6 +411,16 @@
     document.getElementById("openAddUser").addEventListener("click",()=>document.getElementById("addUserModal").classList.remove("hidden"));
     document.querySelectorAll(".add-user-close").forEach(btn=>btn.addEventListener("click",()=>document.getElementById("addUserModal").classList.add("hidden")));
 
+    const newUserRoleSelect=document.getElementById("newUserRole");
+    const newUserClassGroup=document.getElementById("newUserClassGroup");
+    if(newUserRoleSelect && newUserClassGroup){
+      newUserRoleSelect.addEventListener("change",()=>{
+        const isStudent=newUserRoleSelect.value==="student";
+        newUserClassGroup.style.display=isStudent?"block":"none";
+        if(!isStudent) document.getElementById("newUserClass").value="";
+      });
+    }
+
     document.getElementById("addUserForm").addEventListener("submit",async e=>{
       e.preventDefault();
       try{
@@ -385,66 +431,68 @@
             email:document.getElementById("newUserEmail").value.trim(),
             password:document.getElementById("newUserPassword").value,
             role:document.getElementById("newUserRole").value,
+            className:document.getElementById("newUserClass")?.value || "",
             status:document.getElementById("newUserStatus").value
           })
         });
         document.getElementById("addUserModal").classList.add("hidden");
         e.target.reset();
+        if(newUserClassGroup) newUserClassGroup.style.display="block";
         showToast("Đã thêm tài khoản vào MySQL");
         await renderDataAdmin();
       }catch(err){showToast(err.message)}
     });
 
     function downloadJSON(data,filename){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)}
-    document.getElementById("exportDataBtn").addEventListener("click",async()=>{try{await loadAdminUsers();downloadJSON({...getDB(),users:adminUsers},`global9-data-${new Date().toISOString().slice(0,10)}.json`);showToast("Đã xuất dữ liệu JSON")}catch(err){showToast(err.message)}});
-    document.getElementById("backupNow").addEventListener("click",async()=>{try{await loadAdminUsers();downloadJSON({...getDB(),users:adminUsers},`global9-backup-${Date.now()}.json`);document.getElementById("lastBackupText").textContent=`Đã sao lưu lúc ${new Date().toLocaleString("vi-VN")}.`;showToast("Đã tạo bản sao lưu")}catch(err){showToast(err.message)}});
+    document.getElementById("exportDataBtn").addEventListener("click",async()=>{try{await loadAdminUsers();downloadJSON({...getDB(),users:adminUsers},`engo-data-${new Date().toISOString().slice(0,10)}.json`);showToast("Đã xuất dữ liệu JSON")}catch(err){showToast(err.message)}});
+    document.getElementById("backupNow").addEventListener("click",async()=>{try{await loadAdminUsers();downloadJSON({...getDB(),users:adminUsers},`engo-backup-${Date.now()}.json`);document.getElementById("lastBackupText").textContent=`Đã sao lưu lúc ${new Date().toLocaleString("vi-VN")}.`;showToast("Đã tạo bản sao lưu")}catch(err){showToast(err.message)}});
     document.getElementById("importDataBtn").addEventListener("click",()=>document.getElementById("jsonImportInput").click());
     document.getElementById("jsonImportInput").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const imported=JSON.parse(reader.result);if(!imported.questions||!imported.tests||!imported.logs)throw new Error();saveDB({questions:imported.questions,tests:imported.tests,logs:imported.logs});renderDataAdmin();showToast("Đã nhập nội dung; tài khoản MySQL không bị thay đổi")}catch{showToast("File JSON không đúng cấu trúc")}};reader.readAsText(file)});
     document.getElementById("resetDemoData").addEventListener("click",()=>{saveDB(cloneDefaultDB());renderDataAdmin();showToast("Đã khôi phục dữ liệu nội dung mẫu")});
 
-    // Quiz data
+    // Quiz data: Bài tập trọng tâm Present Simple & Past Simple
     const defaultQuestions = [
       {
-        type:"Pronunciation",
-        prompt:"Choose the word whose underlined part is pronounced differently.",
-        options:["A. wanted","B. needed","C. played","D. visited"],
-        answer:2,
-        explanation:"“Played” có đuôi -ed phát âm /d/; các từ còn lại phát âm /ɪd/."
+        type: "Present Simple",
+        prompt: "Choose the best answer: My brother usually ______ football with his friends every Sunday afternoon.",
+        options: ["A. play", "B. plays", "C. played", "D. playing"],
+        answer: 1,
+        explanation: "Chủ ngữ 'My brother' (ngôi thứ 3 số ít) + dấu hiệu 'usually / every Sunday' -> thì Hiện tại đơn: Verb + s/es (plays)."
       },
       {
-        type:"Vocabulary",
-        prompt:"People in my neighbourhood are very ______. They are always willing to help others.",
-        options:["A. crowded","B. friendly","C. polluted","D. historical"],
-        answer:1,
-        explanation:"“Friendly” phù hợp với ý luôn sẵn sàng giúp đỡ người khác."
+        type: "Past Simple",
+        prompt: "Choose the best answer: Yesterday, we ______ a very interesting documentary about endangered animals.",
+        options: ["A. watch", "B. watches", "C. watched", "D. are watching"],
+        answer: 2,
+        explanation: "Dấu hiệu 'Yesterday' chỉ thời gian trong quá khứ -> thì Quá khứ đơn: Động từ có quy tắc thêm -ed (watched)."
       },
       {
-        type:"Word Form",
-        prompt:"Complete the sentence with the correct form of the word: The local people are very ______ to visitors. (FRIEND)",
-        textAnswer:"friendly",
-        explanation:"Sau “are very” cần một tính từ. Tính từ của “friend” là “friendly”."
+        type: "Present Simple vs Past Simple",
+        prompt: "Choose the correct pair of verbs: She usually ______ up early, but yesterday she ______ late because of a headache.",
+        options: ["A. wakes / got up", "B. wake / get up", "C. woke / gets up", "D. wakes / gets up"],
+        answer: 0,
+        explanation: "Vế 1 diễn tả thói quen 'usually' dùng Hiện tại đơn (wakes); vế 2 có 'yesterday' dùng Quá khứ đơn (got up)."
       },
       {
-        type:"Reading",
-        passage:"Living in a close-knit community has many advantages. People know one another well, share local news and often help when someone has a problem. Community events also give residents a chance to meet and work together.",
-        prompt:"According to the passage, why are community events useful?",
-        options:["A. They reduce traffic.","B. They help residents meet and cooperate.","C. They make houses cheaper.","D. They replace local schools."],
-        answer:1,
-        explanation:"Đoạn văn nêu rằng sự kiện cộng đồng giúp cư dân gặp gỡ và cùng làm việc."
+        type: "Past Simple (Irregular)",
+        prompt: "Complete the sentence with the correct past form of the verb: Last summer, my family ______ to Da Nang on vacation. (GO)",
+        textAnswer: "went",
+        accepted: ["went"],
+        explanation: "Động từ bất quy tắc của 'go' ở thì Quá khứ đơn là 'went'."
       },
       {
-        type:"Sentence Writing",
-        prompt:"Rewrite the sentence without changing its meaning: “I last visited my grandparents two months ago.”",
-        textAnswer:"I have not visited my grandparents for two months.",
-        accepted:["i have not visited my grandparents for two months.","i haven't visited my grandparents for two months."],
-        explanation:"Dùng hiện tại hoàn thành: have not + past participle + for + khoảng thời gian."
+        type: "Present Simple (Negative)",
+        prompt: "Choose the best answer: He ______ like spicy food, so he never orders chili chicken.",
+        options: ["A. don't", "B. doesn't", "C. didn't", "D. isn't"],
+        answer: 1,
+        explanation: "Thì Hiện tại đơn dạng phủ định với chủ ngữ 'He': He + doesn't + V (nguyên mẫu)."
       },
       {
-        type:"Multiple Choice",
-        prompt:"Choose the best answer: My sister usually ______ to school by bicycle.",
-        options:["A. go","B. goes","C. going","D. gone"],
-        answer:1,
-        explanation:"Chủ ngữ “My sister” là ngôi thứ ba số ít nên động từ thêm -es: goes."
+        type: "Past Simple (Question)",
+        prompt: "Choose the correct auxiliary verb: '______ you visit your grandparents last weekend?' - 'Yes, I did.'",
+        options: ["A. Do", "B. Does", "C. Did", "D. Were"],
+        answer: 2,
+        explanation: "Câu hỏi thì Quá khứ đơn với động từ thường: Did + S + V (nguyên mẫu)?"
       }
     ];
 
@@ -452,11 +500,11 @@
     let activeImportedTest=null;
 
     let currentQuestion=0;
-    let answers=JSON.parse(localStorage.getItem("global9Answers")||"{}");
+    let answers=JSON.parse(localStorage.getItem("engoAnswers")||localStorage.getItem("global9Answers")||"{}");
     let checked={};
     let secondsLeft=20*60;
     let timerInterval=null;
-    let attempts=Number(localStorage.getItem("global9Attempts")||"0");
+    let attempts=Number(localStorage.getItem("engoAttempts")||localStorage.getItem("global9Attempts")||"0");
 
     const questionContent=document.getElementById("questionContent");
     const answerArea=document.getElementById("answerArea");
@@ -468,7 +516,7 @@
     const timer=document.getElementById("timer");
 
     function saveAnswers(){
-      localStorage.setItem("global9Answers",JSON.stringify(answers));
+      localStorage.setItem("engoAnswers",JSON.stringify(answers));
       const status=document.getElementById("saveStatus");
       status.textContent="Đang lưu...";
       setTimeout(()=>status.textContent="Đã tự lưu",350);
@@ -585,6 +633,45 @@
     document.getElementById("submitQuiz").addEventListener("click",submitQuiz);
     document.getElementById("exitQuiz").addEventListener("click",()=>switchView("student-home"));
 
+    function applyResultScoreUI(scoreVal, isPendingManual = false){
+      const ring = document.getElementById("resultScoreRing");
+      const verdictEl = document.getElementById("resultVerdict");
+      const feedbackEl = document.getElementById("resultFeedback");
+      const scoreNum = Number(scoreVal) || 0;
+      const percent = Math.min(100, Math.max(0, Math.round((scoreNum / 10) * 100)));
+
+      // Vòng tròn tính điểm: >= 6 là màu xanh, < 6 là màu đỏ
+      const isPassGreen = scoreNum >= 6;
+      const ringColor = isPassGreen ? "#22c55e" : "#ef4444";
+
+      if (ring) {
+        ring.style.background = `conic-gradient(${ringColor} 0 ${percent}%, #e5e7eb ${percent}% 100%)`;
+      }
+
+      // Nhận xét theo các mức điểm
+      if (verdictEl && feedbackEl) {
+        if (scoreNum < 5) {
+          verdictEl.textContent = "Chưa tốt!";
+          verdictEl.style.color = "#dc2626";
+          feedbackEl.textContent = isPendingManual
+            ? "Điểm phần trắc nghiệm dưới 5 (chưa tốt). Hãy đợi giáo viên chấm thêm phần Writing và ôn tập lại kiến thức."
+            : "Kết quả bài làm dưới 5 điểm (chưa tốt). Bạn cần xem lại lời giải chi tiết và ôn tập thêm kiến thức nhé.";
+        } else if (scoreNum < 6) {
+          verdictEl.textContent = "Cần cố gắng thêm!";
+          verdictEl.style.color = "#d97706";
+          feedbackEl.textContent = isPendingManual
+            ? "Điểm trắc nghiệm đạt mức trung bình. Hãy chờ điểm Writing từ giáo viên nhé."
+            : "Kết quả bài làm ở mức trung bình. Hãy ôn tập lại các câu chưa đúng để nâng điểm lên trên 6 nhé.";
+        } else {
+          verdictEl.textContent = "Hoàn thành tốt!";
+          verdictEl.style.color = "#16a34a";
+          feedbackEl.textContent = isPendingManual
+            ? "Phần trắc nghiệm làm rất tốt! Điểm tổng kết sẽ được cập nhật sau khi giáo viên chấm xong Writing."
+            : "Chúc mừng bạn đã đạt kết quả tốt! Tiếp tục phát huy ở các bài thi tiếp theo nhé.";
+        }
+      }
+    }
+
     async function submitQuiz(){
       if(activeImportedTest){
         const payload=Object.fromEntries(questions.map((question,index)=>[question.id,question.options?.length&&answers[index]!==undefined?String.fromCharCode(65+Number(answers[index])):(answers[index]??"")]));
@@ -595,6 +682,7 @@
           document.getElementById("correctCount").textContent=`${Number(result.objectiveScore).toFixed(2)}/${Number(result.objectiveMax).toFixed(2)}`;
           document.getElementById("wrongCount").textContent=result.status==="pending_manual"?"Writing chờ chấm":"Đã nộp";
           document.getElementById("attemptCount").textContent="1";
+          applyResultScoreUI(Number(scoreOnTen), result.status==="pending_manual");
           document.getElementById("resultModal").classList.remove("hidden");
           showToast(result.message);
           return;
@@ -603,18 +691,20 @@
       const correct=questions.reduce((sum,_,i)=>sum+(isCorrect(i)?1:0),0);
       const score=(correct/questions.length*10).toFixed(1);
       attempts++;
-      localStorage.setItem("global9Attempts",String(attempts));
+      localStorage.setItem("engoAttempts",String(attempts));
       saveLearningStats(correct,Number(score));
       completeDailyPlanTask("quiz");
       document.getElementById("finalScore").textContent=score;
       document.getElementById("correctCount").textContent=correct;
       document.getElementById("wrongCount").textContent=questions.length-correct;
       document.getElementById("attemptCount").textContent=attempts;
+      applyResultScoreUI(Number(score), false);
       document.getElementById("resultModal").classList.remove("hidden");
     }
 
     document.getElementById("retryQuiz").addEventListener("click",()=>{
       answers={};checked={};currentQuestion=0;secondsLeft=20*60;
+      localStorage.removeItem("engoAnswers");
       localStorage.removeItem("global9Answers");
       document.getElementById("resultModal").classList.add("hidden");
       renderQuestion();
@@ -657,17 +747,28 @@
       return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error("Không thể đọc file DOCX."));reader.readAsDataURL(file)});
     }
 
-    async function importDocxTest(file){
+    async function importDocxTest(file, className = "", title = ""){
       const dataUrl=await fileToDataUrl(file);
-      return apiRequest("/api/tests/import-docx",{method:"POST",body:JSON.stringify({documentBase64:dataUrl,fileName:file.name,title:file.name.replace(/\.docx$/i,"")})});
+      return apiRequest("/api/tests/import-docx",{
+        method:"POST",
+        body:JSON.stringify({
+          documentBase64:dataUrl,
+          fileName:file.name,
+          title:title || file.name.replace(/\.docx$/i,""),
+          className:className || null
+        })
+      });
     }
 
     async function renderImportedTests(){
       const list=document.getElementById("importedTestList");if(!list||!currentUser||currentUser.role!=="student") return;
       try{
         const data=await apiRequest("/api/tests/latest");
-        if(!data.tests.length){list.innerHTML='<p class="small muted">Chưa có bài kiểm tra DOCX nào được giáo viên tạo.</p>';return}
-        list.innerHTML=data.tests.map(test=>`<article class="imported-test-item"><div><h4>${escapeHTML(test.title)}</h4><p>${test.summary.objectiveCount} câu chấm tự động · ${test.summary.manualCount} câu Writing chấm thủ công · Tổng ${test.summary.totalPoints} điểm</p><div class="test-section-pills">${test.sections.map(section=>`<span>${escapeHTML(section.name)} (${section.questions.length})</span>`).join("")}</div></div><button class="btn btn-primary btn-sm" data-imported-test="${test.id}">Làm bài</button></article>`).join("");
+        if(!data.tests.length){list.innerHTML='<p class="small muted">Chưa có bài kiểm tra DOCX nào được giao cho lớp của bạn.</p>';return}
+        list.innerHTML=data.tests.map(test=>{
+          const classTag = test.className ? `<span class="badge blue">Lớp ${escapeHTML(test.className)}</span>` : '<span class="badge">Toàn khối</span>';
+          return `<article class="imported-test-item"><div><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><h4>${escapeHTML(test.title)}</h4> ${classTag}</div><p>${test.summary.objectiveCount} câu chấm tự động · ${test.summary.manualCount} câu Writing chấm thủ công · Tổng ${test.summary.totalPoints} điểm</p><div class="test-section-pills">${test.sections.map(section=>`<span>${escapeHTML(section.name)} (${section.questions.length})</span>`).join("")}</div></div><button class="btn btn-primary btn-sm" data-imported-test="${test.id}">Làm bài</button></article>`;
+        }).join("");
         list.querySelectorAll("[data-imported-test]").forEach(button=>button.addEventListener("click",()=>startImportedTest(button.dataset.importedTest)));
       }catch(error){list.innerHTML=`<p class="small muted">${escapeHTML(error.message)}</p>`}
     }
@@ -682,35 +783,526 @@
       }catch(error){showToast(error.message)}
     }
 
-    async function renderWritingQueue(){
-      const list=document.getElementById("writingQueueList");if(!list||!currentUser||currentUser.role!=="teacher") return;
+    let teacherSubmissionsCache = [];
+
+    async function renderTeacherResults(){
+      const tbody=document.getElementById("teacherResultsTableBody");
+      if(!tbody||!currentUser||currentUser.role!=="teacher") return;
+      const classFilter=document.getElementById("teacherClassFilter")?.value || "";
+      const testFilter=document.getElementById("teacherTestFilter")?.value || "";
+
       try{
-        const data=await apiRequest("/api/teacher/writing-submissions");
-        if(!data.submissions.length){list.innerHTML='<p class="small muted">Chưa có bài Writing nào chờ chấm.</p>';return}
-        list.innerHTML=data.submissions.map(item=>{const answers=Object.values(item.writingAnswers||{}).join("\n\n");return `<article class="writing-queue-item"><div><span class="writing-status ${item.status}">${item.status==="pending_manual"?"Chờ chấm":"Đã chấm"}</span><h4>${escapeHTML(item.student_name)} · ${escapeHTML(item.test_title)}</h4><p>Điểm phần tự động: ${Number(item.objective_score).toFixed(2)}</p><div class="writing-answer-preview">${escapeHTML(answers||"Học sinh chưa nhập nội dung Writing.")}</div></div><form class="writing-grade-form" data-writing-submission="${item.id}"><label class="small">Điểm Writing (0–3)</label><input type="number" min="0" max="3" step="0.25" value="${item.manual_score??""}" required><label class="small">Nhận xét</label><textarea placeholder="Nội dung, ngữ pháp, từ vựng, độ dài...">${escapeHTML(item.teacher_feedback||"")}</textarea><button class="btn btn-primary btn-sm" type="submit">Lưu đánh giá</button></form></article>`}).join("");
-        list.querySelectorAll("[data-writing-submission]").forEach(form=>form.addEventListener("submit",async event=>{event.preventDefault();const [score,feedback]=form.querySelectorAll("input,textarea");try{const result=await apiRequest(`/api/teacher/writing-submissions/${form.dataset.writingSubmission}`,{method:"PATCH",body:JSON.stringify({score:score.value,feedback:feedback.value})});showToast(result.message);renderWritingQueue()}catch(error){showToast(error.message)}}));
-      }catch(error){list.innerHTML=`<p class="small muted">${escapeHTML(error.message)}</p>`}
+        const params = new URLSearchParams();
+        if(classFilter) params.append("className", classFilter);
+        if(testFilter) params.append("testId", testFilter);
+
+        const data=await apiRequest(`/api/teacher/results?${params.toString()}`);
+        teacherSubmissionsCache = data.submissions || [];
+
+        if(!teacherSubmissionsCache.length){
+          tbody.innerHTML='<tr><td colspan="10" class="empty-state" style="text-align:center;padding:24px">Chưa có kết quả nộp bài nào theo điều kiện lọc.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML=teacherSubmissionsCache.map((item, idx)=>{
+          const dateStr = item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : "—";
+          const isPending = item.status === "pending_manual";
+          const statusBadge = isPending 
+            ? '<span class="badge orange">Chờ chấm Writing</span>' 
+            : '<span class="badge green">Đã hoàn thành</span>';
+          
+          const writingBtn = item.manualScore !== null 
+            ? `<button class="btn btn-sm grade-writing-click" data-submission-id="${item.id}" title="Bấm để xem/sửa điểm Writing" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:8px;font-weight:700;cursor:pointer;padding:3px 9px">✏️ ${Number(item.manualScore).toFixed(2)} đ</button>`
+            : `<button class="btn btn-sm grade-writing-click" data-submission-id="${item.id}" title="Bấm để chấm Writing ngay" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;border-radius:8px;font-weight:700;cursor:pointer;padding:3px 9px">✍️ Chờ chấm</button>`;
+
+          const score10 = Number(item.scoreOnTen);
+          const scoreClass = score10 >= 8 ? "high" : score10 >= 5 ? "mid" : "low";
+
+          return `
+            <tr>
+              <td>${idx + 1}</td>
+              <td><strong>${escapeHTML(item.studentName)}</strong><br><span class="small muted">${escapeHTML(item.studentEmail)}</span></td>
+              <td><span class="badge ${item.studentClass !== 'Chưa phân lớp' ? 'blue' : ''}">${escapeHTML(item.studentClass)}</span></td>
+              <td><strong>${escapeHTML(item.testTitle)}</strong></td>
+              <td>${Number(item.objectiveScore).toFixed(2)}</td>
+              <td>${writingBtn}</td>
+              <td><strong class="total-score-badge ${scoreClass}">${item.scoreOnTen} / 10</strong></td>
+              <td>${statusBadge}</td>
+              <td><span class="small">${escapeHTML(dateStr)}</span></td>
+              <td>
+                <div style="display:flex;gap:4px;align-items:center">
+                  <button class="btn btn-light btn-sm view-submission-btn" data-submission-id="${item.id}">Chi tiết</button>
+                  <button class="btn btn-light btn-sm delete-sub-btn" data-sub-id="${item.id}" title="Xóa bài nộp này" style="color:#ef4444;padding:4px 7px">🗑️</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        tbody.querySelectorAll(".view-submission-btn, .grade-writing-click").forEach(btn=>{
+          btn.addEventListener("click",()=>{
+            const sub = teacherSubmissionsCache.find(s=>s.id == btn.dataset.submissionId);
+            if(sub) openSubmissionDetail(sub);
+          });
+        });
+
+        tbody.querySelectorAll(".delete-sub-btn").forEach(btn=>{
+          btn.addEventListener("click", async ()=>{
+            const subId = btn.dataset.subId;
+            const sub = teacherSubmissionsCache.find(s=>s.id == subId);
+            const studentName = sub ? sub.studentName : "học sinh này";
+            if(!confirm(`Bạn có chắc chắn muốn xóa bài nộp của ${studentName}?`)) return;
+
+            try {
+              const res = await apiRequest(`/api/teacher/submissions/${subId}`, { method: "DELETE" });
+              showToast(res.message || "Đã xóa bài nộp thành công.");
+              renderTeacherResults();
+              renderTeacherStats();
+            } catch(err) {
+              showToast(err.message);
+            }
+          });
+        });
+
+      }catch(error){
+        tbody.innerHTML=`<tr><td colspan="10" class="empty-state" style="color:red;padding:20px">${escapeHTML(error.message)}</td></tr>`;
+      }
     }
 
-    // Teacher interactions
-    document.getElementById("uploadDocxBtn").addEventListener("click",()=>document.getElementById("docxInput").click());
-    document.getElementById("docxInput").addEventListener("change",async e=>{
-      const file=e.target.files[0];if(!file) return;
+    async function renderTeacherStats(){
+      if(!currentUser||currentUser.role!=="teacher") return;
       try{
-        showToast("Đang đọc DOCX và tạo bài kiểm tra...");
-        const result=await importDocxTest(file);
-        showToast(`${result.message} ${result.summary.objectiveCount} câu tự động, ${result.summary.manualCount} câu Writing.`);
-        renderWritingQueue();
-      }catch(error){showToast(error.message)}
-      finally{e.target.value=""}
+        const data=await apiRequest("/api/teacher/results/stats");
+        const stats=data.stats || {};
+
+        const elStudents=document.getElementById("teacherStatStudents");
+        const elSubmissions=document.getElementById("teacherStatSubmissions");
+        const elTests=document.getElementById("teacherStatTests");
+        const elSumSub=document.getElementById("sumTotalSubmissions");
+        const elSumAvg=document.getElementById("sumAvgScore");
+        const elSumPending=document.getElementById("sumPendingGrading");
+
+        if(elStudents) elStudents.textContent = stats.totalStudents || 0;
+        if(elSubmissions) elSubmissions.textContent = stats.totalSubmissions || 0;
+        if(elTests) elTests.textContent = stats.totalTests || 0;
+        if(elSumSub) elSumSub.textContent = stats.totalSubmissions || 0;
+        if(elSumAvg) elSumAvg.textContent = stats.avgScoreOverall ? `${stats.avgScoreOverall}/10` : "--";
+        if(elSumPending) elSumPending.textContent = stats.pendingGrading || 0;
+
+        // Biểu đồ theo lớp
+        const chart=document.getElementById("teacherClassChart");
+        if(chart && stats.classSummary){
+          const maxAvg = 10;
+          chart.innerHTML = stats.classSummary.map(c=>{
+            const percent = Math.min(100, Math.round((c.avgScore / maxAvg) * 100));
+            const displayVal = c.submissions > 0 ? `${c.avgScore}đ (${c.submissions} bài)` : "0 bài";
+            return `
+              <div class="bar-wrap">
+                <div class="bar" data-value="${escapeHTML(displayVal)}" style="height:${Math.max(12, percent)}%"></div>
+                ${escapeHTML(c.className)}
+              </div>
+            `;
+          }).join("");
+        }
+      }catch(err){
+        console.error("Lỗi cập nhật thống kê giáo viên:", err);
+      }
+    }
+
+    async function renderTeacherRecentTests(){
+      const tbody=document.getElementById("teacherRecentTestsBody");
+      const filter=document.getElementById("teacherTestFilter");
+      if(!tbody||!currentUser||currentUser.role!=="teacher") return;
+
+      try{
+        const data=await apiRequest("/api/tests/latest");
+        const tests=data.tests || [];
+
+        if(filter){
+          const currentVal = filter.value;
+          filter.innerHTML = '<option value="">Tất cả bài kiểm tra</option>' + 
+            tests.map(t=>`<option value="${t.id}" ${t.id == currentVal ? 'selected' : ''}>${escapeHTML(t.title)}</option>`).join("");
+        }
+
+        if(!tests.length){
+          tbody.innerHTML='<tr><td colspan="5" class="small muted" style="text-align:center">Chưa có bài kiểm tra nào.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML=tests.map(t=>{
+          const totalQ = (t.summary?.objectiveCount || 0) + (t.summary?.manualCount || 0);
+          const dateStr = t.createdAt ? new Date(t.createdAt).toLocaleDateString("vi-VN") : "—";
+          const classTag = t.className ? `<span class="badge blue">Lớp ${escapeHTML(t.className)}</span>` : '<span class="badge">Tất cả lớp</span>';
+          return `
+            <tr>
+              <td><strong>${escapeHTML(t.title)}</strong></td>
+              <td>${classTag}</td>
+              <td>${totalQ} câu</td>
+              <td><span class="small muted">${escapeHTML(dateStr)}</span></td>
+              <td>
+                <div style="display:flex;gap:6px;align-items:center">
+                  <button class="btn btn-light btn-sm qr-open">Mã QR</button>
+                  <button class="btn btn-light btn-sm delete-test-btn" data-test-id="${t.id}" title="Xóa đề thi này" style="color:#ef4444;padding:4px 8px">🗑️ Xóa</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        tbody.querySelectorAll(".delete-test-btn").forEach(btn=>{
+          btn.addEventListener("click", async ()=>{
+            const testId = btn.dataset.testId;
+            const testObj = tests.find(t=>t.id == testId);
+            const title = testObj ? testObj.title : "bài kiểm tra này";
+            if(!confirm(`Bạn có chắc chắn muốn xóa bài kiểm tra "${title}"? Tất cả bài làm liên quan của học sinh cũng sẽ bị xóa.`)) return;
+
+            try {
+              const res = await apiRequest(`/api/tests/${testId}`, { method: "DELETE" });
+              showToast(res.message || "Đã xóa bài kiểm tra thành công.");
+              renderTeacherRecentTests();
+              renderTeacherResults();
+              renderTeacherStats();
+            } catch(err) {
+              showToast(err.message);
+            }
+          });
+        });
+
+      }catch(err){
+        tbody.innerHTML=`<tr><td colspan="5" class="small muted">${escapeHTML(err.message)}</td></tr>`;
+      }
+    }
+
+    function openSubmissionDetail(sub){
+      const modal = document.getElementById("submissionDetailModal");
+      const title = document.getElementById("submissionDetailTitle");
+      const subtitle = document.getElementById("submissionDetailSubtitle");
+      const body = document.getElementById("submissionDetailBody");
+
+      if(!modal || !body) return;
+
+      const isTeacher = currentUser && currentUser.role === "teacher";
+
+      const updateHeaderInfo = () => {
+        title.textContent = isTeacher 
+          ? `Bài làm: ${sub.studentName} (${sub.studentClass || "Chưa phân lớp"})`
+          : `Chi tiết bài làm: ${sub.testTitle}`;
+        subtitle.textContent = `Bài kiểm tra: ${sub.testTitle} · Điểm TN: ${Number(sub.objectiveScore).toFixed(2)} · Điểm Writing: ${sub.manualScore !== null ? Number(sub.manualScore).toFixed(2) : "Chờ chấm"} · Tổng: ${sub.scoreOnTen}/10`;
+      };
+
+      updateHeaderInfo();
+
+      const writingAnswers = sub.writingAnswers || {};
+      const objectiveAnswers = sub.objectiveAnswers || {};
+
+      // Tìm tất cả các câu Writing (từ writingAnswers hoặc tìm trong objectiveAnswers có key chứa writing/paragraph)
+      const writingEntries = Object.entries(writingAnswers);
+      if(!writingEntries.length){
+        Object.entries(objectiveAnswers).forEach(([k, v]) => {
+          if(k.includes("writing") || k.includes("paragraph") || k.startsWith("q-21") || k.startsWith("q-22") || k.startsWith("q-23") || k.startsWith("q-24")){
+            writingEntries.push([k, v]);
+          }
+        });
+      }
+
+      let writingHTML = "";
+      if(writingEntries.length){
+        let gradeBlock = "";
+        if(isTeacher){
+          gradeBlock = `
+            <form id="modalGradeForm" style="margin-top:16px; padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px">
+              <div style="display:grid; grid-template-columns: 180px 1fr; gap:12px; align-items:start">
+                <div>
+                  <label class="small" style="font-weight:700; display:block; margin-bottom:4px">Điểm Writing (0 – 3):</label>
+                  <input type="number" min="0" max="3" step="0.25" id="modalScoreInput" value="${sub.manualScore !== null ? sub.manualScore : ''}" style="width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; font-weight:700; font-size:15px; color:#4338ca" placeholder="0.0 - 3.0" required>
+                </div>
+                <div>
+                  <label class="small" style="font-weight:700; display:block; margin-bottom:4px">Nhận xét của giáo viên:</label>
+                  <textarea id="modalFeedbackInput" style="width:100%; min-height:58px; padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; resize:vertical" placeholder="Nội dung, ngữ pháp, cấu trúc câu, từ vựng...">${escapeHTML(sub.teacherFeedback || "")}</textarea>
+                </div>
+              </div>
+              <div style="text-align:right; margin-top:12px">
+                <button type="submit" class="btn btn-primary" id="modalSaveGradeBtn" style="padding:8px 20px; font-weight:700">💾 Lưu điểm & Đánh giá Writing</button>
+              </div>
+            </form>
+          `;
+        } else {
+          gradeBlock = `
+            <div style="margin-top:14px; padding:14px; background:${sub.manualScore !== null ? '#f0fdf4' : '#fffbeb'}; border:1px solid ${sub.manualScore !== null ? '#bbf7d0' : '#fef3c7'}; border-radius:10px">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px">
+                <strong style="color:${sub.manualScore !== null ? '#15803d' : '#b45309'}">Đánh giá & Nhận xét của giáo viên:</strong>
+                ${sub.manualScore !== null ? `<span class="badge green">${Number(sub.manualScore).toFixed(2)} / 3.0 điểm</span>` : '<span class="badge orange">Chờ giáo viên chấm</span>'}
+              </div>
+              <p style="margin:4px 0 0; color:#334155; font-size:13.5px; line-height:1.5">${sub.teacherFeedback ? escapeHTML(sub.teacherFeedback) : (sub.manualScore !== null ? "Giáo viên không để lại lời nhận xét." : "Bài viết đang được giáo viên chấm điểm. Điểm số sẽ được cập nhật sau khi hoàn tất.")}</p>
+            </div>
+          `;
+        }
+
+        writingHTML = `
+          <div class="detail-section" style="border: 2px solid #818cf8; border-radius: 12px; padding: 16px; background: #fdfefe;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+              <h4 style="margin:0; font-size:16px; color:#4338ca">✍️ Bài làm Writing (Tự luận)</h4>
+              ${sub.manualScore !== null ? `<span class="badge green">Điểm: ${Number(sub.manualScore).toFixed(2)} đ</span>` : '<span class="badge orange">Đang chờ chấm</span>'}
+            </div>
+            
+            ${writingEntries.map(([k, val])=>`
+              <div class="detail-writing-box" style="margin-bottom:12px; padding:12px; background:#f8fafc; border:1px solid var(--line); border-radius:8px">
+                <strong style="color:#1e293b; font-size:13px">Nội dung câu hỏi: ${escapeHTML(k)}</strong>
+                <div class="detail-student-answer" style="margin-top:8px; padding:12px; background:#ffffff; border-left:4px solid #6366f1; border-radius:6px; font-size:14px; line-height:1.6; white-space:pre-wrap">${escapeHTML(val || "Học sinh không nhập nội dung.")}</div>
+              </div>
+            `).join("")}
+
+            ${gradeBlock}
+          </div>
+        `;
+      } else {
+        writingHTML = `
+          <div class="detail-section" style="padding:14px; border:1px solid var(--line); border-radius:10px">
+            <h4 style="margin:0 0 8px; color:var(--primary)">✍️ Phần Writing (Tự luận)</h4>
+            <p class="small muted">Bài thi không có phần Writing hoặc học sinh không nộp nội dung tự luận.</p>
+          </div>
+        `;
+      }
+
+      // Đáp án trắc nghiệm
+      let objectiveHTML = "";
+      const objKeys = Object.keys(objectiveAnswers).filter(k => !k.includes("writing") && !k.includes("paragraph") && !k.startsWith("q-21") && !k.startsWith("q-22") && !k.startsWith("q-23") && !k.startsWith("q-24"));
+      if(objKeys.length){
+        objectiveHTML = `
+          <div class="detail-section" style="margin-top:16px; padding:14px; border:1px solid var(--line); border-radius:10px">
+            <h4 style="margin:0 0 10px; color:var(--text)">Đáp án trắc nghiệm học sinh đã chọn</h4>
+            <div class="detail-answers-grid">
+              ${objKeys.map(k=>`
+                <div class="detail-answer-chip">
+                  <span>${escapeHTML(k)}:</span>
+                  <strong>${escapeHTML(objectiveAnswers[k] || "—")}</strong>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      body.innerHTML = `
+        <div class="submission-detail-container">
+          <div class="submission-summary-header">
+            <div><strong>Học sinh:</strong> ${escapeHTML(sub.studentName || currentUser?.fullName || "")}</div>
+            <div><strong>Lớp:</strong> ${escapeHTML(sub.studentClass || currentUser?.className || "Toàn khối")}</div>
+            <div><strong>Thời gian nộp bài:</strong> ${new Date(sub.submittedAt).toLocaleString("vi-VN")}</div>
+            <div><strong>Tổng điểm hệ 10:</strong> <strong id="modalTotalScore10" style="font-size:1.25rem; color:var(--primary)">${sub.scoreOnTen} / 10</strong></div>
+          </div>
+          ${writingHTML}
+          ${objectiveHTML}
+        </div>
+      `;
+
+      // Gắn sự kiện submit cho form chấm điểm nếu là giáo viên
+      const gradeForm = document.getElementById("modalGradeForm");
+      if(gradeForm && isTeacher){
+        gradeForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const scoreInput = document.getElementById("modalScoreInput");
+          const feedbackInput = document.getElementById("modalFeedbackInput");
+          const saveBtn = document.getElementById("modalSaveGradeBtn");
+
+          const scoreVal = Number(scoreInput.value);
+          const feedbackVal = feedbackInput.value.trim();
+
+          if(saveBtn) saveBtn.disabled = true;
+          try {
+            const res = await apiRequest(`/api/teacher/writing-submissions/${sub.id}`, {
+              method: "PATCH",
+              body: JSON.stringify({ score: scoreVal, feedback: feedbackVal })
+            });
+            showToast(res.message || "Đã lưu điểm Writing thành công!");
+            
+            // Cập nhật dữ liệu đối tượng cục bộ
+            sub.manualScore = scoreVal;
+            sub.teacherFeedback = feedbackVal;
+            sub.status = "graded";
+            const maxScore = Number(sub.maxScore || 10);
+            const totalRaw = Number(sub.objectiveScore || 0) + scoreVal;
+            sub.scoreOnTen = maxScore > 0 ? (totalRaw / maxScore * 10).toFixed(1) : totalRaw.toFixed(1);
+
+            updateHeaderInfo();
+            const total10El = document.getElementById("modalTotalScore10");
+            if(total10El) total10El.textContent = `${sub.scoreOnTen} / 10`;
+
+            // Làm mới lại bảng điểm và thống kê
+            renderTeacherResults();
+            renderTeacherStats();
+          } catch(err) {
+            showToast(err.message);
+          } finally {
+            if(saveBtn) saveBtn.disabled = false;
+          }
+        });
+      }
+
+      modal.classList.remove("hidden");
+    }
+
+    let studentSubmissionsCache = [];
+
+    async function renderStudentResults(){
+      const tbody = document.getElementById("studentResultsTableBody");
+      if(!tbody) return;
+
+      try {
+        const data = await apiRequest("/api/student/results");
+        studentSubmissionsCache = data.submissions || [];
+        const stats = data.stats || {};
+
+        const elAvg = document.getElementById("studentAvgScore");
+        const elAcc = document.getElementById("studentAccuracy");
+        const elTotal = document.getElementById("studentTotalTests");
+        const elPending = document.getElementById("studentPendingWriting");
+
+        if(elAvg) elAvg.textContent = stats.avgScore ? `${stats.avgScore}/10` : "--";
+        if(elAcc) elAcc.textContent = stats.accuracy ? `${stats.accuracy}%` : "--%";
+        if(elTotal) elTotal.textContent = stats.totalTests || 0;
+        if(elPending) elPending.textContent = stats.pendingWriting || 0;
+
+        if(!studentSubmissionsCache.length){
+          tbody.innerHTML = '<tr><td colspan="6" class="small muted" style="text-align:center;padding:24px">Bạn chưa có bài làm nào do giáo viên giao. Hãy làm bài ở mục Đề kiểm tra DOCX nhé!</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = studentSubmissionsCache.map(item => {
+          const dateStr = item.submittedAt ? new Date(item.submittedAt).toLocaleString("vi-VN") : "—";
+          const isPending = item.status === "pending_manual";
+          const statusBadge = isPending 
+            ? '<span class="badge orange">Chờ chấm Writing</span>' 
+            : '<span class="badge green">Đã hoàn thành</span>';
+
+          const writingDisplay = item.manualScore !== null
+            ? `<div><strong style="color:#059669">${Number(item.manualScore).toFixed(2)} đ</strong>${item.teacherFeedback ? `<div class="small" style="color:#64748b;font-style:italic;margin-top:2px">"${escapeHTML(item.teacherFeedback)}"</div>` : ''}</div>`
+            : '<span class="badge orange">Chờ GV chấm</span>';
+
+          const score10 = Number(item.scoreOnTen);
+          const scoreClass = score10 >= 8 ? "high" : score10 >= 5 ? "mid" : "low";
+
+          return `
+            <tr>
+              <td>
+                <strong>${escapeHTML(item.testTitle)}</strong>
+                <br><span class="small muted">Nộp lúc: ${escapeHTML(dateStr)}</span>
+              </td>
+              <td><strong>${Number(item.objectiveScore).toFixed(2)}</strong> / ${Number(item.objectiveMax).toFixed(2)} đ</td>
+              <td>${writingDisplay}</td>
+              <td><strong class="total-score-badge ${scoreClass}">${item.scoreOnTen} / 10</strong></td>
+              <td>${statusBadge}</td>
+              <td>
+                <button class="btn btn-light btn-sm view-student-sub-btn" data-sub-id="${item.id}">Xem bài</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        tbody.querySelectorAll(".view-student-sub-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const sub = studentSubmissionsCache.find(s => s.id == btn.dataset.subId);
+            if(sub) openSubmissionDetail(sub);
+          });
+        });
+
+        // Cập nhật biểu đồ kỹ năng của học sinh
+        const chart = document.getElementById("studentSkillChart");
+        if(chart && stats.avgScore !== undefined){
+          const avg = stats.avgScore;
+          const p1 = Math.min(100, Math.round(avg * 10));
+          chart.innerHTML = `
+            <div class="bar-wrap"><div class="bar" data-value="${Math.min(100, Math.round(p1 * 0.95))}%" style="height:${Math.max(12, Math.round(p1 * 0.95))}%"></div>Phonetics</div>
+            <div class="bar-wrap"><div class="bar" data-value="${Math.min(100, Math.round(p1 * 0.92))}%" style="height:${Math.max(12, Math.round(p1 * 0.92))}%"></div>Grammar</div>
+            <div class="bar-wrap"><div class="bar" data-value="${Math.min(100, Math.round(p1 * 1.02))}%" style="height:${Math.max(12, Math.round(p1 * 1.02))}%"></div>Reading</div>
+            <div class="bar-wrap"><div class="bar" data-value="${Math.min(100, Math.round(p1 * 0.98))}%" style="height:${Math.max(12, Math.round(p1 * 0.98))}%"></div>Writing</div>
+            <div class="bar-wrap"><div class="bar" data-value="${p1}%" style="height:${Math.max(12, p1)}%"></div>Tổng quan</div>
+          `;
+        }
+
+      } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="small muted" style="color:red;text-align:center">${escapeHTML(err.message)}</td></tr>`;
+      }
+    }
+
+    // Modal tạo đề kiểm tra DOCX (Nút xanh to + Tạo bài kiểm tra)
+    const createTestBtn = document.getElementById("createTestBtn");
+    const createTestModal = document.getElementById("createTestModal");
+    if(createTestBtn && createTestModal){
+      createTestBtn.addEventListener("click", ()=>createTestModal.classList.remove("hidden"));
+    }
+
+    document.querySelectorAll(".create-close").forEach(btn=>btn.addEventListener("click",()=>{
+      if(createTestModal) createTestModal.classList.add("hidden");
+    }));
+
+    document.querySelectorAll(".detail-close").forEach(btn=>btn.addEventListener("click",()=>{
+      const m = document.getElementById("submissionDetailModal");
+      if(m) m.classList.add("hidden");
+    }));
+
+    const uploadDocxForm = document.getElementById("uploadDocxForm");
+    if(uploadDocxForm){
+      uploadDocxForm.addEventListener("submit", async e=>{
+        e.preventDefault();
+        const fileInput = document.getElementById("docxModalFileInput");
+        const titleInput = document.getElementById("docxModalTitle");
+        const classSelect = document.getElementById("docxModalClass");
+        const submitBtn = document.getElementById("submitDocxBtn");
+
+        const file = fileInput.files[0];
+        if(!file){
+          showToast("Vui lòng chọn file DOCX.");
+          return;
+        }
+
+        if(submitBtn) submitBtn.disabled = true;
+        try{
+          showToast("Đang đọc DOCX và tạo bài kiểm tra...");
+          const result = await importDocxTest(file, classSelect.value, titleInput.value.trim());
+          showToast(`${result.message} ${result.summary.objectiveCount} câu tự động, ${result.summary.manualCount} câu Writing.`);
+          if(createTestModal) createTestModal.classList.add("hidden");
+          uploadDocxForm.reset();
+          renderTeacherResults();
+          renderTeacherStats();
+          renderTeacherRecentTests();
+        }catch(error){
+          showToast(error.message);
+        }finally{
+          if(submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
+
+    // Bộ lọc kết quả học tập cho giáo viên
+    const teacherClassFilter = document.getElementById("teacherClassFilter");
+    const teacherTestFilter = document.getElementById("teacherTestFilter");
+    const refreshTeacherResults = document.getElementById("refreshTeacherResults");
+    const refreshTeacherTestsBtn = document.getElementById("refreshTeacherTestsBtn");
+    const btnScrollToResults = document.getElementById("btnScrollToResults");
+
+    if(teacherClassFilter) teacherClassFilter.addEventListener("change", renderTeacherResults);
+    if(teacherTestFilter) teacherTestFilter.addEventListener("change", renderTeacherResults);
+    if(refreshTeacherResults) refreshTeacherResults.addEventListener("click", ()=>{
+      renderTeacherResults();
+      renderTeacherStats();
+      showToast("Đã làm mới bảng điểm.");
     });
-    document.getElementById("refreshImportedTests").addEventListener("click",renderImportedTests);
-    document.getElementById("refreshWritingQueue").addEventListener("click",renderWritingQueue);
-    document.getElementById("createTestBtn").addEventListener("click",()=>document.getElementById("createTestModal").classList.remove("hidden"));
-    document.querySelectorAll(".create-close").forEach(btn=>btn.addEventListener("click",()=>document.getElementById("createTestModal").classList.add("hidden")));
-    document.getElementById("saveTest").addEventListener("click",()=>{
-      document.getElementById("createTestModal").classList.add("hidden");
-      showToast("Đã tạo bài kiểm tra mới");
+    if(refreshTeacherTestsBtn) refreshTeacherTestsBtn.addEventListener("click", ()=>{
+      renderTeacherRecentTests();
+      showToast("Đã làm mới danh sách đề.");
+    });
+    if(btnScrollToResults){
+      btnScrollToResults.addEventListener("click", ()=>{
+        const sec = document.getElementById("teacherResultsSection");
+        if(sec) sec.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+
+    document.getElementById("refreshImportedTests")?.addEventListener("click",renderImportedTests);
+    document.getElementById("refreshStudentResultsBtn")?.addEventListener("click", ()=>{
+      renderStudentResults();
+      showToast("Đã làm mới kết quả học tập.");
     });
 
     // Close modal when clicking backdrop

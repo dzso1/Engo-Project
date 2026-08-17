@@ -816,3 +816,40 @@
 
     /* DOCX assessments and manual Writing review */
     .imported-test-list,.writing-queue-list{display:grid;gap:11px}.imported-test-item,.writing-queue-item{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;padding:15px;border:1px solid var(--line);border-radius:15px;background:#fafbff}.imported-test-item h4,.writing-queue-item h4{margin:0 0 5px;font-size:15px}.imported-test-item p,.writing-queue-item p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}.test-section-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.test-section-pills span{padding:4px 7px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:10px;font-weight:850}.writing-queue-item{grid-template-columns:minmax(0,1fr) minmax(210px,.62fr)}.writing-answer-preview{margin:9px 0;padding:10px 11px;border-left:3px solid #818cf8;background:#fff;border-radius:8px;font-size:12px;line-height:1.55;white-space:pre-wrap}.writing-grade-form{display:grid;gap:8px}.writing-grade-form input,.writing-grade-form textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 9px;font-size:12px}.writing-grade-form textarea{min-height:68px;resize:vertical}.writing-status{font-size:11px;font-weight:850}.writing-status.pending_manual{color:#92400e}.writing-status.graded{color:#166534}.imported-test-panel{background:linear-gradient(145deg,#fff,#f8f8ff)}body.dark-mode .imported-test-panel,body.dark-mode .imported-test-item,body.dark-mode .writing-queue-item,body.dark-mode .writing-answer-preview{background:#111827;border-color:#334155}@media (max-width:700px){.imported-test-item,.writing-queue-item{grid-template-columns:1fr}.imported-test-item .btn{width:100%}}
+
+    /* Teacher Gradebook & Results Table */
+    .teacher-results-panel{margin-top:20px}
+    .results-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .results-summary-cards{display:flex;gap:12px;margin:12px 0 16px;flex-wrap:wrap}
+    .summary-chip{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#f1f5f9;border:1px solid var(--line);border-radius:10px;font-size:12px}
+    .summary-chip span{color:var(--muted)}
+    .summary-chip strong{font-size:14px;color:var(--text)}
+    .badge.blue{background:#e0f2fe;color:#0369a1}
+    .badge.gray{background:#f1f5f9;color:#475569}
+    .total-score-badge{display:inline-block;padding:3px 8px;border-radius:8px;font-weight:800;font-size:13px}
+    .total-score-badge.high{background:#dcfce7;color:#15803d}
+    .total-score-badge.mid{background:#fef9c3;color:#a16207}
+    .total-score-badge.low{background:#fee2e2;color:#b91c1c}
+
+    /* Modal size and Submission detail */
+    .modal-card.modal-lg{max-width:760px;width:92vw;max-height:88vh;overflow-y:auto}
+    .submission-detail-container{display:grid;gap:16px;margin-top:10px}
+    .submission-summary-header{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;padding:12px 14px;background:#f8fafc;border:1px solid var(--line);border-radius:12px;font-size:13px}
+    .detail-section{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+    .detail-section h4{margin:0 0 10px;font-size:14px;color:var(--primary)}
+    .detail-writing-box{margin-bottom:12px;padding:10px;border-radius:8px;background:#f8fafc;border:1px solid var(--line)}
+    .detail-student-answer{margin:6px 0 0;padding:10px;background:#fff;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap;color:var(--text)}
+    .detail-feedback-box{margin-top:12px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px}
+    .detail-answers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
+    .detail-answer-chip{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f1f5f9;border-radius:8px;font-size:12px;border:1px solid var(--line)}
+    .detail-answer-chip span{color:var(--muted)}
+    .detail-answer-chip strong{color:#4338ca}
+
+    body.dark-mode .summary-chip,
+    body.dark-mode .submission-summary-header,
+    body.dark-mode .detail-writing-box,
+    body.dark-mode .detail-student-answer,
+    body.dark-mode .detail-answer-chip{background:#111827;border-color:#334155}
+    body.dark-mode .detail-feedback-box{background:#064e3b;border-color:#047857}
+    body.dark-mode .badge.blue{background:#0c4a6e;color:#7dd3fc}
+
