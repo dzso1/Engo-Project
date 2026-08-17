@@ -26,6 +26,7 @@ function publicUser(row) {
     fullName: row.full_name,
     email: row.email,
     role: row.role,
+    className: row.class_name || null,
     status: row.status,
     createdAt: row.created_at,
   };
@@ -54,39 +55,18 @@ function requireRole(...roles) {
 }
 
 async function ensureAssessmentTables() {
-  await pool.query(`CREATE TABLE IF NOT EXISTS imported_tests (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    teacher_id BIGINT UNSIGNED NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    source_file_name VARCHAR(255) NOT NULL,
-    questions_json JSON NOT NULL,
-    summary_json JSON NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_imported_tests_created_at (created_at),
-    CONSTRAINT fk_imported_tests_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS writing_submissions (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    test_id BIGINT UNSIGNED NOT NULL,
-    student_id BIGINT UNSIGNED NOT NULL,
-    objective_answers_json JSON NOT NULL,
-    writing_answers_json JSON NOT NULL,
-    objective_score DECIMAL(5,2) NOT NULL DEFAULT 0,
-    manual_score DECIMAL(5,2) NULL,
-    teacher_feedback TEXT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'pending_manual',
-    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    graded_at TIMESTAMP NULL,
-    UNIQUE KEY uq_writing_submission (test_id, student_id),
-    INDEX idx_writing_status (status),
-    CONSTRAINT fk_writing_test FOREIGN KEY (test_id) REFERENCES imported_tests(id) ON DELETE CASCADE,
-    CONSTRAINT fk_writing_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+  // Verify that the required tables were created by an admin (see database/assessment-schema.sql).
+  // The application DB user (engo_app) only has SELECT/INSERT/UPDATE — no DDL rights.
+  // If the tables are missing, an error will be thrown here and logged at startup.
+  const [[users]] = await pool.query("SELECT 1 FROM users LIMIT 0");
+  const [[imported]] = await pool.query("SELECT 1 FROM imported_tests LIMIT 0");
+  const [[writing]] = await pool.query("SELECT 1 FROM writing_submissions LIMIT 0");
 }
 
 const assessmentReady = ensureAssessmentTables()
   .then(() => true)
   .catch(error => { console.error("Assessment tables unavailable:", error); return false; });
+
 
 function normalizeAnswer(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -101,12 +81,13 @@ function publicTest(test) {
     id: test.id,
     title: test.title,
     sourceFileName: test.source_file_name,
+    className: test.class_name || null,
     createdAt: test.created_at,
     summary: typeof test.summary_json === "string" ? JSON.parse(test.summary_json) : test.summary_json,
-    sections: test.questions.sections.map(section => ({
+    sections: test.questions && test.questions.sections ? test.questions.sections.map(section => ({
       name: section.name,
       questions: section.questions.map(({ answer, accepted, referenceAnswer, ...question }) => question),
-    })),
+    })) : [],
   };
 }
 
@@ -126,7 +107,8 @@ app.get("/api/health", async (req, res) => {
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { fullName, email, password, role = "student" } = req.body;
+    await assessmentReady;
+    const { fullName, email, password, role = "student", className } = req.body;
     if (!fullName || !email || !password) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ thông tin." });
     }
@@ -143,11 +125,12 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(409).json({ success: false, message: "Email này đã được đăng ký." });
     }
 
+    const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
     const passwordHash = await bcrypt.hash(password, 12);
     const status = role === "teacher" ? "pending" : "active";
     const [result] = await pool.execute(
-      "INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
-      [String(fullName).trim(), normalizedEmail, passwordHash, role, status]
+      "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)",
+      [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status]
     );
 
     return res.status(201).json({
@@ -171,7 +154,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
     const [rows] = await pool.execute(
-      "SELECT id, full_name, email, password_hash, role, status, created_at FROM users WHERE email = ? AND role = ? LIMIT 1",
+      "SELECT id, full_name, email, password_hash, role, class_name, status, created_at FROM users WHERE email = ? AND role = ? LIMIT 1",
       [normalizedEmail, role]
     );
     const user = rows[0];
@@ -203,7 +186,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/auth/me", requireLogin, async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, full_name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, full_name, email, role, class_name, status, created_at FROM users WHERE id = ? LIMIT 1",
       [req.user.userId]
     );
     const user = rows[0];
@@ -227,10 +210,32 @@ app.post("/api/auth/logout", (req, res) => {
   return res.json({ success: true, message: "Đã đăng xuất." });
 });
 
+app.delete("/api/auth/delete-me", requireLogin, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    if (req.user.role === "admin") {
+      const [countRows] = await pool.execute("SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND status = 'active'");
+      if (Number(countRows[0].total) <= 1) {
+        return res.status(400).json({ success: false, message: "Không thể xóa tài khoản quản trị viên duy nhất." });
+      }
+    }
+    await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
+    res.clearCookie("engo_token", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    return res.json({ success: true, message: "Đã xóa tài khoản thành công." });
+  } catch (error) {
+    console.error("Lỗi tự xóa tài khoản:", error);
+    return res.status(500).json({ success: false, message: "Không thể xóa tài khoản." });
+  }
+});
+
 app.get("/api/admin/users", requireLogin, requireRole("admin"), async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      "SELECT id, full_name, email, role, status, created_at FROM users ORDER BY created_at DESC"
+      "SELECT id, full_name, email, role, class_name, status, created_at FROM users ORDER BY created_at DESC"
     );
     return res.json({ success: true, users: rows.map(publicUser) });
   } catch (error) {
@@ -241,7 +246,8 @@ app.get("/api/admin/users", requireLogin, requireRole("admin"), async (req, res)
 
 app.post("/api/admin/users", requireLogin, requireRole("admin"), async (req, res) => {
   try {
-    const { fullName, email, password, role, status = "active" } = req.body;
+    await assessmentReady;
+    const { fullName, email, password, role, className, status = "active" } = req.body;
     if (!fullName || !email || !password || !["student", "teacher", "parent", "admin"].includes(role)) {
       return res.status(400).json({ success: false, message: "Thông tin tài khoản không hợp lệ." });
     }
@@ -258,10 +264,11 @@ app.post("/api/admin/users", requireLogin, requireRole("admin"), async (req, res
       return res.status(409).json({ success: false, message: "Email này đã tồn tại." });
     }
 
+    const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
     const passwordHash = await bcrypt.hash(password, 12);
     const [result] = await pool.execute(
-      "INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?)",
-      [String(fullName).trim(), normalizedEmail, passwordHash, role, status]
+      "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)",
+      [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status]
     );
     return res.status(201).json({ success: true, message: "Đã thêm tài khoản.", userId: result.insertId });
   } catch (error) {
@@ -312,17 +319,18 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
 app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (req, res) => {
   try {
     await assessmentReady;
-    const { documentBase64, fileName = "de-kiem-tra.docx", title } = req.body;
+    const { documentBase64, fileName = "de-kiem-tra.docx", title, className } = req.body;
     if (!documentBase64 || !String(documentBase64).startsWith("data:")) return res.status(400).json({ success: false, message: "File DOCX không hợp lệ." });
     const buffer = Buffer.from(String(documentBase64).split(",").pop(), "base64");
     if (buffer.length > 8 * 1024 * 1024) return res.status(413).json({ success: false, message: "File DOCX vượt quá 8 MB." });
     const extracted = await mammoth.extractRawText({ buffer });
     const test = parseDocxAssessment(extracted.value, String(title || fileName).replace(/\.docx$/i, ""));
+    const assignedClass = String(className || "").trim() || null;
     const [result] = await pool.execute(
-      "INSERT INTO imported_tests (teacher_id, title, source_file_name, questions_json, summary_json) VALUES (?, ?, ?, ?, ?)",
-      [req.user.userId, test.title, String(fileName).slice(0, 255), JSON.stringify(test), JSON.stringify(test.summary)]
+      "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json) VALUES (?, ?, ?, ?, ?, ?)",
+      [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary)]
     );
-    return res.status(201).json({ success: true, testId: result.insertId, title: test.title, summary: test.summary, message: "Đã tạo bài kiểm tra từ DOCX." });
+    return res.status(201).json({ success: true, testId: result.insertId, title: test.title, className: assignedClass, summary: test.summary, message: "Đã tạo bài kiểm tra từ DOCX." });
   } catch (error) {
     console.error("DOCX import error:", error);
     return res.status(400).json({ success: false, message: error.message || "Không thể đọc cấu trúc đề DOCX." });
@@ -332,7 +340,20 @@ app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (
 app.get("/api/tests/latest", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
-    const [rows] = await pool.execute("SELECT id, title, source_file_name, questions_json, summary_json, created_at FROM imported_tests ORDER BY created_at DESC LIMIT 12");
+    let query = "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, created_at FROM imported_tests";
+    const params = [];
+
+    if (req.user.role === "student") {
+      const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
+      const userClass = uRows[0]?.class_name;
+      if (userClass) {
+        query += " WHERE (class_name = ? OR class_name IS NULL OR class_name = '')";
+        params.push(userClass);
+      }
+    }
+
+    query += " ORDER BY created_at DESC LIMIT 20";
+    const [rows] = await pool.execute(query, params);
     return res.json({ success: true, tests: rows.map(row => publicTest(getStoredTest(row))) });
   } catch (error) {
     console.error(error);
@@ -343,7 +364,7 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
 app.get("/api/tests/:id", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
-    const [rows] = await pool.execute("SELECT id, title, source_file_name, questions_json, summary_json, created_at FROM imported_tests WHERE id = ? LIMIT 1", [req.params.id]);
+    const [rows] = await pool.execute("SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, created_at FROM imported_tests WHERE id = ? LIMIT 1", [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
     return res.json({ success: true, test: publicTest(getStoredTest(rows[0])) });
   } catch (error) {
@@ -383,11 +404,287 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
   }
 });
 
+app.delete("/api/tests/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const isTeacher = req.user.role === "teacher";
+    const query = isTeacher
+      ? "DELETE FROM imported_tests WHERE id = ? AND teacher_id = ?"
+      : "DELETE FROM imported_tests WHERE id = ?";
+    const params = isTeacher ? [req.params.id, req.user.userId] : [req.params.id];
+
+    const [result] = await pool.execute(query, params);
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra hoặc bạn không có quyền xóa." });
+    }
+    return res.json({ success: true, message: "Đã xóa bài kiểm tra thành công." });
+  } catch (error) {
+    console.error("Lỗi xóa bài kiểm tra:", error);
+    return res.status(500).json({ success: false, message: "Không thể xóa bài kiểm tra." });
+  }
+});
+
+app.delete("/api/teacher/submissions/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const [result] = await pool.execute("DELETE FROM writing_submissions WHERE id = ?", [req.params.id]);
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bài nộp." });
+    }
+    return res.json({ success: true, message: "Đã xóa bài làm của học sinh." });
+  } catch (error) {
+    console.error("Lỗi xóa bài nộp:", error);
+    return res.status(500).json({ success: false, message: "Không thể xóa bài làm." });
+  }
+});
+
+app.get("/api/student/results", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    const [rows] = await pool.execute(
+      `SELECT 
+        ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
+        ws.status, ws.submitted_at, ws.graded_at,
+        ws.objective_answers_json, ws.writing_answers_json,
+        it.title AS test_title, it.summary_json, it.questions_json,
+        u.full_name AS teacher_name, stu.full_name AS student_name, stu.class_name AS student_class
+       FROM writing_submissions ws
+       JOIN imported_tests it ON it.id = ws.test_id
+       LEFT JOIN users u ON u.id = it.teacher_id
+       JOIN users stu ON stu.id = ws.student_id
+       WHERE ws.student_id = ?
+       ORDER BY ws.submitted_at DESC`,
+      [req.user.userId]
+    );
+
+    let totalScoreSum = 0;
+    let scoredCount = 0;
+    let totalObjectiveEarned = 0;
+    let totalObjectiveMax = 0;
+    let pendingWriting = 0;
+
+    const submissions = rows.map(row => {
+      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
+      const objectiveScore = Number(row.objective_score || 0);
+      const manualScore = row.manual_score !== null ? Number(row.manual_score) : null;
+      const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
+      const maxScore = Number(summary.totalPoints || 10);
+      const scoreOnTen = maxScore > 0 ? Number((totalScore / maxScore * 10).toFixed(1)) : totalScore;
+      const objectiveMax = Number(summary.objectiveCount ? summary.objectiveCount * 0.25 : 7.0);
+
+      totalObjectiveEarned += objectiveScore;
+      totalObjectiveMax += objectiveMax;
+
+      if (row.status === "pending_manual") {
+        pendingWriting++;
+      }
+      
+      totalScoreSum += scoreOnTen;
+      scoredCount++;
+
+      return {
+        id: row.id,
+        testId: row.test_id,
+        testTitle: row.test_title,
+        teacherName: row.teacher_name || "Giáo viên",
+        objectiveScore,
+        objectiveMax,
+        manualScore,
+        totalScore,
+        maxScore,
+        scoreOnTen,
+        teacherFeedback: row.teacher_feedback,
+        status: row.status,
+        submittedAt: row.submitted_at,
+        gradedAt: row.graded_at,
+        objectiveAnswers: typeof row.objective_answers_json === "string" ? JSON.parse(row.objective_answers_json) : row.objective_answers_json,
+        writingAnswers: typeof row.writing_answers_json === "string" ? JSON.parse(row.writing_answers_json) : row.writing_answers_json,
+      };
+    });
+
+    const avgScore = scoredCount > 0 ? Number((totalScoreSum / scoredCount).toFixed(1)) : 0;
+    const accuracy = totalObjectiveMax > 0 ? Math.round((totalObjectiveEarned / totalObjectiveMax) * 100) : (scoredCount > 0 ? Math.round((avgScore / 10) * 100) : 0);
+
+    return res.json({
+      success: true,
+      submissions,
+      stats: {
+        totalTests: submissions.length,
+        avgScore,
+        accuracy,
+        pendingWriting
+      }
+    });
+  } catch (error) {
+    console.error("Lỗi lấy kết quả học tập của học sinh:", error);
+    return res.status(500).json({ success: false, message: "Không thể tải kết quả học tập." });
+  }
+});
+
+app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { className, testId } = req.query;
+    let query = `
+      SELECT 
+        ws.id, ws.test_id, ws.student_id, ws.objective_score, ws.manual_score, 
+        ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at,
+        ws.objective_answers_json, ws.writing_answers_json,
+        u.full_name AS student_name, u.email AS student_email, u.class_name AS student_class,
+        it.title AS test_title, it.class_name AS test_assigned_class, it.summary_json, it.questions_json
+      FROM writing_submissions ws
+      JOIN imported_tests it ON it.id = ws.test_id
+      JOIN users u ON u.id = ws.student_id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (req.user.role === "teacher") {
+      query += " AND it.teacher_id = ?";
+      params.push(req.user.userId);
+    }
+    if (className) {
+      query += " AND u.class_name = ?";
+      params.push(className);
+    }
+    if (testId) {
+      query += " AND ws.test_id = ?";
+      params.push(testId);
+    }
+    query += " ORDER BY ws.submitted_at DESC";
+
+    const [rows] = await pool.execute(query, params);
+
+    const submissions = rows.map(row => {
+      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
+      const objectiveScore = Number(row.objective_score || 0);
+      const manualScore = row.manual_score !== null ? Number(row.manual_score) : null;
+      const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
+      const maxScore = Number(summary.totalPoints || 10);
+      const scoreOnTen = maxScore > 0 ? Number((totalScore / maxScore * 10).toFixed(1)) : totalScore;
+
+      return {
+        id: row.id,
+        testId: row.test_id,
+        testTitle: row.test_title,
+        testAssignedClass: row.test_assigned_class,
+        studentId: row.student_id,
+        studentName: row.student_name,
+        studentEmail: row.student_email,
+        studentClass: row.student_class || "Chưa phân lớp",
+        objectiveScore,
+        manualScore,
+        totalScore,
+        maxScore,
+        scoreOnTen,
+        teacherFeedback: row.teacher_feedback,
+        status: row.status,
+        submittedAt: row.submitted_at,
+        gradedAt: row.graded_at,
+        objectiveAnswers: typeof row.objective_answers_json === "string" ? JSON.parse(row.objective_answers_json) : row.objective_answers_json,
+        writingAnswers: typeof row.writing_answers_json === "string" ? JSON.parse(row.writing_answers_json) : row.writing_answers_json,
+      };
+    });
+
+    return res.json({ success: true, submissions });
+  } catch (error) {
+    console.error("Lỗi lấy danh sách kết quả học tập:", error);
+    return res.status(500).json({ success: false, message: "Không thể tải kết quả học tập." });
+  }
+});
+
+app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const isTeacher = req.user.role === "teacher";
+    const teacherId = req.user.userId;
+
+    const testCountQuery = isTeacher 
+      ? "SELECT COUNT(*) AS totalTests FROM imported_tests WHERE teacher_id = ?"
+      : "SELECT COUNT(*) AS totalTests FROM imported_tests";
+    const [testCountRows] = await pool.execute(testCountQuery, isTeacher ? [teacherId] : []);
+
+    const subQuery = isTeacher
+      ? `SELECT ws.id, ws.objective_score, ws.manual_score, ws.status, u.class_name, it.summary_json
+         FROM writing_submissions ws
+         JOIN imported_tests it ON it.id = ws.test_id
+         JOIN users u ON u.id = ws.student_id
+         WHERE it.teacher_id = ?`
+      : `SELECT ws.id, ws.objective_score, ws.manual_score, ws.status, u.class_name, it.summary_json
+         FROM writing_submissions ws
+         JOIN imported_tests it ON it.id = ws.test_id
+         JOIN users u ON u.id = ws.student_id`;
+    const [subRows] = await pool.execute(subQuery, isTeacher ? [teacherId] : []);
+
+    const [studentRows] = await pool.execute("SELECT COUNT(*) AS totalStudents FROM users WHERE role = 'student' AND status = 'active'");
+
+    const classStats = {};
+    const defaultClasses = ["9A1", "9A2", "9A3", "9A4"];
+    defaultClasses.forEach(c => {
+      classStats[c] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 };
+    });
+
+    let pendingGrading = 0;
+    let totalScoreSum = 0;
+    let scoredCount = 0;
+
+    subRows.forEach(row => {
+      const cls = row.class_name || "Chưa phân lớp";
+      if (!classStats[cls]) {
+        classStats[cls] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 };
+      }
+      classStats[cls].submissions++;
+
+      if (row.status === "pending_manual") {
+        pendingGrading++;
+        classStats[cls].pendingCount++;
+      } else {
+        classStats[cls].gradedCount++;
+      }
+
+      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
+      const max = Number(summary.totalPoints || 10);
+      const totalRaw = Number(row.objective_score || 0) + (row.manual_score !== null ? Number(row.manual_score) : 0);
+      const score10 = max > 0 ? (totalRaw / max * 10) : totalRaw;
+
+      classStats[cls].totalScore10 += score10;
+      totalScoreSum += score10;
+      scoredCount++;
+    });
+
+    const classSummary = Object.keys(classStats).map(className => {
+      const count = classStats[className].submissions;
+      const avg = count > 0 ? Number((classStats[className].totalScore10 / count).toFixed(1)) : 0;
+      return {
+        className,
+        submissions: count,
+        avgScore: avg,
+        pending: classStats[className].pendingCount,
+        graded: classStats[className].gradedCount
+      };
+    });
+
+    return res.json({
+      success: true,
+      stats: {
+        totalTests: testCountRows[0]?.totalTests || 0,
+        totalStudents: studentRows[0]?.totalStudents || 0,
+        totalSubmissions: subRows.length,
+        pendingGrading,
+        avgScoreOverall: scoredCount > 0 ? Number((totalScoreSum / scoredCount).toFixed(1)) : 0,
+        classSummary
+      }
+    });
+  } catch (error) {
+    console.error("Lỗi thống kê kết quả:", error);
+    return res.status(500).json({ success: false, message: "Không thể tải thống kê." });
+  }
+});
+
 app.get("/api/teacher/writing-submissions", requireLogin, requireRole("teacher"), async (req, res) => {
   try {
     await assessmentReady;
     const [rows] = await pool.execute(
-      `SELECT ws.id, ws.test_id, ws.objective_score, ws.writing_answers_json, ws.manual_score, ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at, u.full_name AS student_name, it.title AS test_title
+      `SELECT ws.id, ws.test_id, ws.objective_score, ws.writing_answers_json, ws.manual_score, ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at, u.full_name AS student_name, u.class_name AS student_class, it.title AS test_title
        FROM writing_submissions ws JOIN imported_tests it ON it.id = ws.test_id JOIN users u ON u.id = ws.student_id
        WHERE it.teacher_id = ? AND ws.status IN ('pending_manual', 'graded') ORDER BY ws.status = 'pending_manual' DESC, ws.submitted_at DESC`,
       [req.user.userId]
