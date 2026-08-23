@@ -274,6 +274,12 @@
       if(user.role==="student"){
         renderImportedTests();
         renderStudentResults();
+        renderDailyPlan();
+        renderLearningFeatures();
+        renderCapybaraCompanion();
+        renderDashboardStats();
+        renderCompetency();
+        renderSmartReview();
       }
       if(user.role==="teacher"){
         renderTeacherResults();
@@ -437,6 +443,10 @@
     document.getElementById("logoutBtn").addEventListener("click",async()=>{
       try{await apiRequest("/api/auth/logout",{method:"POST",body:"{}"})}catch{}
       currentUser=null;
+      renderDailyPlan();
+      renderLearningFeatures();
+      renderCapybaraCompanion();
+      renderDashboardStats();
       authScreen.classList.remove("hidden");
       switchView("student-home");
       document.getElementById("loginForm").reset();
@@ -620,54 +630,275 @@
     document.getElementById("jsonImportInput").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const imported=JSON.parse(reader.result);if(!imported.questions||!imported.tests||!imported.logs)throw new Error();saveDB({questions:imported.questions,tests:imported.tests,logs:imported.logs});renderDataAdmin();showToast("Đã nhập nội dung; tài khoản MySQL không bị thay đổi")}catch{showToast("File JSON không đúng cấu trúc")}};reader.readAsText(file)});
     document.getElementById("resetDemoData").addEventListener("click",()=>{saveDB(cloneDefaultDB());renderDataAdmin();showToast("Đã khôi phục dữ liệu nội dung mẫu")});
 
-    // Quiz data: Bài tập trọng tâm Present Simple & Past Simple
-    const defaultQuestions = [
-      {
-        type: "Present Simple",
-        prompt: "Choose the best answer: My brother usually ______ football with his friends every Sunday afternoon.",
-        options: ["A. play", "B. plays", "C. played", "D. playing"],
-        answer: 1,
-        explanation: "Chủ ngữ 'My brother' (ngôi thứ 3 số ít) + dấu hiệu 'usually / every Sunday' -> thì Hiện tại đơn: Verb + s/es (plays)."
+    // 4 Bộ bài tập ngữ pháp trọng tâm hardcoded chuẩn kiến thức THCS
+    const grammarTestDecks = {
+      "present-simple": {
+        id: "present-simple",
+        title: "Present Simple Practice (Thì Hiện tại đơn)",
+        duration: 15 * 60,
+        questions: [
+          {
+            type: "Present Simple",
+            prompt: "Choose the best answer: My brother usually ______ football with his friends every Sunday afternoon.",
+            options: ["A. play", "B. plays", "C. played", "D. playing"],
+            answer: 1,
+            explanation: "Chủ ngữ 'My brother' (ngôi thứ 3 số ít) + dấu hiệu 'usually / every Sunday' -> thì Hiện tại đơn: Verb + s/es (plays)."
+          },
+          {
+            type: "Present Simple (Negative)",
+            prompt: "Choose the best answer: He ______ like spicy food, so he never orders chili chicken.",
+            options: ["A. don't", "B. doesn't", "C. didn't", "D. isn't"],
+            answer: 1,
+            explanation: "Thì Hiện tại đơn dạng phủ định với chủ ngữ 'He': He + doesn't + V (nguyên mẫu)."
+          },
+          {
+            type: "Present Simple (Question)",
+            prompt: "Choose the correct auxiliary verb: '______ your parents live in Da Nang?' - 'No, they live in Hue.'",
+            options: ["A. Do", "B. Does", "C. Are", "D. Is"],
+            answer: 0,
+            explanation: "Chủ ngữ 'your parents' là danh từ số nhiều -> dùng trợ động từ 'Do': Do + S + V?"
+          },
+          {
+            type: "Present Simple (Spelling Rules)",
+            prompt: "Complete the sentence with the correct form of 'STUDY': Linda ______ English at the library every afternoon.",
+            textAnswer: "studies",
+            accepted: ["studies"],
+            explanation: "Động từ kết thúc bằng phụ âm + 'y' (study) khi chia với ngôi thứ 3 số ít chuyển thành '-ies' (studies)."
+          },
+          {
+            type: "Present Simple (Adverb of Frequency)",
+            prompt: "Which sentence has the correct word order?",
+            options: [
+              "A. She always is on time for class.",
+              "B. She is always on time for class.",
+              "C. Always she is on time for class.",
+              "D. She is on time always for class."
+            ],
+            answer: 1,
+            explanation: "Trạng từ chỉ tần suất (always, usually, often...) đứng SAU động từ 'to be' và TRƯỚC động từ thường."
+          },
+          {
+            type: "Present Simple (Facts)",
+            prompt: "Choose the best answer: The Sun ______ in the East and sets in the West.",
+            options: ["A. rise", "B. rises", "C. rose", "D. is rising"],
+            answer: 1,
+            explanation: "Diễn tả một chân lý, sự thật hiển nhiên -> dùng thì Hiện tại đơn: The Sun rises."
+          },
+          {
+            type: "Present Simple (Have/Has)",
+            prompt: "Choose the best answer: Our school ______ a large swimming pool and a modern computer lab.",
+            options: ["A. have", "B. has", "C. is having", "D. had"],
+            answer: 1,
+            explanation: "Chủ ngữ 'Our school' là danh từ số ít -> dùng 'has'."
+          },
+          {
+            type: "Present Simple (Error Identification)",
+            prompt: "Find the error in the sentence: 'Nam and Ba doesn't walk to school every day.'",
+            options: ["A. Nam and Ba", "B. doesn't", "C. walk", "D. every day"],
+            answer: 1,
+            explanation: "Chủ ngữ 'Nam and Ba' là 2 người (số nhiều) nên phải dùng 'don't', không dùng 'doesn't'."
+          }
+        ]
       },
-      {
-        type: "Past Simple",
-        prompt: "Choose the best answer: Yesterday, we ______ a very interesting documentary about endangered animals.",
-        options: ["A. watch", "B. watches", "C. watched", "D. are watching"],
-        answer: 2,
-        explanation: "Dấu hiệu 'Yesterday' chỉ thời gian trong quá khứ -> thì Quá khứ đơn: Động từ có quy tắc thêm -ed (watched)."
+      "past-simple": {
+        id: "past-simple",
+        title: "Past Simple Practice (Thì Quá khứ đơn)",
+        duration: 15 * 60,
+        questions: [
+          {
+            type: "Past Simple (Regular)",
+            prompt: "Choose the best answer: Yesterday, we ______ a very interesting documentary about endangered animals.",
+            options: ["A. watch", "B. watches", "C. watched", "D. are watching"],
+            answer: 2,
+            explanation: "Dấu hiệu 'Yesterday' chỉ thời gian trong quá khứ -> Động từ có quy tắc thêm -ed: watched."
+          },
+          {
+            type: "Past Simple (Irregular)",
+            prompt: "Complete the sentence with the past form of 'BUY': My mother ______ a new bicycle for my birthday last week.",
+            textAnswer: "bought",
+            accepted: ["bought"],
+            explanation: "Quá khứ bất quy tắc của 'buy' là 'bought'."
+          },
+          {
+            type: "Past Simple (Negative)",
+            prompt: "Choose the best answer: We ______ to the museum last Sunday because it was closed for repairs.",
+            options: ["A. didn't go", "B. didn't went", "C. don't go", "D. not go"],
+            answer: 0,
+            explanation: "Cấu trúc phủ định thì Quá khứ đơn: S + didn't + V (nguyên mẫu) -> didn't go."
+          },
+          {
+            type: "Past Simple (Question)",
+            prompt: "Choose the best answer: '______ you meet Lan at the party two days ago?' - 'Yes, I did.'",
+            options: ["A. Do", "B. Did", "C. Were", "D. Have"],
+            answer: 1,
+            explanation: "Câu hỏi quá khứ đơn với động từ thường: Did + S + V (nguyên mẫu)?"
+          },
+          {
+            type: "Past Simple (To be)",
+            prompt: "Choose the best answer: The weather ______ wonderful during our trip to Da Lat last month.",
+            options: ["A. was", "B. were", "C. is", "D. are"],
+            answer: 0,
+            explanation: "Chủ ngữ 'The weather' (danh từ không đếm được) đi với 'was' trong quá khứ."
+          },
+          {
+            type: "Past Simple (Time expression)",
+            prompt: "Choose the correct past time signal: I graduated from primary school three years ______.",
+            options: ["A. ago", "B. before", "C. last", "D. yesterday"],
+            answer: 0,
+            explanation: "Cụm 'khoảng thời gian + ago' là dấu hiệu đặc trưng của thì Quá khứ đơn."
+          },
+          {
+            type: "Past Simple (Pronunciation -ed)",
+            prompt: "Which word has the '-ed' ending pronounced as /ɪd/?",
+            options: ["A. played", "B. visited", "C. stopped", "D. watched"],
+            answer: 1,
+            explanation: "Đuôi -ed phát âm là /ɪd/ khi động từ kết thúc bằng âm /t/ hoặc /d/ (visit -> visited /vɪzɪtɪd/)."
+          },
+          {
+            type: "Past Simple (Irregular)",
+            prompt: "Complete the sentence with the past form of 'SEE': We ______ an ancient pagoda when we were in Ninh Binh.",
+            textAnswer: "saw",
+            accepted: ["saw"],
+            explanation: "Dạng quá khứ bất quy tắc của động từ 'see' là 'saw'."
+          }
+        ]
       },
-      {
-        type: "Present Simple vs Past Simple",
-        prompt: "Choose the correct pair of verbs: She usually ______ up early, but yesterday she ______ late because of a headache.",
-        options: ["A. wakes / got up", "B. wake / get up", "C. woke / gets up", "D. wakes / gets up"],
-        answer: 0,
-        explanation: "Vế 1 diễn tả thói quen 'usually' dùng Hiện tại đơn (wakes); vế 2 có 'yesterday' dùng Quá khứ đơn (got up)."
+      "present-vs-past": {
+        id: "present-vs-past",
+        title: "Present Simple vs. Past Simple Mix (Tổng hợp 2 thì)",
+        duration: 20 * 60,
+        questions: [
+          {
+            type: "Present vs Past",
+            prompt: "Choose the correct pair of verbs: She usually ______ up early, but yesterday she ______ late because of a headache.",
+            options: ["A. wakes / got up", "B. wake / get up", "C. woke / gets up", "D. wakes / gets up"],
+            answer: 0,
+            explanation: "Vế 1 diễn tả thói quen 'usually' dùng Hiện tại đơn (wakes); vế 2 có 'yesterday' dùng Quá khứ đơn (got up)."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Choose the best answer: 'Where is Peter?' - 'He ______ in the garden now, but this morning he ______ at the library.'",
+            options: ["A. is / was", "B. was / is", "C. is / is", "D. was / was"],
+            answer: 0,
+            explanation: "Vế 1 có 'now' dùng hiện tại (is); vế 2 có 'this morning' đã qua dùng quá khứ (was)."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Choose the best answer: Minh ______ hard every day because he wants to pass the final exam with high scores.",
+            options: ["A. study", "B. studies", "C. studied", "D. studying"],
+            answer: 1,
+            explanation: "Dấu hiệu 'every day' chỉ thói quen hàng ngày -> thì Hiện tại đơn: Minh studies."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Choose the best answer: Last night, I ______ my keys, but fortunately my brother ______ them this morning.",
+            options: ["A. lost / found", "B. lose / find", "C. lose / found", "D. lost / finds"],
+            answer: 0,
+            explanation: "Cả hai hành động đều đã hoàn thành trong quá khứ -> dùng thì Quá khứ đơn: lost / found."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Choose the best answer: We rarely ______ fast food, but last weekend we ______ pizza at a restaurant.",
+            options: ["A. eat / ate", "B. ate / eat", "C. eats / ate", "D. eating / eat"],
+            answer: 0,
+            explanation: "Vế 1 'rarely' diễn tả thói quen (Hiện tại đơn: eat); vế 2 'last weekend' dùng Quá khứ đơn (ate)."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Complete the sentence with the correct form of 'NOT GO': Phong ______ to school yesterday because he was sick.",
+            textAnswer: "didn't go",
+            accepted: ["didn't go", "did not go"],
+            explanation: "Dấu hiệu 'yesterday' dùng phủ định quá khứ đơn: didn't go."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Choose the correct sentence:",
+            options: [
+              "A. Did you went to the cinema last night?",
+              "B. Did you go to the cinema last night?",
+              "C. Do you went to the cinema last night?",
+              "D. Are you go to the cinema last night?"
+            ],
+            answer: 1,
+            explanation: "Sau trợ động từ 'Did', động từ chính luôn ở dạng nguyên mẫu không 'to' (go)."
+          },
+          {
+            type: "Present vs Past",
+            prompt: "Choose the best answer: Water ______ at 100 degrees Celsius.",
+            options: ["A. boil", "B. boils", "C. boiled", "D. is boiling"],
+            answer: 1,
+            explanation: "Sự thật khoa học hiển nhiên luôn dùng thì Hiện tại đơn: Water boils."
+          }
+        ]
       },
-      {
-        type: "Past Simple (Irregular)",
-        prompt: "Complete the sentence with the correct past form of the verb: Last summer, my family ______ to Da Nang on vacation. (GO)",
-        textAnswer: "went",
-        accepted: ["went"],
-        explanation: "Động từ bất quy tắc của 'go' ở thì Quá khứ đơn là 'went'."
-      },
-      {
-        type: "Present Simple (Negative)",
-        prompt: "Choose the best answer: He ______ like spicy food, so he never orders chili chicken.",
-        options: ["A. don't", "B. doesn't", "C. didn't", "D. isn't"],
-        answer: 1,
-        explanation: "Thì Hiện tại đơn dạng phủ định với chủ ngữ 'He': He + doesn't + V (nguyên mẫu)."
-      },
-      {
-        type: "Past Simple (Question)",
-        prompt: "Choose the correct auxiliary verb: '______ you visit your grandparents last weekend?' - 'Yes, I did.'",
-        options: ["A. Do", "B. Does", "C. Did", "D. Were"],
-        answer: 2,
-        explanation: "Câu hỏi thì Quá khứ đơn với động từ thường: Did + S + V (nguyên mẫu)?"
+      "comparatives": {
+        id: "comparatives",
+        title: "Comparatives & Superlatives (So sánh hơn & So sánh nhất)",
+        duration: 15 * 60,
+        questions: [
+          {
+            type: "Comparatives (Short adj)",
+            prompt: "Choose the best answer: Mount Everest is ______ than Mount Fuji.",
+            options: ["A. higher", "B. highest", "C. more high", "D. as high"],
+            answer: 0,
+            explanation: "Tính từ ngắn 'high' khi so sánh hơn thêm đuôi '-er' + than: higher than."
+          },
+          {
+            type: "Comparatives (Long adj)",
+            prompt: "Choose the best answer: Travelling by plane is ______ than travelling by bus.",
+            options: ["A. more expensive", "B. expensiver", "C. most expensive", "D. as expensive"],
+            answer: 0,
+            explanation: "Tính từ dài 'expensive' (3 âm tiết) khi so sánh hơn dùng 'more + adj + than': more expensive than."
+          },
+          {
+            type: "Superlatives (Short adj)",
+            prompt: "Choose the best answer: Russia is the ______ country in the world.",
+            options: ["A. large", "B. larger", "C. largest", "D. most large"],
+            answer: 2,
+            explanation: "So sánh nhất với tính từ ngắn 'large' dùng 'the + adj-est': the largest."
+          },
+          {
+            type: "Irregular Comparison",
+            prompt: "Complete the sentence with the comparative form of 'GOOD': Practicing speaking every day is ______ than just reading books.",
+            textAnswer: "better",
+            accepted: ["better"],
+            explanation: "Dạng so sánh hơn bất quy tắc của 'good' là 'better'."
+          },
+          {
+            type: "Superlatives (Long adj)",
+            prompt: "Choose the best answer: Ha Long Bay is one of the ______ natural wonders in Vietnam.",
+            options: ["A. most beautiful", "B. more beautiful", "C. beautifulest", "D. as beautiful"],
+            answer: 0,
+            explanation: "So sánh nhất với tính từ dài 'beautiful' dùng 'the most + adj': most beautiful."
+          },
+          {
+            type: "Irregular Comparison",
+            prompt: "Choose the best answer: His health is getting ______ because he doesn't exercise regularly. (BAD)",
+            options: ["A. badder", "B. worse", "C. worst", "D. more bad"],
+            answer: 1,
+            explanation: "Dạng so sánh hơn bất quy tắc của 'bad' là 'worse'."
+          },
+          {
+            type: "Comparatives (-y ending)",
+            prompt: "Complete the sentence with the comparative form of 'HAPPY': Children are usually ______ on weekends than on school days.",
+            textAnswer: "happier",
+            accepted: ["happier"],
+            explanation: "Tính từ 2 âm tiết tận cùng bằng '-y' đổi thành '-ier': happy -> happier."
+          },
+          {
+            type: "Superlatives (Irregular)",
+            prompt: "Choose the best answer: Who is the ______ student in your class?",
+            options: ["A. goodest", "B. best", "C. better", "D. most good"],
+            answer: 1,
+            explanation: "Dạng so sánh nhất bất quy tắc của 'good' là 'the best'."
+          }
+        ]
       }
-    ];
+    };
 
-    let questions=defaultQuestions;
-    let activeImportedTest=null;
+    const defaultQuestions = grammarTestDecks["present-simple"].questions;
+    let questions = defaultQuestions;
+    let activeImportedTest = null;
 
     let currentQuestion=0;
     let answers=JSON.parse(localStorage.getItem("engoAnswers")||localStorage.getItem("global9Answers")||"{}");
@@ -803,12 +1034,32 @@
       }
     }
 
-    function startDefaultQuiz(){
-      activeImportedTest=null;questions=defaultQuestions;answers={};checked={};currentQuestion=0;secondsLeft=20*60;
-      document.querySelector("#quiz .page-heading h2").textContent="Mid-term Practice 01";
+    function startGrammarTest(deckKey){
+      const deck = grammarTestDecks[deckKey] || grammarTestDecks["present-simple"];
+      activeImportedTest = null;
+      questions = deck.questions;
+      answers = {};
+      checked = {};
+      currentQuestion = 0;
+      secondsLeft = deck.duration || (15 * 60);
+      const heading = document.querySelector("#quiz .page-heading h2");
+      if(heading) heading.textContent = deck.title;
       startQuiz();
     }
+
+    function startDefaultQuiz(){
+      startGrammarTest("present-simple");
+    }
+
     document.querySelectorAll(".start-quiz").forEach(btn=>btn.addEventListener("click",startDefaultQuiz));
+    document.querySelectorAll("[data-grammar-test]").forEach(btn=>{
+      btn.addEventListener("click",e=>{
+        e.stopPropagation();
+        const testKey=btn.dataset.grammarTest;
+        startGrammarTest(testKey);
+      });
+    });
+
     document.getElementById("prevQuestion").addEventListener("click",()=>{if(currentQuestion>0){currentQuestion--;renderQuestion()}});
     document.getElementById("nextQuestion").addEventListener("click",()=>{
       if(currentQuestion<questions.length-1){currentQuestion++;renderQuestion()} else submitQuiz();
@@ -1393,6 +1644,28 @@
           });
         });
 
+        // Cập nhật bảng kết quả gần đây trên trang chủ học sinh (#recentHomeSubmissionsBody)
+        const recentHomeTbody = document.getElementById("recentHomeSubmissionsBody");
+        if(recentHomeTbody){
+          if(!studentSubmissionsCache.length){
+            recentHomeTbody.innerHTML = '<tr><td colspan="4" class="small muted" style="text-align:center;padding:20px">Chưa có kết quả làm bài nào. Hãy chọn một bài luyện để bắt đầu!</td></tr>';
+          } else {
+            const top3 = studentSubmissionsCache.slice(0, 3);
+            recentHomeTbody.innerHTML = top3.map(item => {
+              const dateStr = item.submittedAt ? new Date(item.submittedAt).toLocaleDateString("vi-VN") : "Hôm nay";
+              const isPending = item.status === "pending_manual";
+              return `
+                <tr>
+                  <td><strong>${escapeHTML(item.testTitle)}</strong></td>
+                  <td>${escapeHTML(dateStr)}</td>
+                  <td><span class="score-pill" style="font-weight:800">${item.scoreOnTen}</span></td>
+                  <td><span class="badge ${isPending ? 'orange' : 'green'}">${isPending ? 'Chờ chấm' : 'Đã nộp'}</span></td>
+                </tr>
+              `;
+            }).join("");
+          }
+        }
+
         // Cập nhật biểu đồ kỹ năng của học sinh
         const chart = document.getElementById("studentSkillChart");
         if(chart && stats.avgScore !== undefined){
@@ -1498,17 +1771,40 @@
     });
 
 
-    // ENGO v3: dữ liệu học tập cục bộ cho các tiện ích mới
-    const learningStatsKey="engoLearningStatsV3";
-    const dailyPlanKey="engoDailyPlanV3";
-    const notificationsKey="engoNotificationsReadV3";
+    // ENGO v3: Dữ liệu học tập và Gamification được phân tách riêng biệt theo từng tài khoản (User Storage Isolation)
+    function getUserStorageKey(baseKey){
+      if(currentUser && currentUser.id){
+        return `${baseKey}_user_${currentUser.id}`;
+      }
+      return `${baseKey}_guest`;
+    }
+
     const defaultLearningStats={quizCount:0,bestScore:0,totalScore:0,totalCorrect:0,totalQuestions:0,focusSessions:0,focusMinutes:0,points:0,streak:1,lastStudyDate:"",skillErrors:{},carrots:15,speakingAttempts:0,bestSpeakingScore:0,capybaraLevel:1};
 
     function getLearningStats(){
-      try{return {...defaultLearningStats,...JSON.parse(localStorage.getItem(learningStatsKey)||"{}")}}
-      catch{return {...defaultLearningStats}}
+      const key = getUserStorageKey("engoLearningStatsV3");
+      try{
+        let raw = localStorage.getItem(key);
+        // Tự động giữ nguyên dữ liệu cho tài khoản cũ (id: 1)
+        if (!raw && currentUser && currentUser.id === 1) {
+          const legacy = localStorage.getItem("engoLearningStatsV3");
+          if (legacy) {
+            localStorage.setItem(key, legacy);
+            raw = legacy;
+          }
+        }
+        if (!raw) return { ...defaultLearningStats };
+        return { ...defaultLearningStats, ...JSON.parse(raw) };
+      } catch{
+        return { ...defaultLearningStats };
+      }
     }
-    function setLearningStats(stats){localStorage.setItem(learningStatsKey,JSON.stringify(stats))}
+
+    function setLearningStats(stats){
+      const key = getUserStorageKey("engoLearningStatsV3");
+      localStorage.setItem(key, JSON.stringify(stats));
+    }
+
     function dateKey(){return new Date().toISOString().slice(0,10)}
     function updateStudyStreak(stats){
       const today=dateKey();
@@ -1523,22 +1819,36 @@
     function saveLearningStats(correct,score){
       const stats=getLearningStats();
       updateStudyStreak(stats);
+      const xpGain = Math.round(30 * getXPMultiplier());
       stats.quizCount+=1;stats.bestScore=Math.max(stats.bestScore,score);stats.totalScore+=score;
-      stats.totalCorrect+=correct;stats.totalQuestions+=questions.length;stats.points+=30;
+      stats.totalCorrect+=correct;stats.totalQuestions+=questions.length;stats.points+=xpGain;
       questions.forEach((q,i)=>{if(!isCorrect(i)) stats.skillErrors[q.type]=(stats.skillErrors[q.type]||0)+1});
       setLearningStats(stats);renderLearningFeatures();
     }
 
     function getDailyPlan(){
-      try{const data=JSON.parse(localStorage.getItem(dailyPlanKey)||"{}");return data.date===dateKey()?data:{date:dateKey(),tasks:{}}}
-      catch{return {date:dateKey(),tasks:{}}}
+      const key = getUserStorageKey("engoDailyPlanV3");
+      try{
+        const data=JSON.parse(localStorage.getItem(key)||"{}");
+        return data.date===dateKey()?data:{date:dateKey(),tasks:{}}
+      } catch{
+        return {date:dateKey(),tasks:{}}
+      }
     }
-    function setDailyPlan(data){localStorage.setItem(dailyPlanKey,JSON.stringify(data))}
+    function setDailyPlan(data){
+      const key = getUserStorageKey("engoDailyPlanV3");
+      localStorage.setItem(key,JSON.stringify(data));
+    }
     function completeDailyPlanTask(task){
       const plan=getDailyPlan();
       if(!plan.tasks[task]){
         plan.tasks[task]=true;setDailyPlan(plan);
-        const stats=getLearningStats();stats.points+=task==="quiz"?0:task==="focus"?20:10;setLearningStats(stats);
+        const stats=getLearningStats();
+        const baseXP = task==="quiz"?30:task==="focus"?20:10;
+        stats.points+=Math.round(baseXP * getXPMultiplier());
+        updateStudyStreak(stats);
+        setLearningStats(stats);
+        showToast(`🎉 Hoàn thành nhiệm vụ ngày: +${Math.round(baseXP * getXPMultiplier())} XP!`);
       }
       renderDailyPlan();renderLearningFeatures();
     }
@@ -1548,7 +1858,11 @@
       Object.keys(labels).forEach(task=>{
         const checkbox=document.querySelector(`[data-plan="${task}"]`);
         const item=document.querySelector(`[data-plan-item="${task}"]`);
-        if(checkbox) checkbox.checked=Boolean(plan.tasks[task]);
+        if(checkbox){
+          checkbox.checked=Boolean(plan.tasks[task]);
+          checkbox.disabled=true; // Khóa không cho học sinh tự tích gian lận
+          checkbox.style.cursor="default";
+        }
         if(item) item.classList.toggle("done",Boolean(plan.tasks[task]));
       });
       const done=Object.values(plan.tasks).filter(Boolean).length;
@@ -1556,14 +1870,32 @@
       document.getElementById("dailyPlanBadge").textContent=`${done}/3 hoàn thành`;
       document.getElementById("dailyGoalPercent").textContent=`${percent}%`;
       document.getElementById("dailyGoalRing").style.setProperty("--goal-progress",`${percent}%`);
-      document.getElementById("dailyGoalMessage").textContent=done===3?"Tuyệt vời! Bạn đã hoàn thành mục tiêu hôm nay.":done?"Đang tiến bộ tốt — tiếp tục nhiệm vụ tiếp theo nhé.":"Bắt đầu một nhiệm vụ nhỏ để tạo đà học tập.";
+      document.getElementById("dailyGoalMessage").textContent=done===3?"Tuyệt vời! Bạn đã hoàn thành toàn bộ mục tiêu hôm nay.":done?"Đang tiến bộ tốt — hoàn thành nốt các nhiệm vụ còn lại nhé.":"Hãy thực hiện các hoạt động học tập để tự động hoàn thành nhiệm vụ.";
       document.getElementById("dailyPlanDate").textContent=new Date().toLocaleDateString("vi-VN",{weekday:"long",day:"2-digit",month:"2-digit"});
     }
-    document.querySelectorAll("[data-plan]").forEach(box=>box.addEventListener("change",()=>{
-      const plan=getDailyPlan();const task=box.dataset.plan;const wasDone=Boolean(plan.tasks[task]);plan.tasks[task]=box.checked;setDailyPlan(plan);
-      if(box.checked&&!wasDone){const stats=getLearningStats();stats.points+=task==="quiz"?30:task==="focus"?20:10;updateStudyStreak(stats);setLearningStats(stats)}
-      renderDailyPlan();renderLearningFeatures();
-    }));
+
+    // Học sinh bấm vào hàng nhiệm vụ ngày sẽ được chuyển hướng trực tiếp đến chức năng đó
+    document.querySelectorAll("[data-plan-item]").forEach(item=>{
+      item.style.cursor="pointer";
+      item.addEventListener("click",()=>{
+        const task=item.dataset.planItem;
+        const plan=getDailyPlan();
+        if(plan.tasks[task]){
+          showToast("✓ Nhiệm vụ này đã được hệ thống ghi nhận hoàn thành hôm nay!");
+          return;
+        }
+        if(task==="flashcard"){
+          switchView("flashcards");
+          showToast("📖 Hãy lật mở học ít nhất 5 thẻ từ vựng để hoàn thành nhiệm vụ!");
+        } else if(task==="quiz"){
+          switchView("student-home");
+          showToast("📝 Hãy hoàn thành 1 bài luyện tập ngữ pháp để hoàn thành nhiệm vụ!");
+        } else if(task==="focus"){
+          switchView("focus-room");
+          showToast("⏱️ Hãy hoàn thành 1 phiên tập trung Pomodoro để hoàn thành nhiệm vụ!");
+        }
+      });
+    });
 
     function renderSmartReview(){
       const stats=getLearningStats();
@@ -1575,9 +1907,9 @@
       const fallback=[["Vocabulary",0],["Pronunciation",0],["Reading",0]];
       const list=(entries.length?entries:fallback).slice(0,4);
       document.getElementById("weakSkillList").innerHTML=list.map(([skill,count],index)=>{
-        const max=Math.max(1,...list.map(x=>x[1]));const risk=count?Math.max(22,Math.round(count/max*100)):18;
+        const max=Math.max(1,...list.map(x=>x[1]));const risk=count?Math.max(22,Math.round(count/max*100)):0;
         const labels=count?`${count} lỗi đã ghi nhận`:"Chưa đủ dữ liệu";
-        return `<div class="weak-skill"><div class="weak-skill-head"><div><strong>${escapeHTML(skill)}</strong><br><span>${labels}</span></div><span class="badge ${index===0&&count?"red":"orange"}">${count?"Cần ôn":"Khởi động"}</span></div><div class="progress"><span style="width:${risk}%"></span></div></div>`;
+        return `<div class="weak-skill"><div class="weak-skill-head"><div><strong>${escapeHTML(skill)}</strong><br><span>${labels}</span></div><span class="badge ${index===0&&count?"red":"orange"}">${count?"Cần ôn":"Chưa có lỗi"}</span></div><div class="progress"><span style="width:${risk}%"></span></div></div>`;
       }).join("");
       const top=entries[0];
       document.getElementById("smartRecommendationTitle").textContent=top?`Ưu tiên ${top[0]}`:"Làm bài chẩn đoán ngắn";
@@ -1622,25 +1954,65 @@
       {id:"past-simple",icon:"🕰️",name:"Past Simple",level:"Nền tảng",formula:"S + V2/ed · did not + V · Did + S + V?",summary:"Kể lại hành động đã hoàn thành trong quá khứ.",exercises:["Động từ có quy tắc / bất quy tắc", "Đổi câu khẳng định - phủ định - nghi vấn", "Hoàn thành mốc thời gian", "Viết đoạn nhật ký ngắn"]},
       {id:"comparatives",icon:"⚖️",name:"Comparatives & Superlatives",level:"Mở rộng",formula:"adj-er / more + adj · the adj-est / the most + adj",summary:"So sánh người, vật và sự việc trong ngữ cảnh quen thuộc.",exercises:["Chọn dạng so sánh đúng", "Viết lại câu không đổi nghĩa", "Sắp xếp bảng so sánh", "Miêu tả biểu đồ ngắn"]}
     ];
-    let activeGrammarCourse="present-simple";
-    function getGrammarProgress(){try{return JSON.parse(localStorage.getItem(grammarProgressKey)||"{}")}catch{return {}}}
-    function setGrammarProgress(progress){localStorage.setItem(grammarProgressKey,JSON.stringify(progress))}
-    function grammarProgressTotal(){const progress=getGrammarProgress();return Math.round(grammarCourses.reduce((sum,course)=>sum+Number(progress[course.id]||0),0)/grammarCourses.length)}
-    function getCompetencyScores(){
-      const stats=getLearningStats();const accuracy=stats.totalQuestions?Math.round(stats.totalCorrect/stats.totalQuestions*100):0;const grammar=grammarProgressTotal();
-      return {Listening:Math.min(98,42+stats.focusMinutes),Speaking:Math.min(98,40+stats.quizCount*5),Vocabulary:Math.min(98,45+accuracy),Grammar:Math.min(98,35+grammar+stats.quizCount*3),Writing:Math.min(98,38+stats.quizCount*4),Reading:Math.min(98,44+accuracy)};
+    let activeGrammarCourse = "present-simple";
+
+    function getGrammarProgress(){
+      const key = getUserStorageKey("engoGrammarProgressV1");
+      try{return JSON.parse(localStorage.getItem(key)||"{}")}catch{return {}}
     }
+    function setGrammarProgress(progress){
+      const key = getUserStorageKey("engoGrammarProgressV1");
+      localStorage.setItem(key,JSON.stringify(progress))
+    }
+    function grammarProgressTotal(){const progress=getGrammarProgress();return Math.round(grammarCourses.reduce((sum,course)=>sum+Number(progress[course.id]||0),0)/grammarCourses.length)}
+
+    function getCompetencyScores(){
+      const stats=getLearningStats();
+      // Nếu là tài khoản mới tinh chưa làm bài nào -> hiển thị 0%
+      if(!stats.quizCount && !stats.focusMinutes && !stats.speakingAttempts && !stats.totalQuestions){
+        return {Listening:0,Speaking:0,Vocabulary:0,Grammar:0,Writing:0,Reading:0};
+      }
+      const accuracy=stats.totalQuestions?Math.round(stats.totalCorrect/stats.totalQuestions*100):0;
+      const grammar=grammarProgressTotal();
+      const speaking=stats.bestSpeakingScore || (stats.speakingAttempts ? Math.min(100, stats.speakingAttempts * 20) : 0);
+      const listening=Math.min(100, Math.round((stats.focusMinutes * 4) + (stats.quizCount * 8)));
+      const vocabulary=accuracy;
+      const grammarScore=Math.min(100, Math.round(grammar + (stats.quizCount * 10)));
+      const writing=Math.min(100, stats.quizCount ? Math.round(accuracy * 0.9) : 0);
+      const reading=accuracy;
+
+      return {
+        Listening: listening,
+        Speaking: speaking,
+        Vocabulary: vocabulary,
+        Grammar: grammarScore,
+        Writing: writing,
+        Reading: reading
+      };
+    }
+
     function renderCompetency(){
       const scores=getCompetencyScores();const order=["Listening","Speaking","Vocabulary","Grammar","Writing","Reading"];const center={x:160,y:134},radius=92;
-      const points=order.map((name,index)=>{const angle=(-90+index*60)*Math.PI/180;const factor=Math.max(0.28,scores[name]/100);return {x:center.x+Math.cos(angle)*radius*factor,y:center.y+Math.sin(angle)*radius*factor}});
+      const stats=getLearningStats();
+      const hasData = Boolean(stats.quizCount || stats.focusMinutes || stats.speakingAttempts || stats.totalQuestions);
+
+      const points=order.map((name,index)=>{
+        const angle=(-90+index*60)*Math.PI/180;
+        const factor=hasData ? Math.max(0.08, scores[name]/100) : 0.05;
+        return {x:center.x+Math.cos(angle)*radius*factor,y:center.y+Math.sin(angle)*radius*factor};
+      });
       const polygon=document.getElementById("radarPolygon");if(polygon) polygon.setAttribute("points",points.map(point=>`${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "));
       order.forEach((name,index)=>{const dot=document.getElementById(`radarDot${name}`);if(dot){dot.setAttribute("cx",points[index].x.toFixed(1));dot.setAttribute("cy",points[index].y.toFixed(1))}});
-      const stats=getLearningStats();const values=Object.values(scores);const overall=Math.round(values.reduce((sum,value)=>sum+value,0)/values.length);const strongest=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
-      document.getElementById("overallProgress").textContent=`${overall}%`;document.querySelector(".score-orbit")?.style.setProperty("--overall-progress",`${overall}%`);
-      document.getElementById("overallLevel").textContent=overall>=80?"Người học vững vàng":overall>=60?"Đang tiến bộ tốt":"Người học khởi động";
-      document.getElementById("overallHint").textContent=stats.quizCount?`Điểm mạnh hiện tại: ${strongest[0]} (${strongest[1]}%).` : "Hoàn thành bài luyện đầu tiên để cá nhân hóa số liệu.";
-      document.getElementById("competencyMessage").textContent=stats.quizCount?`Nổi bật: ${strongest[0]} đang ở mức ${strongest[1]}%.` : "Hoàn thành bài luyện để ENGO đánh giá chính xác hơn.";
-      document.getElementById("progressStatus").textContent=overall>=80?"Năng lực tốt":overall>=60?"Đang tiến bộ":"Đang khởi động";
+      const values=Object.values(scores);
+      const overall=hasData ? Math.round(values.reduce((sum,value)=>sum+value,0)/values.length) : 0;
+      const strongest=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
+
+      document.getElementById("overallProgress").textContent=`${overall}%`;
+      document.querySelector(".score-orbit")?.style.setProperty("--overall-progress",`${overall}%`);
+      document.getElementById("overallLevel").textContent=overall>=80?"Người học vững vàng":overall>=50?"Đang tiến bộ tốt":hasData?"Người học khởi động":"Chưa có dữ liệu";
+      document.getElementById("overallHint").textContent=hasData?`Điểm mạnh hiện tại: ${strongest[0]} (${strongest[1]}%).` : "Hoàn thành bài luyện đầu tiên để cá nhân hóa số liệu.";
+      document.getElementById("competencyMessage").textContent=hasData?`Nổi bật: ${strongest[0]} đang ở mức ${strongest[1]}%.` : "Hoàn thành bài luyện để ENGO đánh giá chính xác hơn.";
+      document.getElementById("progressStatus").textContent=overall>=80?"Năng lực tốt":overall>=50?"Đang tiến bộ":hasData?"Đang khởi động":"Chưa đánh giá";
       document.getElementById("skillStatList").innerHTML=order.map(name=>`<div class="skill-stat"><div class="skill-stat-head"><span>${{Listening:"🎧 Nghe",Speaking:"🗣️ Nói",Vocabulary:"🔤 Từ vựng",Grammar:"📘 Ngữ pháp",Writing:"✍️ Viết",Reading:"📖 Đọc"}[name]}</span><b>${scores[name]}%</b></div><div class="progress"><span style="width:${scores[name]}%"></span></div></div>`).join("");
       document.getElementById("progressStreak").textContent=`${stats.streak||1} ngày`;document.getElementById("progressPoints").textContent=`${stats.points||0} XP`;document.getElementById("progressQuizzes").textContent=stats.quizCount||0;
     }
@@ -1649,7 +2021,21 @@
       document.getElementById("grammarCourseGrid").innerHTML=grammarCourses.map(course=>{const value=Math.min(100,Number(progress[course.id]||0));return `<article class="card grammar-course ${course.id===active.id?"active":""}" data-grammar-course="${course.id}"><div class="grammar-course-top"><div class="grammar-course-icon">${course.icon}</div><span class="badge ${value===100?"green":""}">${course.level}</span></div><h4>${course.name}</h4><p>${course.summary}</p><div class="progress"><span style="width:${value}%"></span></div><div class="grammar-course-footer"><span>${value}% hoàn thành</span><span>${value===100?"✓ Hoàn tất":"Xem lộ trình →"}</span></div></article>`}).join("");
       const value=Math.min(100,Number(progress[active.id]||0));document.getElementById("grammarDetail").innerHTML=`<span class="badge">${active.level}</span><h3>${active.icon} ${active.name}</h3><p class="small muted">${active.summary}</p><div class="grammar-formula">${active.formula}</div><strong class="small">Các dạng bài tập phổ biến</strong><div class="exercise-list">${active.exercises.map((exercise,index)=>`<div class="exercise-item"><b>${index+1}</b><span>${exercise}</span></div>`).join("")}</div><div class="section-head" style="margin:2px 0 0"><span class="small muted">Tiến độ khóa học: ${value}%</span><strong class="small">${value>=100?"Đã hoàn thành":"Bài tiếp theo"}</strong></div><div class="progress"><span style="width:${value}%"></span></div><button class="btn btn-primary" id="completeGrammarLesson" style="width:100%;margin-top:14px">${value>=100?"Ôn lại khóa học":"Hoàn thành bài tiếp theo"}</button>`;
       document.querySelectorAll("[data-grammar-course]").forEach(card=>card.addEventListener("click",()=>{activeGrammarCourse=card.dataset.grammarCourse;renderGrammarCourses()}));
-      document.getElementById("completeGrammarLesson").addEventListener("click",()=>{const next=getGrammarProgress();const before=Number(next[active.id]||0);next[active.id]=before>=100?0:Math.min(100,before+25);setGrammarProgress(next);if(before<100){const stats=getLearningStats();stats.points+=10;updateStudyStreak(stats);setLearningStats(stats);showToast(`Đã hoàn thành một bài ${active.name}. +10 XP`)}else showToast(`Đã mở lại lộ trình ${active.name}`);renderGrammarCourses();renderCompetency();renderDashboardStats()});
+      document.getElementById("completeGrammarLesson").addEventListener("click",()=>{
+        const next=getGrammarProgress();
+        const before=Number(next[active.id]||0);
+        next[active.id]=before>=100?0:Math.min(100,before+25);
+        setGrammarProgress(next);
+        if(before<100){
+          const stats=getLearningStats();
+          const xpGain = Math.round(10 * getXPMultiplier());
+          stats.points+=xpGain;
+          updateStudyStreak(stats);
+          setLearningStats(stats);
+          showToast(`Đã hoàn thành một bài ${active.name}. +${xpGain} XP`);
+        }else showToast(`Đã mở lại lộ trình ${active.name}`);
+        renderGrammarCourses();renderCompetency();renderDashboardStats();
+      });
     }
     document.getElementById("resetGrammarProgress").addEventListener("click",()=>{setGrammarProgress({});activeGrammarCourse="present-simple";renderGrammarCourses();renderCompetency();showToast("Đã đặt lại tiến độ khóa ngữ pháp")});
     function renderLearningFeatures(){
@@ -1765,22 +2151,77 @@
     // ============================================================
     // MODULE 2: BẠN ĐỒNG HÀNH CAPYBARA & GAMIFICATION
     // ============================================================
-    const capybaraQuotes = [
-      "Học một câu ngữ pháp mỗi ngày, kiến thức sẽ dày như rừng tre! 🎋",
-      "Thì Quá khứ đơn (Past Simple) nhớ thêm -ed hoặc dùng động từ V2 nhé bạn ơi! 🕰️",
-      "Thì Hiện tại đơn (Present Simple) diễn tả thói quen lặp đi lặp lại. Cố lên nhé! ☀️",
-      "Luyện phát âm 5 phút mỗi ngày cùng mình tại Phòng Luyện Nói AI nhé! 🎙️",
-      "Hôm nay bạn học rất chăm chỉ, hãy ăn thêm một củ Cà rốt lấy năng lượng nào! 🥕",
-      "Practice makes perfect! Đừng sợ phát âm sai, mình luôn đồng hành cùng bạn! 🦫✨"
-    ];
+    const capybaraQuotesByLevel = {
+      1: [
+        "Chào bạn mới! Cùng mình bắt đầu hành trình chinh phục tiếng Anh từ những câu đơn giản nhé! 🌱",
+        "Đừng ngại ngùng khi phát âm nhé, mình luôn ở đây lắng nghe bạn! 🎙️",
+        "Mỗi ngày học 5 từ vựng mới là bạn đã giỏi hơn hôm qua rồi! ✨",
+        "Cho mình ăn 10 củ Cà rốt để chúng mình cùng tiến hóa lên Capybara Chăm Chỉ nha! 🥕"
+      ],
+      2: [
+        "Thì Hiện tại đơn (Present Simple) diễn tả thói quen lặp đi lặp lại. Nhớ thêm s/es cho ngôi thứ 3 số ít nhé! ☀️",
+        "Tuyệt vời! Bạn đang duy trì chuỗi học tập rất tốt, tiếp tục phát huy nào! 🎒",
+        "Luyện nói mỗi ngày 5 phút sẽ giúp bạn nói trôi chảy và tự tin hơn rất nhiều! 🗣️",
+        "Cần thêm 20 củ Cà rốt nữa là chúng mình sẽ thăng cấp thành Capybara Học Giả rồi! 🥕"
+      ],
+      3: [
+        "Thì Quá khứ đơn (Past Simple) nhớ thêm đuôi -ed hoặc học thuộc bảng động từ bất quy tắc nha! 🕰️",
+        "Bạn đã nắm vững nhiều cấu trúc ngữ pháp rồi đấy, hãy thử sức với các bài tập vận dụng cao nhé! 🎓",
+        "Kỹ năng nghe và phát âm của bạn đang tiến bộ vượt bậc! Tự tin lên nhé! 🎧",
+        "Chỉ còn 35 củ Cà rốt nữa thôi, vinh quang Capybara Thông Thái đang chờ đón chúng mình! 🎋"
+      ],
+      4: [
+        "Cấu trúc so sánh hơn và so sánh nhất: tính từ ngắn thêm -er/-est, tính từ dài dùng more/most nhé bạn hiền! ⚖️",
+        "Sắp chạm tới đỉnh cao Bậc Thầy rồi! Bạn là một trong những học sinh chăm chỉ và xuất sắc nhất! 🌟",
+        "Hãy chú ý các 'bẫy' ngữ pháp trong đề thi: mạo từ a/an/the, giới từ chỉ thời gian in/on/at! 🔍",
+        "50 củ Cà rốt cuối cùng để mở khóa Vương Miện Bậc Thầy và toàn bộ đặc quyền tối thượng! 👑"
+      ],
+      5: [
+        "👑 Xin chào Bậc Thầy ENGO! Bạn đã mở khóa toàn bộ đặc quyền Hoàng Gia và nhân 1.5 lần XP vĩnh viễn! ✨",
+        "Đỉnh cao ngữ pháp và phát âm! Bạn hoàn toàn đủ tự tin để đạt điểm 9-10 trong kỳ thi sắp tới! 💯",
+        "Phong độ là nhất thời, đẳng cấp Bậc Thầy là mãi mãi! Hãy tiếp tục duy trì hào quang rực rỡ nhé! 🏆",
+        "Kiến thức của bạn giờ đã vững như bàn thạch! Cùng mình truyền cảm hứng cho các bạn khác nào! 🦫🌟"
+      ]
+    };
+
+    function getCapybaraProgress(fedCarrots = 0){
+      let remaining = Number(fedCarrots) || 0;
+      if (remaining < 10) {
+        // Level 1 -> 2: Cần 10 cà rốt
+        const percent = Math.min(100, Math.round((remaining / 10) * 100));
+        return { lv: 1, name: "Capybara Mầm Non", currentInLevel: remaining, neededForNext: 10, percent, nextName: "Capybara Chăm Chỉ", isMax: false };
+      }
+      remaining -= 10;
+      if (remaining < 20) {
+        // Level 2 -> 3: Cần 20 cà rốt
+        const percent = Math.min(100, Math.round((remaining / 20) * 100));
+        return { lv: 2, name: "Capybara Chăm Chỉ", currentInLevel: remaining, neededForNext: 20, percent, nextName: "Capybara Học Giả", isMax: false };
+      }
+      remaining -= 20;
+      if (remaining < 35) {
+        // Level 3 -> 4: Cần 35 cà rốt
+        const percent = Math.min(100, Math.round((remaining / 35) * 100));
+        return { lv: 3, name: "Capybara Học Giả", currentInLevel: remaining, neededForNext: 35, percent, nextName: "Capybara Thông Thái", isMax: false };
+      }
+      remaining -= 35;
+      if (remaining < 50) {
+        // Level 4 -> 5: Cần 50 cà rốt
+        const percent = Math.min(100, Math.round((remaining / 50) * 100));
+        return { lv: 4, name: "Capybara Thông Thái", currentInLevel: remaining, neededForNext: 50, percent, nextName: "Capybara Bậc Thầy", isMax: false };
+      }
+      // Level 5: MAX LEVEL (115+ Cà rốt)
+      return { lv: 5, name: "Capybara Bậc Thầy", currentInLevel: remaining, neededForNext: 0, percent: 100, nextName: "", isMax: true };
+    }
+
+    function getXPMultiplier(){
+      const stats = getLearningStats();
+      const progress = getCapybaraProgress(stats.fedCarrots || 0);
+      return progress.isMax ? 1.5 : 1.0;
+    }
 
     function getCapybaraLevelInfo(points){
-      const pts = Number(points) || 0;
-      if(pts >= 400) return { lv: 5, name: "Capybara Bậc Thầy" };
-      if(pts >= 250) return { lv: 4, name: "Capybara Thông Thái" };
-      if(pts >= 150) return { lv: 3, name: "Capybara Học Giả" };
-      if(pts >= 50) return { lv: 2, name: "Capybara Chăm Chỉ" };
-      return { lv: 1, name: "Capybara Mầm Non" };
+      const stats = getLearningStats();
+      return getCapybaraProgress(stats.fedCarrots || 0);
     }
 
     function getVietnameseVoice() {
@@ -1836,17 +2277,66 @@
 
     function renderCapybaraCompanion(){
       const stats = getLearningStats();
-      const info = getCapybaraLevelInfo(stats.points);
+      const progress = getCapybaraProgress(stats.fedCarrots || 0);
       
       const badgeLvEl = document.getElementById("capybaraBadgeLv");
       const subtitleEl = document.getElementById("capybaraSubtitle");
       const carrotEl = document.getElementById("capybaraCarrotCount");
       const streakEl = document.getElementById("capybaraStreakCount");
 
-      if(badgeLvEl) badgeLvEl.textContent = `Lv.${info.lv}`;
-      if(subtitleEl) subtitleEl.textContent = `Cấp độ ${info.lv}: ${info.name}`;
+      if(badgeLvEl) badgeLvEl.textContent = `Lv.${progress.lv}`;
+      if(subtitleEl) subtitleEl.textContent = `Cấp độ ${progress.lv}: ${progress.name}`;
       if(carrotEl) carrotEl.innerHTML = `🥕 <strong>${stats.carrots || 0}</strong> Cà rốt`;
       if(streakEl) streakEl.innerHTML = `🔥 <strong>${stats.streak || 1}</strong> ngày streak`;
+
+      // Cập nhật Thanh Tiến Trình Cấp Độ
+      const nextLabelEl = document.getElementById("capybaraLevelNextLabel");
+      const percentEl = document.getElementById("capybaraLevelPercent");
+      const fillEl = document.getElementById("capybaraLevelProgressFill");
+      const hintEl = document.getElementById("capybaraLevelHint");
+
+      if(nextLabelEl){
+        if(progress.isMax){
+          nextLabelEl.innerHTML = `👑 <strong>Đã đạt cấp độ Bậc Thầy cao nhất!</strong>`;
+        } else {
+          nextLabelEl.innerHTML = `Tiến hóa lên Lv.${progress.lv + 1} (${progress.nextName}): <strong>${progress.currentInLevel} / ${progress.neededForNext} 🥕</strong>`;
+        }
+      }
+      if(percentEl) percentEl.textContent = `${progress.percent}%`;
+      if(fillEl) fillEl.style.width = `${progress.percent}%`;
+      if(hintEl){
+        if(progress.isMax){
+          hintEl.textContent = "Bạn và Capybara đã chinh phục đỉnh cao ngữ pháp toàn trường! ✨";
+        } else {
+          hintEl.textContent = `Cần thêm ${progress.neededForNext - progress.currentInLevel} Cà rốt để tiến hóa cấp tiếp theo (càng lên cao càng cần nhiều Cà rốt)`;
+        }
+      }
+
+      // Kích hoạt giao diện & đặc quyền Cấp 5 (Capybara Bậc Thầy)
+      const companionCard = document.getElementById("capybaraCompanionCard");
+      const masterPerksEl = document.getElementById("capybaraMasterPerks");
+      if(companionCard){
+        companionCard.classList.toggle("capybara-master-tier", Boolean(progress.isMax));
+      }
+      if(masterPerksEl){
+        masterPerksEl.style.display = progress.isMax ? "block" : "none";
+      }
+
+      // Cập nhật nút cho ăn Cà rốt
+      const feedBtn = document.getElementById("feedCapybaraBtn");
+      if(feedBtn){
+        const currentCarrots = stats.carrots || 0;
+        if(currentCarrots >= 5){
+          feedBtn.textContent = "🥕 Cho ăn Cà rốt (-5 🥕)";
+          feedBtn.title = "Cho Capybara ăn 5 củ cà rốt để nhận XP";
+        } else if(currentCarrots > 0){
+          feedBtn.textContent = `🥕 Cho ăn Cà rốt (-${currentCarrots} 🥕)`;
+          feedBtn.title = `Cho Capybara ăn ${currentCarrots} củ cà rốt để nhận XP`;
+        } else {
+          feedBtn.textContent = "🥕 Hết Cà rốt (Luyện tập để kiếm)";
+          feedBtn.title = "Hãy làm bài tập hoặc luyện nói AI để kiếm thêm Cà rốt";
+        }
+      }
 
       // Đồng bộ badge ở Speaking lab
       const spkCarrot = document.getElementById("speakingCarrotBadge");
@@ -1858,11 +2348,14 @@
     const talkCapyBtn = document.getElementById("talkToCapybaraBtn");
     if(talkCapyBtn){
       talkCapyBtn.addEventListener("click", () => {
-        const randomQuote = capybaraQuotes[Math.floor(Math.random() * capybaraQuotes.length)];
+        const stats = getLearningStats();
+        const progress = getCapybaraProgress(stats.fedCarrots || 0);
+        const levelQuotes = capybaraQuotesByLevel[progress.lv] || capybaraQuotesByLevel[1];
+        const randomQuote = levelQuotes[Math.floor(Math.random() * levelQuotes.length)];
         const msgEl = document.getElementById("capybaraMessage");
         if(msgEl) msgEl.textContent = `"${randomQuote}"`;
         capybaraSpeak(randomQuote);
-        showToast("🦫 Capybara đang trò chuyện cùng bạn!");
+        showToast(`🦫 Capybara (Lv.${progress.lv}) đang trò chuyện cùng bạn!`);
       });
     }
 
@@ -1871,17 +2364,33 @@
       feedCapyBtn.addEventListener("click", () => {
         const stats = getLearningStats();
         const currentCarrots = stats.carrots || 0;
-        if(currentCarrots < 10){
-          showToast("🥕 Bạn cần ít nhất 10 Cà rốt để cho Capybara ăn. Hãy luyện nói hoặc làm bài thi để kiếm thêm nhé!");
+        if(currentCarrots <= 0){
+          showToast("🥕 Bạn đã hết Cà rốt! Hãy luyện nói AI hoặc làm bài kiểm tra để kiếm thêm Cà rốt nhé!");
           return;
         }
-        stats.carrots -= 10;
-        stats.points = (stats.points || 0) + 50;
+
+        const feedAmount = Math.min(5, currentCarrots);
+        const oldProgress = getCapybaraProgress(stats.fedCarrots || 0);
+        const xpEarned = Math.round(feedAmount * 5 * (oldProgress.isMax ? 1.5 : 1.0));
+
+        stats.carrots -= feedAmount;
+        stats.fedCarrots = (stats.fedCarrots || 0) + feedAmount;
+        stats.points = (stats.points || 0) + xpEarned;
+
+        const newProgress = getCapybaraProgress(stats.fedCarrots);
         updateStudyStreak(stats);
         setLearningStats(stats);
         renderLearningFeatures();
-        showToast("🎉 Yum yum! Capybara đã được ăn no cà rốt: +50 XP!");
-        capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt vời. Cố gắng học tốt nha!");
+
+        if(newProgress.lv > oldProgress.lv){
+          playSuccessSound();
+          showToast(`🎉 CHÚC MỪNG! Capybara đã thăng cấp lên Lv.${newProgress.lv} ${newProgress.name}!`);
+          capybaraSpeak(`Chúc mừng bạn nhé! Nhờ sự chăm chỉ của bạn mà mình đã tiến hóa lên cấp ${newProgress.lv} ${newProgress.name} rồi! Cố gắng học tốt nha!`);
+        } else {
+          playClickSound();
+          showToast(`🥕 Yum yum! Đã cho Capybara ăn ${feedAmount} củ Cà rốt (+${xpEarned} XP)!`);
+          capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt vời. Cố gắng học tốt nha!");
+        }
       });
     }
 
@@ -2359,7 +2868,10 @@
       {id:"assignment",icon:"▤",title:"Bài luyện mới",detail:"Mid-term Practice 01 với chế độ thi an toàn đang chờ bạn.",time:"Hôm nay"},
       {id:"streak",icon:"🔥",title:"Duy trì chuỗi học",detail:"Hoàn thành một nhiệm vụ để giữ chuỗi học tập.",time:"Hôm nay"}
     ];
-    function getReadNotifications(){try{return JSON.parse(localStorage.getItem(notificationsKey)||"[]")}catch{return []}}
+    function getReadNotifications(){
+      const key = getUserStorageKey("engoNotificationsReadV3");
+      try{return JSON.parse(localStorage.getItem(key)||"[]")}catch{return []}
+    }
     function renderNotifications(){
       const read=getReadNotifications();const unread=notificationItems.filter(n=>!read.includes(n.id));
       document.getElementById("notificationDot").classList.toggle("hidden",unread.length===0);
@@ -2371,7 +2883,12 @@
     }
     const markReadBtn = document.getElementById("markNotificationsRead");
     if(markReadBtn){
-      markReadBtn.addEventListener("click",()=>{localStorage.setItem(notificationsKey,JSON.stringify(notificationItems.map(n=>n.id)));renderNotifications();showToast("Đã đánh dấu tất cả là đã đọc")});
+      markReadBtn.addEventListener("click",()=>{
+        const key = getUserStorageKey("engoNotificationsReadV3");
+        localStorage.setItem(key,JSON.stringify(notificationItems.map(n=>n.id)));
+        renderNotifications();
+        showToast("Đã đánh dấu tất cả là đã đọc");
+      });
     }
     document.addEventListener("click",e=>{const panel=document.getElementById("notificationPanel");if(panel && panel.classList.contains("open")&&!panel.contains(e.target)&&e.target!==notifBtn)panel.classList.remove("open")});
 
