@@ -100,9 +100,6 @@
         <button class="nav-btn" data-view="assignments">
           <span class="nav-icon">✓</span> Bài tập
         </button>
-        <button class="nav-btn" data-view="practice">
-          <span class="nav-icon">✦</span> Luyện tập
-        </button>
         <button class="nav-btn" data-view="flashcards">
           <span class="nav-icon">▣</span> Flashcard
         </button>
@@ -139,7 +136,7 @@
       <div class="sidebar-card">
         <strong>Chuỗi 7 ngày học tập</strong>
         <p>Hoàn thành một bài mỗi ngày để giữ vững chuỗi học tập.</p>
-        <button class="btn btn-light btn-sm" data-view="practice">Luyện ngay</button>
+        <button class="btn btn-light btn-sm" data-view="assignments">Luyện ngay</button>
       </div>
     </aside>
 
@@ -182,7 +179,7 @@
               <p>Nắm vững công thức, cách dùng, dấu hiệu nhận biết và thực hành Present Simple & Past Simple cùng ENGO.</p>
               <div class="hero-actions">
                 <button class="btn btn-light start-quiz">Làm bài luyện tập</button>
-                <button class="btn btn-soft" style="background:rgba(255,255,255,.12);color:white" data-view="practice">Xem bài tập</button>
+                <button class="btn btn-soft" style="background:rgba(255,255,255,.12);color:white" data-view="assignments">Xem bài tập</button>
               </div>
             </div>
             <div class="hero-visual">
@@ -234,12 +231,34 @@
                   <p id="capybaraMessage">"Xin chào bạn! Hôm nay hãy luyện một bài ngữ pháp hoặc luyện nói cùng mình để nhận thêm Cà rốt nhé! 🦫✨"</p>
                 </div>
 
+                <!-- THANH TIẾN TRÌNH CẤP ĐỘ CAPYBARA -->
+                <div class="capybara-level-progress-wrap" id="capybaraLevelProgressWrap">
+                  <div class="capybara-level-progress-labels">
+                    <span id="capybaraLevelNextLabel">Tiến hóa lên Lv.2 (Capybara Chăm Chỉ): <strong>0 / 10 🥕</strong></span>
+                    <span id="capybaraLevelPercent">0%</span>
+                  </div>
+                  <div class="capybara-level-progress-bar">
+                    <div class="capybara-level-progress-fill" id="capybaraLevelProgressFill" style="width:0%"></div>
+                  </div>
+                  <div class="small muted" id="capybaraLevelHint">Cần thêm 10 Cà rốt để tiến hóa cấp tiếp theo</div>
+                </div>
+
+                <!-- ĐẶC QUYỀN CẤP 5 (CAPYBARA BẬC THẦY) -->
+                <div class="capybara-master-perks" id="capybaraMasterPerks" style="display:none">
+                  <div class="master-perk-badge">👑 ĐẶC QUYỀN BẬC THẦY HOÀNG GIA ĐÃ KÍCH HOẠT</div>
+                  <div class="master-perks-list">
+                    <span>⚡ <strong>Buff x1.5 XP</strong> vĩnh viễn mọi bài thi</span>
+                    <span>🌟 <strong>Hào quang Vương miện Vàng</strong></span>
+                    <span>🥕 <strong>Kho Cà rốt Danh dự Vô cực</strong></span>
+                  </div>
+                </div>
+
                 <div class="capybara-actions-row">
                   <button class="btn btn-soft btn-sm" id="talkToCapybaraBtn" title="Bấm để nghe Capybara trò chuyện">
                     🔊 Trò chuyện cùng Capybara
                   </button>
-                  <button class="btn btn-soft btn-sm" id="feedCapybaraBtn" title="Dùng 10 Cà rốt để nhận 50 XP và tăng cấp Capybara">
-                    🥕 Cho ăn Cà rốt (-10 🥕)
+                  <button class="btn btn-soft btn-sm" id="feedCapybaraBtn" title="Cho Capybara ăn cà rốt để tăng cấp">
+                    🥕 Cho ăn Cà rốt (-5 🥕)
                   </button>
                   <button class="btn btn-primary btn-sm" data-view="speaking-lab" title="Mở phòng luyện nói AI">
                     🎙️ Luyện nói AI ngay
@@ -313,7 +332,7 @@
 
           <div class="section">
             <div class="section-head">
-              <h3>Bài tập ngữ pháp</h3>
+              <h3>Bài tập ngữ pháp trọng tâm</h3>
               <a href="#" data-view="assignments">Xem tất cả</a>
             </div>
             <div class="grid assignment-grid">
@@ -324,49 +343,58 @@
                 </div>
                 <h4>Present Simple Practice</h4>
                 <p>Khẳng định, phủ định, nghi vấn và quy tắc thêm -s/-es.</p>
-                <div class="meta"><span>⏱ 15 phút</span><span>▤ 20 câu</span></div>
-                <div class="progress"><span style="width:50%"></span></div>
-                <div class="card-footer"><span class="small muted">Đã làm 50%</span><button class="btn btn-primary btn-sm start-quiz">Làm bài</button></div>
+                <div class="meta"><span>⏱ 15 phút</span><span>▤ 8 câu</span></div>
+                <div class="progress"><span style="width:0%"></span></div>
+                <div class="card-footer"><span class="small muted">Sẵn sàng</span><button class="btn btn-primary btn-sm" data-grammar-test="present-simple">Làm bài</button></div>
               </article>
 
               <article class="card assignment-card">
                 <div class="assignment-top"><span class="badge orange">Thì quá khứ đơn</span></div>
                 <h4>Past Simple Practice</h4>
-                <p>Động từ có quy tắc (-ed) và bảng động từ bất quy tắc.</p>
-                <div class="meta"><span>⏱ 15 phút</span><span>▤ 20 câu</span></div>
+                <p>Động từ có quy tắc (-ed), bất quy tắc và mốc thời gian.</p>
+                <div class="meta"><span>⏱ 15 phút</span><span>▤ 8 câu</span></div>
                 <div class="progress"><span style="width:0%"></span></div>
-                <div class="card-footer"><span class="small muted">Chưa bắt đầu</span><button class="btn btn-light btn-sm start-quiz">Làm bài</button></div>
+                <div class="card-footer"><span class="small muted">Sẵn sàng</span><button class="btn btn-primary btn-sm" data-grammar-test="past-simple">Làm bài</button></div>
               </article>
 
               <article class="card assignment-card">
-                <div class="assignment-top"><span class="badge green">Tổng hợp</span></div>
+                <div class="assignment-top"><span class="badge green">Tổng hợp 2 thì</span></div>
                 <h4>Present Simple vs. Past Simple</h4>
                 <p>Phân biệt hai thì, nhận diện dấu hiệu thời gian và chia động từ.</p>
-                <div class="meta"><span>⏱ 20 phút</span><span>▤ 25 câu</span></div>
-                <div class="progress"><span style="width:100%;background:#22c55e"></span></div>
-                <div class="card-footer"><span class="small muted">Hoàn thành</span><button class="btn btn-success btn-sm start-quiz">Luyện lại</button></div>
+                <div class="meta"><span>⏱ 20 phút</span><span>▤ 8 câu</span></div>
+                <div class="progress"><span style="width:0%"></span></div>
+                <div class="card-footer"><span class="small muted">Sẵn sàng</span><button class="btn btn-primary btn-sm" data-grammar-test="present-vs-past">Làm bài</button></div>
+              </article>
+
+              <article class="card assignment-card">
+                <div class="assignment-top"><span class="badge purple" style="background:#ede9fe;color:#6d28d9">So sánh tính từ</span></div>
+                <h4>Comparatives & Superlatives</h4>
+                <p>So sánh hơn, so sánh nhất tính từ ngắn, dài và trường hợp ngoại lệ.</p>
+                <div class="meta"><span>⏱ 15 phút</span><span>▤ 8 câu</span></div>
+                <div class="progress"><span style="width:0%"></span></div>
+                <div class="card-footer"><span class="small muted">Sẵn sàng</span><button class="btn btn-primary btn-sm" data-grammar-test="comparatives">Làm bài</button></div>
               </article>
             </div>
           </div>
 
           <div class="section">
-            <div class="section-head"><h3>Luyện tập theo kỹ năng</h3><a href="#" data-view="practice">Khám phá</a></div>
+            <div class="section-head"><h3>Luyện tập theo kỹ năng</h3><a href="#" data-view="assignments">Xem tất cả</a></div>
             <div class="grid skill-grid">
-              <article class="card skill-card start-quiz">
+              <article class="card skill-card" data-view="flashcards" style="cursor:pointer">
                 <div class="skill-icon" style="background:#eef2ff">Aa</div>
-                <h4>Vocabulary</h4><p>Từ vựng theo chủ điểm Unit.</p>
+                <h4>Vocabulary</h4><p>Từ vựng theo chủ điểm Unit 5.</p>
               </article>
-              <article class="card skill-card start-quiz">
-                <div class="skill-icon" style="background:#ecfeff">◉</div>
-                <h4>Pronunciation</h4><p>Phát âm đuôi -s/es và -ed.</p>
+              <article class="card skill-card" data-view="speaking-lab" style="cursor:pointer">
+                <div class="skill-icon" style="background:#ecfeff">🎙️</div>
+                <h4>Pronunciation</h4><p>Phòng luyện nói & nhận diện AI.</p>
               </article>
-              <article class="card skill-card start-quiz">
+              <article class="card skill-card" data-grammar-test="present-vs-past" style="cursor:pointer">
                 <div class="skill-icon" style="background:#f0fdf4">▤</div>
-                <h4>Reading</h4><p>Đọc hiểu và trả lời câu hỏi.</p>
+                <h4>Reading</h4><p>Đọc hiểu ngữ cảnh & chọn thì đúng.</p>
               </article>
-              <article class="card skill-card start-quiz">
+              <article class="card skill-card" data-grammar-test="present-simple" style="cursor:pointer">
                 <div class="skill-icon" style="background:#fff7ed">✎</div>
-                <h4>Writing</h4><p>Viết lại câu và chia động từ.</p>
+                <h4>Writing</h4><p>Viết lại câu và chia động từ đúng dạng.</p>
               </article>
             </div>
           </div>
@@ -376,11 +404,9 @@
               <div class="section-head"><h3>Kết quả luyện tập gần đây</h3><a href="#" data-view="results">Chi tiết</a></div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Bài luyện</th><th>Ngày làm</th><th>Thời gian</th><th>Điểm</th></tr></thead>
-                  <tbody>
-                    <tr><td><strong>Present Simple Practice</strong></td><td>Hôm nay</td><td>12 phút</td><td><span class="score-pill">9.5</span></td></tr>
-                    <tr><td><strong>Past Simple – Regular Verbs</strong></td><td>Hôm qua</td><td>14 phút</td><td><span class="score-pill">8.5</span></td></tr>
-                    <tr><td><strong>Irregular Verbs Challenge</strong></td><td>2 ngày trước</td><td>10 phút</td><td><span class="score-pill" style="background:#fef3c7;color:#92400e">8.0</span></td></tr>
+                  <thead><tr><th>Bài luyện</th><th>Ngày làm</th><th>Điểm</th><th>Trạng thái</th></tr></thead>
+                  <tbody id="recentHomeSubmissionsBody">
+                    <tr><td colspan="4" class="small muted" style="text-align:center;padding:20px">Chưa có kết quả làm bài nào. Hãy chọn một bài luyện để bắt đầu!</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -388,9 +414,9 @@
             <div class="card panel">
               <div class="section-head"><h3>Thông báo học tập</h3></div>
               <div class="notice-list">
-                <div class="notice"><strong>Bài tập ngữ pháp mới</strong><p>Present Simple & Past Simple đã sẵn sàng.</p></div>
-                <div class="notice"><strong>Luyện tập đều đặn</strong><p>Hoàn thành 1 bài mỗi ngày để giữ chuỗi học tập.</p></div>
-                <div class="notice"><strong>Mẹo làm bài</strong><p>Chú ý trạng từ chỉ tần suất và các mốc thời gian quá khứ.</p></div>
+                <div class="notice"><strong>Bài tập ngữ pháp trọng tâm</strong><p>4 bộ đề Present Simple, Past Simple & So sánh đã sẵn sàng.</p></div>
+                <div class="notice"><strong>Luyện tập đều đặn</strong><p>Hoàn thành 1 bài mỗi ngày để giữ chuỗi học tập và nhận Cà rốt.</p></div>
+                <div class="notice"><strong>Mẹo làm bài</strong><p>Chú ý trạng từ chỉ tần suất (always, usually) và mốc quá khứ (yesterday, ago).</p></div>
               </div>
             </div>
           </div>
@@ -399,8 +425,8 @@
         <!-- ASSIGNMENTS -->
         <section class="view" id="assignments">
           <div class="page-heading">
-            <div><h2>Bài tập của tôi</h2><p>Danh sách bài tập ngữ pháp và bài kiểm tra được giao.</p></div>
-            <button class="btn btn-primary start-quiz">Làm bài luyện tập</button>
+            <div><h2>Bài tập của tôi</h2><p>Danh sách bài tập ngữ pháp và bài kiểm tra trọng tâm.</p></div>
+            <button class="btn btn-primary" data-grammar-test="present-simple">Làm bài luyện tập</button>
           </div>
           <div class="card panel">
             <div class="section-head">
@@ -409,32 +435,15 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Tên bài</th><th>Chủ điểm</th><th>Hạn nộp</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
+                <thead><tr><th>Tên bài</th><th>Chủ điểm</th><th>Thời gian</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                 <tbody>
-                  <tr><td><strong>Present Simple Practice</strong><div class="small muted">20 câu · 15 phút</div></td><td>Hiện tại đơn</td><td>Hôm nay</td><td>50%</td><td><button class="btn btn-primary btn-sm start-quiz">Làm tiếp</button></td></tr>
-                  <tr><td><strong>Past Simple Practice</strong><div class="small muted">20 câu · 15 phút</div></td><td>Quá khứ đơn</td><td>Tuần này</td><td>Chưa làm</td><td><button class="btn btn-light btn-sm start-quiz">Bắt đầu</button></td></tr>
-                  <tr><td><strong>Present Simple vs. Past Simple Mix</strong><div class="small muted">25 câu · 20 phút</div></td><td>Tổng hợp</td><td>Đã nộp</td><td>100%</td><td><button class="btn btn-success btn-sm start-quiz">Luyện lại</button></td></tr>
-                  <tr><td><strong>Irregular Verbs Challenge</strong><div class="small muted">15 câu · 10 phút</div></td><td>Quá khứ đơn</td><td>Tuần này</td><td>Chưa làm</td><td><button class="btn btn-light btn-sm start-quiz">Bắt đầu</button></td></tr>
+                  <tr><td><strong>Present Simple Practice</strong><div class="small muted">8 câu · Trọng tâm Unit 5</div></td><td>Hiện tại đơn</td><td>15 phút</td><td><span class="badge blue">Sẵn sàng</span></td><td><button class="btn btn-primary btn-sm" data-grammar-test="present-simple">Làm bài</button></td></tr>
+                  <tr><td><strong>Past Simple Practice</strong><div class="small muted">8 câu · Regular & Irregular</div></td><td>Quá khứ đơn</td><td>15 phút</td><td><span class="badge orange">Sẵn sàng</span></td><td><button class="btn btn-primary btn-sm" data-grammar-test="past-simple">Làm bài</button></td></tr>
+                  <tr><td><strong>Present Simple vs. Past Simple Mix</strong><div class="small muted">8 câu · Phân biệt 2 thì</div></td><td>Tổng hợp</td><td>20 phút</td><td><span class="badge green">Sẵn sàng</span></td><td><button class="btn btn-primary btn-sm" data-grammar-test="present-vs-past">Làm bài</button></td></tr>
+                  <tr><td><strong>Comparatives & Superlatives Practice</strong><div class="small muted">8 câu · So sánh tính từ</div></td><td>So sánh hơn & nhất</td><td>15 phút</td><td><span class="badge purple" style="background:#ede9fe;color:#6d28d9">Sẵn sàng</span></td><td><button class="btn btn-primary btn-sm" data-grammar-test="comparatives">Làm bài</button></td></tr>
                 </tbody>
               </table>
             </div>
-          </div>
-        </section>
-
-        <!-- PRACTICE -->
-        <section class="view" id="practice">
-          <div class="page-heading">
-            <div><h2>Kho luyện tập</h2><p>Chọn kỹ năng, Unit hoặc trò chơi phù hợp để ôn tập.</p></div>
-          </div>
-          <div class="grid skill-grid">
-            <article class="card feature-card"><div class="big-icon">🎯</div><h3>Multiple Choice</h3><p>Trắc nghiệm nhanh theo từng Unit và chủ điểm.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">🧩</div><h3>Matching</h3><p>Nối từ, nghĩa, hình ảnh và câu ví dụ.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">🎵</div><h3>Song Gap Fill</h3><p>Nghe bài hát và điền từ còn thiếu.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">🗺</div><h3>Mindmap</h3><p>Ôn từ vựng theo sơ đồ chủ đề trực quan.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">📖</div><h3>Reading</h3><p>Đọc hiểu, đúng/sai và matching headings.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">🎧</div><h3>Listening</h3><p>Nghe chọn đáp án và điền thông tin.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">🗣</div><h3>Pronunciation</h3><p>Phát âm, trọng âm và ghi âm bài đọc.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
-            <article class="card feature-card"><div class="big-icon">✍</div><h3>Writing</h3><p>Word form, viết lại câu và đoạn văn ngắn.</p><button class="btn btn-soft btn-sm start-quiz">Luyện ngay</button></article>
           </div>
         </section>
 
