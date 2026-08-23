@@ -61,7 +61,11 @@
             <div class="auth-error" id="registerError"></div>
             <div class="form-grid">
               <div class="field full"><label>Họ và tên</label><input id="registerName" required placeholder="Nguyễn Minh Anh" /></div>
-              <div class="field full"><label>Email</label><input id="registerEmail" type="email" required placeholder="email@example.com" /></div>
+              <div class="field full">
+                <label>Email (Gmail / Email trường)</label>
+                <input id="registerEmail" type="email" required placeholder="vidu@gmail.com" autocomplete="email" />
+                <div id="emailVerifyStatus" class="small" style="display:none;margin-top:5px;font-weight:600;transition:all .2s ease"></div>
+              </div>
               <div class="field"><label>Mật khẩu</label><input id="registerPassword" type="password" minlength="6" required /></div>
               <div class="field"><label>Nhập lại mật khẩu</label><input id="registerConfirm" type="password" minlength="6" required /></div>
               <div class="field full"><label>Vai trò</label><select id="registerRole"><option value="student">Học sinh</option><option value="parent">Phụ huynh</option><option value="teacher">Giáo viên</option></select></div>
@@ -107,6 +111,9 @@
         </button>
         <button class="nav-btn" data-view="smart-review">
           <span class="nav-icon">🧠</span> Ôn thông minh
+        </button>
+        <button class="nav-btn" data-view="speaking-lab">
+          <span class="nav-icon">🎙️</span> Luyện nói AI
         </button>
         <button class="nav-btn" data-view="focus-room">
           <span class="nav-icon">◷</span> Tập trung
@@ -202,6 +209,45 @@
               <div><strong id="dashboardStudyTime">0 phút</strong><span>Thời gian ôn tập</span></div>
             </div>
           </div>
+
+          <!-- CAPYBARA STUDY COMPANION & GAMIFICATION -->
+          <section class="section card panel capybara-companion-card" id="capybaraCompanionCard">
+            <div class="capybara-companion-main">
+              <div class="capybara-avatar-wrap">
+                <img src="./images/engologo.png" alt="Capybara ENGO Companion" class="capybara-companion-img" id="capybaraAvatarImg" />
+                <span class="capybara-badge-lv" id="capybaraBadgeLv">Lv.1</span>
+              </div>
+              <div class="capybara-info-wrap">
+                <div class="capybara-header-row">
+                  <div>
+                    <h3 class="capybara-title" id="capybaraTitle">Bạn Đồng Hành Capybara</h3>
+                    <span class="small muted" id="capybaraSubtitle">Cấp độ 1: Capybara Mầm Non</span>
+                  </div>
+                  <div class="capybara-stats-pill">
+                    <span class="carrot-count" id="capybaraCarrotCount">🥕 <strong>15</strong> Cà rốt</span>
+                    <span class="streak-count" id="capybaraStreakCount">🔥 <strong>1</strong> ngày streak</span>
+                  </div>
+                </div>
+
+                <div class="capybara-speech-bubble" id="capybaraSpeechBubble">
+                  <span class="quote-icon">💬</span>
+                  <p id="capybaraMessage">"Xin chào bạn! Hôm nay hãy luyện một bài ngữ pháp hoặc luyện nói cùng mình để nhận thêm Cà rốt nhé! 🦫✨"</p>
+                </div>
+
+                <div class="capybara-actions-row">
+                  <button class="btn btn-soft btn-sm" id="talkToCapybaraBtn" title="Bấm để nghe Capybara trò chuyện">
+                    🔊 Trò chuyện cùng Capybara
+                  </button>
+                  <button class="btn btn-soft btn-sm" id="feedCapybaraBtn" title="Dùng 10 Cà rốt để nhận 50 XP và tăng cấp Capybara">
+                    🥕 Cho ăn Cà rốt (-10 🥕)
+                  </button>
+                  <button class="btn btn-primary btn-sm" data-view="speaking-lab" title="Mở phòng luyện nói AI">
+                    🎙️ Luyện nói AI ngay
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section class="section learning-progress-section">
             <div class="section-head">
@@ -794,15 +840,141 @@
         </section>
 
 
+        <!-- AI SPEAKING & PRONUNCIATION LAB -->
+        <section class="view" id="speaking-lab">
+          <div class="page-heading">
+            <div>
+              <h2>🎙️ Phòng Luyện Nói & Phát Âm AI</h2>
+              <p>Trợ lý AI nhận diện giọng nói, chấm điểm phát âm thời gian thực và đồng hành cùng Capybara.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:700" id="speakingCarrotBadge">🥕 15 Cà rốt</span>
+              <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700" id="speakingScoreBadge">★ Điểm cao nhất: 0%</span>
+            </div>
+          </div>
+
+          <div class="grid speaking-layout">
+            <div class="card speaking-main-panel">
+              <div class="speaking-topic-tabs" id="speakingTopicTabs">
+                <button class="speaking-tab active" data-topic="grammar">📘 Ngữ pháp (Present & Past)</button>
+                <button class="speaking-tab" data-topic="daily">💬 Giao tiếp thường ngày</button>
+                <button class="speaking-tab" data-topic="unit">🌿 Unit 1-2 Global Success</button>
+              </div>
+
+              <div class="speaking-card-box">
+                <div class="speaking-card-top">
+                  <span class="badge orange" id="speakingTopicTag">Present Simple</span>
+                  <div class="speaking-counter" id="speakingCounter">Câu 1 / 5</div>
+                </div>
+
+                <div class="speaking-target-wrap">
+                  <h3 class="speaking-target-text" id="speakingTargetText">She usually walks to school every morning.</h3>
+                  <div class="speaking-ipa" id="speakingIpa">/ʃi ˈjuːʒuəli wɔːks tu skuːl ˈɛvri ˈmɔːnɪŋ/</div>
+                  <div class="speaking-meaning" id="speakingMeaning">"Cô ấy thường đi bộ đến trường mỗi buổi sáng."</div>
+                </div>
+
+                <div class="speaking-controls">
+                  <button class="btn btn-soft" id="speakingPlayAudioBtn" type="button" title="Nghe người bản xứ phát âm">
+                    🔊 Nghe phát âm mẫu
+                  </button>
+                  <button class="btn btn-primary speaking-mic-btn" id="speakingMicBtn" type="button">
+                    <span class="mic-icon" id="speakingMicIcon">🎙️</span>
+                    <span id="speakingMicLabel">Bắt đầu nói</span>
+                  </button>
+                </div>
+
+                <div class="speaking-wave hidden" id="speakingWave">
+                  <div class="wave-bars">
+                    <span></span><span></span><span></span><span></span><span></span>
+                  </div>
+                  <div class="small" style="color:var(--primary);font-weight:700">Đang lắng nghe... Đọc xong hãy bấm nút "Hoàn thành & Chấm điểm"!</div>
+                  <div id="speakingLiveText" style="margin-top:6px;font-size:13px;color:#3730a3;font-style:italic;background:white;padding:6px 12px;border-radius:8px;border:1px solid #c7d2fe;width:100%;text-align:center">Đang chờ giọng đọc...</div>
+                </div>
+
+                <!-- Live transcript & result evaluation -->
+                <div class="speaking-result-box hidden" id="speakingResultBox">
+                  <div class="speaking-score-header">
+                    <div class="speaking-score-circle" id="speakingScoreCircle">
+                      <strong id="speakingScorePercent">0%</strong>
+                      <span>Độ chuẩn</span>
+                    </div>
+                    <div class="speaking-verdict-wrap">
+                      <h4 id="speakingVerdict">Đang phân tích giọng nói...</h4>
+                      <p class="small muted" id="speakingFeedback">Hãy nghe lại câu mẫu và thử lại nhé.</p>
+                    </div>
+                  </div>
+
+                  <div class="speaking-transcript-wrap">
+                    <div class="small muted" style="margin-bottom:4px">Văn bản AI nghe được:</div>
+                    <div class="speaking-transcript" id="speakingTranscript">"..."</div>
+                  </div>
+
+                  <div class="speaking-words-breakdown">
+                    <div class="small muted" style="margin-bottom:6px">Đánh giá chi tiết từng từ:</div>
+                    <div class="speaking-word-pills" id="speakingWordPills"></div>
+                  </div>
+                </div>
+
+                <div class="speaking-actions">
+                  <button class="btn btn-light" id="speakingPrevBtn" type="button">← Câu trước</button>
+                  <button class="btn btn-primary" id="speakingNextBtn" type="button">Câu tiếp theo →</button>
+                </div>
+              </div>
+            </div>
+
+            <aside class="card speaking-side-panel">
+              <div class="capybara-coach-card">
+                <div class="capybara-coach-avatar">
+                  <img src="./images/engologo.png" alt="Capybara AI Coach" />
+                  <div class="capybara-coach-status">● Sẵn sàng hỗ trợ</div>
+                </div>
+                <h4 style="margin:8px 0 4px">Gia sư Capybara AI</h4>
+                <div class="capybara-coach-bubble" id="capybaraCoachBubble">
+                  "Chào bạn! Hãy bấm 'Nghe phát âm mẫu' rồi bấm Micro đọc to câu mẫu để mình chấm điểm nhé! Đọc tốt sẽ được thưởng Cà rốt 🥕"
+                </div>
+              </div>
+
+              <div class="speaking-tips-card">
+                <div class="section-head"><h3>💡 Mẹo phát âm THCS</h3></div>
+                <ul class="speaking-tips-list">
+                  <li><strong>Âm đuôi (Ending sounds):</strong> Chú ý các đuôi <code>-s</code>, <code>-es</code>, <code>-ed</code> khi chia thì.</li>
+                  <li><strong>Trọng âm từ (Word stress):</strong> Nhấn đúng âm tiết chính (ví dụ: <em>'usually</em>, <em>'yesterday</em>).</li>
+                  <li><strong>Nối âm (Liaison):</strong> Đọc liền mạch theo cụm từ để câu nói tự nhiên hơn.</li>
+                </ul>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+
         <!-- QUIZ -->
         <section class="view" id="quiz">
           <div class="page-heading">
-            <div><h2>Mid-term Practice 01</h2><p>Hệ thống tự động lưu đáp án trên thiết bị này.</p></div>
-            <button class="btn btn-light" id="exitQuiz">Thoát bài</button>
+            <div>
+              <h2>Mid-term Practice 01</h2>
+              <p>Hệ thống tự động lưu đáp án và kích hoạt chế độ giám sát thi an toàn.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-soft btn-sm" id="shuffleQuizBtn" type="button" title="Xáo trộn câu hỏi và các phương án">
+                🔀 Đổi mã đề (Xáo trộn)
+              </button>
+              <button class="btn btn-light" id="exitQuiz" type="button">Thoát bài</button>
+            </div>
+          </div>
+
+          <!-- Anti-Cheat Status Bar -->
+          <div class="quiz-security-bar">
+            <div style="display:flex;gap:10px;align-items:center">
+              <span class="badge" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5" id="antiCheatBadge">
+                🛡️ Giám sát thi an toàn: ĐANG BẬT
+              </span>
+              <span class="small muted" id="tabSwitchCounter">Lần rời tab: <strong>0</strong>/3</span>
+            </div>
+            <span class="small muted" style="color:#059669">✓ Đã bật chống sao chép & tự lưu</span>
           </div>
 
           <div class="grid quiz-layout">
-            <div class="card quiz-card">
+            <div class="card quiz-card" id="quizExamCard">
               <div class="quiz-head">
                 <div>
                   <span class="badge" id="questionType">Multiple Choice</span>
@@ -811,7 +983,7 @@
                 <div class="timer" id="timer">20:00</div>
               </div>
 
-              <div class="question-box">
+              <div class="question-box" id="quizQuestionBox">
                 <div class="small muted" id="questionCounter">Câu 1 / 6</div>
                 <div id="questionContent"></div>
                 <div id="answerArea"></div>
@@ -840,6 +1012,22 @@
             </aside>
           </div>
         </section>
+
+        <!-- Anti-Cheat Warning Modal -->
+        <div class="anti-cheat-modal hidden" id="antiCheatModal">
+          <div class="anti-cheat-modal-content">
+            <div class="anti-cheat-icon">⚠️</div>
+            <h3>CẢNH BÁO RỜI KHỎI BÀI THI</h3>
+            <p>Hệ thống phát hiện bạn vừa chuyển tab hoặc thu nhỏ màn hình làm bài!</p>
+            <div class="anti-cheat-count-box">
+              Số lần vi phạm: <strong id="modalViolationCount">1</strong> / 3 lần tối đa
+            </div>
+            <p class="small muted" style="line-height:1.5">Hành vi này đang được ghi vào báo cáo gửi Giáo viên. Hãy tập trung hoàn thành bài thi trong tab này.</p>
+            <button class="btn btn-primary" id="dismissAntiCheatModal" type="button" style="width:100%;margin-top:12px">
+              Tôi đã hiểu, quay lại làm bài
+            </button>
+          </div>
+        </div>
       </div>
     </main>
   </div>
