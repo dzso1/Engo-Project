@@ -5,6 +5,126 @@
     const avatar = document.getElementById("avatar");
     const toast = document.getElementById("toast");
 
+    // ==========================================
+    // HỆ THỐNG HIỆU ỨNG ÂM THANH (WEB AUDIO SFX)
+    // ==========================================
+    let audioCtx = null;
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // SFX 1: Tock Tock khi bấm nút / tab / option (Crisp Wooden Click)
+    function playClickSound() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(580, now);
+        osc.frequency.exponentialRampToValueAtTime(160, now + 0.035);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.035);
+      } catch (e) {}
+    }
+
+    // SFX 2: Bắn pháo hoa / Yay khi trả lời đúng / xuất sắc (Joyful Celebration Chime)
+    function playSuccessSound() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        // Hợp âm arpeggio chiến thắng (C5 -> E5 -> G5 -> C6)
+        const chord = [523.25, 659.25, 783.99, 1046.50];
+        chord.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const t = now + i * 0.065;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t);
+
+          gain.gain.setValueAtTime(0.15, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(t);
+          osc.stop(t + 0.32);
+        });
+
+        // Hiệu ứng pháo hoa tí tách lấp lánh (Sparkle crackle)
+        const bufferSize = Math.floor(ctx.sampleRate * 0.12);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * 0.05;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(2200, now + 0.24);
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(0.08, now + 0.24);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+
+        noise.connect(filter);
+        filter.connect(nGain);
+        nGain.connect(ctx.destination);
+        noise.start(now + 0.24);
+        noise.stop(now + 0.36);
+      } catch (e) {}
+    }
+
+    // SFX 3: Âm thanh khi trả lời chưa đúng
+    function playWrongSound() {
+      try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const notes = [320, 240];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const t = now + idx * 0.09;
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.10, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.16);
+        });
+      } catch (e) {}
+    }
+
+    // Lắng nghe toàn cục sự kiện click để phát âm thanh "tock tock"
+    document.addEventListener("click", e => {
+      const target = e.target.closest("button, .btn, .nav-btn, .auth-tab, .speaking-tab, .option, .plan-item, .quick-action, .modal-close, [data-view]");
+      if (target) {
+        playClickSound();
+      }
+    }, true);
+
     const THEME_STORAGE_KEY="engoTheme";
 
     function applyTheme(theme){
@@ -254,6 +374,8 @@
         });
         showToast(data.message||"Đăng ký thành công.");
         e.target.reset();
+        const emailStatusEl = document.getElementById("emailVerifyStatus");
+        if(emailStatusEl) emailStatusEl.style.display = "none";
         if(registerClassGroup) registerClassGroup.style.display="block";
         document.getElementById("loginEmail").value=email;
         document.querySelector('[data-auth-tab="login"]').click();
@@ -263,6 +385,54 @@
         if(submit) submit.disabled=false;
       }
     });
+
+    // Real-time Email Verification on Registration Form
+    const regEmailInput = document.getElementById("registerEmail");
+    const emailStatusEl = document.getElementById("emailVerifyStatus");
+    let emailCheckTimeout = null;
+
+    if (regEmailInput && emailStatusEl) {
+      const checkEmailValidity = async (emailVal) => {
+        const val = (emailVal || "").trim();
+        if (!val) {
+          emailStatusEl.style.display = "none";
+          return;
+        }
+        if (!val.includes("@") || !val.includes(".")) {
+          emailStatusEl.style.display = "block";
+          emailStatusEl.style.color = "#dc2626";
+          emailStatusEl.textContent = "⚠️ Vui lòng nhập đúng định dạng email (ví dụ: ten@gmail.com)";
+          return;
+        }
+        emailStatusEl.style.display = "block";
+        emailStatusEl.style.color = "#4f46e5";
+        emailStatusEl.textContent = "🔍 Đang kiểm tra máy chủ email...";
+
+        try {
+          const res = await fetch(`/api/auth/verify-email?email=${encodeURIComponent(val)}`);
+          const data = await res.json();
+          if (data.valid) {
+            emailStatusEl.style.color = "#16a34a";
+            const isGm = data.details?.isGmail;
+            emailStatusEl.textContent = isGm ? "✓ Email Gmail hợp lệ và có thật." : "✓ Email hợp lệ và có máy chủ nhận thư (MX Verified).";
+          } else {
+            emailStatusEl.style.color = "#dc2626";
+            emailStatusEl.textContent = `✕ ${data.message || "Email không hợp lệ hoặc không tồn tại."}`;
+          }
+        } catch (e) {
+          emailStatusEl.style.display = "none";
+        }
+      };
+
+      regEmailInput.addEventListener("input", (e) => {
+        clearTimeout(emailCheckTimeout);
+        emailCheckTimeout = setTimeout(() => checkEmailValidity(e.target.value), 450);
+      });
+
+      regEmailInput.addEventListener("blur", (e) => {
+        checkEmailValidity(e.target.value);
+      });
+    }
 
     document.getElementById("logoutBtn").addEventListener("click",async()=>{
       try{await apiRequest("/api/auth/logout",{method:"POST",body:"{}"})}catch{}
@@ -594,7 +764,20 @@
         return;
       }
       const correct=isCorrect(currentQuestion);
-      explanationBox.innerHTML=`<strong style="color:${correct?"#166534":"#991b1b"}">${correct?"Chính xác!":"Chưa chính xác."}</strong><br>${q.explanation}`;
+      if(correct) {
+        playSuccessSound();
+      } else {
+        playWrongSound();
+      }
+      explanationBox.innerHTML=`
+        <div style="border-left:4px solid ${correct?"#16a34a":"#dc2626"};padding-left:12px;margin-top:6px">
+          <strong style="color:${correct?"#166534":"#991b1b"};font-size:14px">${correct?"✓ Chính xác! Tuyệt vời":"✕ Chưa chính xác. Cùng xem phân tích nhé:"}</strong>
+          <div style="margin-top:6px;font-size:13px;line-height:1.5">${q.explanation}</div>
+          <div style="margin-top:8px;padding:8px 10px;background:${correct?"#f0fdf4":"#fef2f2"};border-radius:8px;font-size:12px">
+            💡 <strong>Lời khuyên từ Capybara:</strong> ${correct ? "Bạn đã nắm chắc quy tắc ngữ pháp này!" : "Hãy chú ý dấu hiệu nhận biết thì trong câu để không bị nhầm lẫn nhé."}
+          </div>
+        </div>
+      `;
       if(q.options?.length){
         answerArea.querySelectorAll(".option").forEach(el=>{
           const idx=Number(el.dataset.option);
@@ -606,6 +789,7 @@
 
     function startQuiz(){
       switchView("quiz");
+      startAntiCheatGuard();
       renderQuestion();
       document.getElementById("checkAnswer").disabled=Boolean(activeImportedTest);
       if(!timerInterval){
@@ -631,7 +815,7 @@
     });
     document.getElementById("checkAnswer").addEventListener("click",showExplanation);
     document.getElementById("submitQuiz").addEventListener("click",submitQuiz);
-    document.getElementById("exitQuiz").addEventListener("click",()=>switchView("student-home"));
+    document.getElementById("exitQuiz").addEventListener("click",()=>{stopAntiCheatGuard();switchView("student-home")});
 
     function applyResultScoreUI(scoreVal, isPendingManual = false){
       const ring = document.getElementById("resultScoreRing");
@@ -699,6 +883,9 @@
       document.getElementById("wrongCount").textContent=questions.length-correct;
       document.getElementById("attemptCount").textContent=attempts;
       applyResultScoreUI(Number(score), false);
+      if(Number(score) >= 5.0) {
+        playSuccessSound();
+      }
       document.getElementById("resultModal").classList.remove("hidden");
     }
 
@@ -1315,7 +1502,7 @@
     const learningStatsKey="engoLearningStatsV3";
     const dailyPlanKey="engoDailyPlanV3";
     const notificationsKey="engoNotificationsReadV3";
-    const defaultLearningStats={quizCount:0,bestScore:0,totalScore:0,totalCorrect:0,totalQuestions:0,focusSessions:0,focusMinutes:0,points:0,streak:1,lastStudyDate:"",skillErrors:{}};
+    const defaultLearningStats={quizCount:0,bestScore:0,totalScore:0,totalCorrect:0,totalQuestions:0,focusSessions:0,focusMinutes:0,points:0,streak:1,lastStudyDate:"",skillErrors:{},carrots:15,speakingAttempts:0,bestSpeakingScore:0,capybaraLevel:1};
 
     function getLearningStats(){
       try{return {...defaultLearningStats,...JSON.parse(localStorage.getItem(learningStatsKey)||"{}")}}
@@ -1465,8 +1652,676 @@
       document.getElementById("completeGrammarLesson").addEventListener("click",()=>{const next=getGrammarProgress();const before=Number(next[active.id]||0);next[active.id]=before>=100?0:Math.min(100,before+25);setGrammarProgress(next);if(before<100){const stats=getLearningStats();stats.points+=10;updateStudyStreak(stats);setLearningStats(stats);showToast(`Đã hoàn thành một bài ${active.name}. +10 XP`)}else showToast(`Đã mở lại lộ trình ${active.name}`);renderGrammarCourses();renderCompetency();renderDashboardStats()});
     }
     document.getElementById("resetGrammarProgress").addEventListener("click",()=>{setGrammarProgress({});activeGrammarCourse="present-simple";renderGrammarCourses();renderCompetency();showToast("Đã đặt lại tiến độ khóa ngữ pháp")});
-    function renderLearningFeatures(){renderDashboardStats();renderSmartReview();renderAchievements();renderCompetency();renderGrammarCourses()}
+    function renderLearningFeatures(){
+      renderDashboardStats();
+      renderSmartReview();
+      renderAchievements();
+      renderCompetency();
+      renderGrammarCourses();
+      renderCapybaraCompanion();
+      renderSpeakingLab();
+    }
 
+    // ============================================================
+    // MODULE 1: GIÁM SÁT THI AN TOÀN & CHỐNG GIAN LẬN (SMART ANTI-CHEAT)
+    // ============================================================
+    let examTabSwitches = 0;
+    let antiCheatActive = false;
+
+    function startAntiCheatGuard(){
+      examTabSwitches = 0;
+      antiCheatActive = true;
+      updateAntiCheatUI();
+    }
+
+    function stopAntiCheatGuard(){
+      antiCheatActive = false;
+      const modal = document.getElementById("antiCheatModal");
+      if(modal) modal.classList.add("hidden");
+    }
+
+    function updateAntiCheatUI(){
+      const counter = document.getElementById("tabSwitchCounter");
+      if(counter){
+        counter.innerHTML = `Lần rời tab: <strong style="color:${examTabSwitches > 0 ? '#dc2626' : '#059669'}">${examTabSwitches}</strong>/3`;
+      }
+    }
+
+    function handleAntiCheatViolation(){
+      if(!antiCheatActive) return;
+      const quizView = document.getElementById("quiz");
+      if(!quizView || !quizView.classList.contains("active")) return;
+      examTabSwitches++;
+      updateAntiCheatUI();
+      const modal = document.getElementById("antiCheatModal");
+      const countEl = document.getElementById("modalViolationCount");
+      if(modal && countEl){
+        countEl.textContent = examTabSwitches;
+        modal.classList.remove("hidden");
+      }
+      showToast(`⚠️ CẢNH BÁO: Phát hiện rời khỏi màn hình bài thi (Lần ${examTabSwitches})!`);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if(document.hidden) handleAntiCheatViolation();
+    });
+    window.addEventListener("blur", () => {
+      handleAntiCheatViolation();
+    });
+
+    const dismissModalBtn = document.getElementById("dismissAntiCheatModal");
+    if(dismissModalBtn){
+      dismissModalBtn.addEventListener("click", () => {
+        const modal = document.getElementById("antiCheatModal");
+        if(modal) modal.classList.add("hidden");
+      });
+    }
+
+    // Chống sao chép câu hỏi trong khi thi
+    const quizCardEl = document.getElementById("quizExamCard");
+    if(quizCardEl){
+      quizCardEl.addEventListener("copy", e => {
+        if(document.getElementById("quiz").classList.contains("active")){
+          e.preventDefault();
+          showToast("⛔ Không được phép sao chép nội dung bài thi!");
+        }
+      });
+      quizCardEl.addEventListener("contextmenu", e => {
+        if(document.getElementById("quiz").classList.contains("active")){
+          e.preventDefault();
+          showToast("⛔ Chuột phải đã bị khóa trong phòng thi an toàn!");
+        }
+      });
+    }
+
+    // Xáo trộn đề thi ngẫu nhiên (Fisher-Yates Shuffle)
+    function shuffleArray(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    const shuffleBtn = document.getElementById("shuffleQuizBtn");
+    if(shuffleBtn){
+      shuffleBtn.addEventListener("click", () => {
+        if(activeImportedTest){
+          showToast("Bài thi của giáo viên giữ nguyên thứ tự chuẩn.");
+          return;
+        }
+        questions = shuffleArray(defaultQuestions);
+        answers = {};
+        checked = {};
+        currentQuestion = 0;
+        renderQuestion();
+        renderQuestionGrid();
+        showToast("🔀 Đã đổi mã đề & xáo trộn thứ tự câu hỏi!");
+      });
+    }
+
+
+    // ============================================================
+    // MODULE 2: BẠN ĐỒNG HÀNH CAPYBARA & GAMIFICATION
+    // ============================================================
+    const capybaraQuotes = [
+      "Học một câu ngữ pháp mỗi ngày, kiến thức sẽ dày như rừng tre! 🎋",
+      "Thì Quá khứ đơn (Past Simple) nhớ thêm -ed hoặc dùng động từ V2 nhé bạn ơi! 🕰️",
+      "Thì Hiện tại đơn (Present Simple) diễn tả thói quen lặp đi lặp lại. Cố lên nhé! ☀️",
+      "Luyện phát âm 5 phút mỗi ngày cùng mình tại Phòng Luyện Nói AI nhé! 🎙️",
+      "Hôm nay bạn học rất chăm chỉ, hãy ăn thêm một củ Cà rốt lấy năng lượng nào! 🥕",
+      "Practice makes perfect! Đừng sợ phát âm sai, mình luôn đồng hành cùng bạn! 🦫✨"
+    ];
+
+    function getCapybaraLevelInfo(points){
+      const pts = Number(points) || 0;
+      if(pts >= 400) return { lv: 5, name: "Capybara Bậc Thầy" };
+      if(pts >= 250) return { lv: 4, name: "Capybara Thông Thái" };
+      if(pts >= 150) return { lv: 3, name: "Capybara Học Giả" };
+      if(pts >= 50) return { lv: 2, name: "Capybara Chăm Chỉ" };
+      return { lv: 1, name: "Capybara Mầm Non" };
+    }
+
+    function getVietnameseVoice() {
+      if (!('speechSynthesis' in window)) return null;
+      const voices = window.speechSynthesis.getVoices();
+      // Ưu tiên voice tiếng Việt tự nhiên/trẻ trung
+      const viVoice = voices.find(v => (v.lang === "vi-VN" || v.lang.startsWith("vi")) && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("HoaiMy") || v.name.includes("Online")));
+      if (viVoice) return viVoice;
+      return voices.find(v => v.lang === "vi-VN" || v.lang.startsWith("vi")) || null;
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        // Voice list ready
+      };
+    }
+
+    let currentCapyAudio = null;
+
+    function capybaraSpeak(text) {
+      if (currentCapyAudio) {
+        try {
+          currentCapyAudio.pause();
+          currentCapyAudio.currentTime = 0;
+        } catch(e) {}
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      // Làm sạch text (bỏ emoji và dấu ngoặc để đọc tự nhiên)
+      const cleanText = text.replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]/gu, '')
+                            .replace(/[()]/g, ' ')
+                            .trim();
+      if (!cleanText) return;
+
+      // Sử dụng giọng đọc AI Tiếng Việt chuẩn chất lượng cao
+      const audioUrl = `/api/tts?lang=vi&text=${encodeURIComponent(cleanText)}`;
+      const audio = new Audio(audioUrl);
+      currentCapyAudio = audio;
+
+      audio.play().catch(err => {
+        // Fallback sang Web Speech API nếu offline hoặc bị chặn autoplay
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'vi-VN';
+        utterance.rate = 1.05;
+        utterance.pitch = 1.25;
+        const viVoice = getVietnameseVoice();
+        if (viVoice) utterance.voice = viVoice;
+        window.speechSynthesis.speak(utterance);
+      });
+    }
+
+    function renderCapybaraCompanion(){
+      const stats = getLearningStats();
+      const info = getCapybaraLevelInfo(stats.points);
+      
+      const badgeLvEl = document.getElementById("capybaraBadgeLv");
+      const subtitleEl = document.getElementById("capybaraSubtitle");
+      const carrotEl = document.getElementById("capybaraCarrotCount");
+      const streakEl = document.getElementById("capybaraStreakCount");
+
+      if(badgeLvEl) badgeLvEl.textContent = `Lv.${info.lv}`;
+      if(subtitleEl) subtitleEl.textContent = `Cấp độ ${info.lv}: ${info.name}`;
+      if(carrotEl) carrotEl.innerHTML = `🥕 <strong>${stats.carrots || 0}</strong> Cà rốt`;
+      if(streakEl) streakEl.innerHTML = `🔥 <strong>${stats.streak || 1}</strong> ngày streak`;
+
+      // Đồng bộ badge ở Speaking lab
+      const spkCarrot = document.getElementById("speakingCarrotBadge");
+      if(spkCarrot) spkCarrot.textContent = `🥕 ${stats.carrots || 0} Cà rốt`;
+      const spkScore = document.getElementById("speakingScoreBadge");
+      if(spkScore) spkScore.textContent = `★ Điểm cao nhất: ${stats.bestSpeakingScore || 0}%`;
+    }
+
+    const talkCapyBtn = document.getElementById("talkToCapybaraBtn");
+    if(talkCapyBtn){
+      talkCapyBtn.addEventListener("click", () => {
+        const randomQuote = capybaraQuotes[Math.floor(Math.random() * capybaraQuotes.length)];
+        const msgEl = document.getElementById("capybaraMessage");
+        if(msgEl) msgEl.textContent = `"${randomQuote}"`;
+        capybaraSpeak(randomQuote);
+        showToast("🦫 Capybara đang trò chuyện cùng bạn!");
+      });
+    }
+
+    const feedCapyBtn = document.getElementById("feedCapybaraBtn");
+    if(feedCapyBtn){
+      feedCapyBtn.addEventListener("click", () => {
+        const stats = getLearningStats();
+        const currentCarrots = stats.carrots || 0;
+        if(currentCarrots < 10){
+          showToast("🥕 Bạn cần ít nhất 10 Cà rốt để cho Capybara ăn. Hãy luyện nói hoặc làm bài thi để kiếm thêm nhé!");
+          return;
+        }
+        stats.carrots -= 10;
+        stats.points = (stats.points || 0) + 50;
+        updateStudyStreak(stats);
+        setLearningStats(stats);
+        renderLearningFeatures();
+        showToast("🎉 Yum yum! Capybara đã được ăn no cà rốt: +50 XP!");
+        capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt vời. Cố gắng học tốt nha!");
+      });
+    }
+
+
+    // ============================================================
+    // MODULE 3: PHÒNG LUYỆN NÓI & PHÁT ÂM AI (AI SPEAKING LAB)
+    // ============================================================
+    const speakingDatabase = {
+      grammar: [
+        {
+          type: "Present Simple",
+          text: "She usually walks to school every morning.",
+          ipa: "/ʃi ˈjuːʒuəli wɔːks tu skuːl ˈɛvri ˈmɔːnɪŋ/",
+          meaning: "Cô ấy thường đi bộ đến trường mỗi buổi sáng."
+        },
+        {
+          type: "Past Simple",
+          text: "They visited Ha Long Bay last summer vacation.",
+          ipa: "/ðeɪ ˈvɪzɪtɪd hɑː lɒŋ beɪ lɑːst ˈsʌmər vəˈkeɪʃən/",
+          meaning: "Họ đã đi thăm vịnh Hạ Long vào kỳ nghỉ hè năm ngoái."
+        },
+        {
+          type: "Present Simple (Question)",
+          text: "Do you play badminton with your friends on weekends?",
+          ipa: "/duː juː pleɪ ˈbædmɪntən wɪð jɔːr frɛndz ɒn ˈwiːkˌɛndz/",
+          meaning: "Bạn có chơi cầu lông với bạn bè vào cuối tuần không?"
+        },
+        {
+          type: "Past Simple (Irregular)",
+          text: "I bought a new English dictionary yesterday.",
+          ipa: "/aɪ bɔːt ə njuː ˈɪŋɡlɪʃ ˈdɪkʃənəri ˈjɛstədeɪ/",
+          meaning: "Hôm qua tôi đã mua một quyển từ điển tiếng Anh mới."
+        },
+        {
+          type: "Present Continuous",
+          text: "We are preparing for our English mid-term test right now.",
+          ipa: "/wiː ɑːr prɪˈpeərɪŋ fɔːr ˈaʊər ˈɪŋɡlɪʃ mɪd-tɜːm tɛst raɪt naʊ/",
+          meaning: "Chúng tôi đang chuẩn bị cho bài kiểm tra giữa kỳ tiếng Anh ngay bây giờ."
+        }
+      ],
+      daily: [
+        {
+          type: "Greeting & Small Talk",
+          text: "Good morning teacher, how was your weekend?",
+          ipa: "/ɡʊd ˈmɔːnɪŋ ˈtiːtʃər haʊ wɒz jɔːr ˈwiːkˌɛnd/",
+          meaning: "Chào buổi sáng thầy cô! Cuối tuần của thầy cô thế nào ạ?"
+        },
+        {
+          type: "Asking for Help",
+          text: "Could you please explain this grammar rule again?",
+          ipa: "/kʊd juː pliːz ɪkˈspleɪn ðɪs ˈɡræmər ruːl əˈɡɛn/",
+          meaning: "Thầy cô có thể giải thích lại quy tắc ngữ pháp này giúp em được không ạ?"
+        },
+        {
+          type: "Expressing Opinion",
+          text: "In my opinion, learning English opens many great opportunities.",
+          ipa: "/ɪn maɪ əˈpɪnjən ˈlɜːnɪŋ ˈɪŋɡlɪʃ ˈəʊpənz ˈmɛni ɡreɪt ˌɒpəˈtjuːnɪtiz/",
+          meaning: "Theo ý kiến của tôi, học tiếng Anh mở ra nhiều cơ hội tuyệt vời."
+        },
+        {
+          type: "Teamwork",
+          text: "Let us work together to finish our science project on time.",
+          ipa: "/lɛt ʌs wɜːk təˈɡɛðər tuː ˈfɪnɪʃ ˈaʊər ˈsaɪəns ˈprɒdʒɛkt ɒn taɪm/",
+          meaning: "Chúng ta hãy cùng nhau làm việc để hoàn thành dự án khoa học đúng hạn."
+        },
+        {
+          type: "Encouragement",
+          text: "Practice makes perfect, so never give up on your dreams.",
+          ipa: "/ˈpræktɪs meɪks ˈpɜːfɪkt səʊ ˈnɛvər ɡɪv ʌp ɒn jɔːr driːmz/",
+          meaning: "Có công mài sắt có ngày nên kim, đừng bao giờ từ bỏ ước mơ của bạn."
+        }
+      ],
+      unit: [
+        {
+          type: "Unit 1: Local Environment",
+          text: "Bat Trang is one of the most famous traditional craft villages in Viet Nam.",
+          ipa: "/bɑːt trɑːŋ ɪz wʌn ɒv ðə məʊst ˈfeɪməs trəˈdɪʃənl krɑːft ˈvɪlɪdʒɪz ɪn vjɛt nɑːm/",
+          meaning: "Bát Tràng là một trong những làng nghề thủ công truyền thống nổi tiếng nhất ở Việt Nam."
+        },
+        {
+          type: "Unit 1: Handcrafted Products",
+          text: "Artisans in this village carve beautiful wooden souvenirs by hand.",
+          ipa: "/ˈɑːtɪzænz ɪn ðɪs ˈvɪlɪdʒ kɑːv ˈbjuːtəfʊl ˈwʊdn ˌsuːvəˈnɪəz baɪ hænd/",
+          meaning: "Những nghệ nhân ở ngôi làng này chạm khắc những món quà lưu niệm bằng gỗ rất đẹp bằng tay."
+        },
+        {
+          type: "Unit 2: City Life",
+          text: "Living in a big city offers convenient public transport and modern facilities.",
+          ipa: "/ˈlɪvɪŋ ɪn ə bɪɡ ˈsɪti ˈɒfəz kənˈviːniənt ˈpʌblɪk ˈtrænspɔːt ænd ˈmɒdən fəˈsɪlɪtiz/",
+          meaning: "Sống ở một thành phố lớn mang lại giao thông công cộng thuận tiện và cơ sở vật chất hiện đại."
+        },
+        {
+          type: "Unit 2: City Challenges",
+          text: "The local government is trying to reduce air pollution and traffic congestion.",
+          ipa: "/ðə ˈləʊkl ˈɡʌvnmənt ɪz ˈtraɪɪŋ tuː rɪˈdjuːs eə pəˈluːʃn ænd ˈtræfɪk kənˈdʒɛstʃən/",
+          meaning: "Chính quyền địa phương đang nỗ lực giảm ô nhiễm không khí và ùn tắc giao thông."
+        }
+      ]
+    };
+
+    let currentSpeakingTopic = "grammar";
+    let currentSpeakingIndex = 0;
+    let speechRecognitionInstance = null;
+    let isSpeakingRecording = false;
+    let accumulatedTranscript = "";
+
+    function stopSpeakingRecording(shouldGrade = false){
+      if(isSpeakingRecording && speechRecognitionInstance){
+        if(shouldGrade){
+          try{ speechRecognitionInstance.stop(); }catch(e){}
+        } else {
+          try{ speechRecognitionInstance.abort(); }catch(e){}
+          accumulatedTranscript = "";
+        }
+      }
+      isSpeakingRecording = false;
+      const micBtn = document.getElementById("speakingMicBtn");
+      const micLabel = document.getElementById("speakingMicLabel");
+      const micIcon = document.getElementById("speakingMicIcon");
+      const waveEl = document.getElementById("speakingWave");
+      if(micBtn) micBtn.classList.remove("recording");
+      if(micLabel) micLabel.textContent = "Bắt đầu nói";
+      if(micIcon) micIcon.textContent = "🎙️";
+      if(waveEl) waveEl.classList.add("hidden");
+    }
+
+    function speakEnglishText(text){
+      if (!('speechSynthesis' in window)){
+        showToast("Trình duyệt không hỗ trợ phát âm!");
+        return;
+      }
+      // Ngắt ghi âm ngay lập tức nếu đang bật ghi âm (không chấm điểm)
+      stopSpeakingRecording(false);
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.85;
+      const voices = window.speechSynthesis.getVoices();
+      const enVoice = voices.find(v => v.lang.startsWith("en") && (v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("US")));
+      if(enVoice) utterance.voice = enVoice;
+
+      const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
+      const micBtn = document.getElementById("speakingMicBtn");
+
+      if(playAudioBtn){
+        playAudioBtn.disabled = true;
+        playAudioBtn.innerHTML = "🔊 Đang phát mẫu...";
+      }
+      if(micBtn){
+        micBtn.disabled = true;
+      }
+
+      const resetAudioState = () => {
+        if(playAudioBtn){
+          playAudioBtn.disabled = false;
+          playAudioBtn.innerHTML = "🔊 Nghe phát âm mẫu";
+        }
+        if(micBtn){
+          micBtn.disabled = false;
+        }
+      };
+
+      utterance.onend = resetAudioState;
+      utterance.onerror = resetAudioState;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function cleanWordToken(w){
+      return w.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function evaluateSpeechAccuracy(targetSentence, spokenTranscript){
+      const targetWords = targetSentence.split(/\s+/);
+      const spokenCleanWords = spokenTranscript.split(/\s+/).map(cleanWordToken).filter(Boolean);
+
+      let correctMatches = 0;
+      const wordBreakdown = targetWords.map(origWord => {
+        const cleaned = cleanWordToken(origWord);
+        const isMatch = spokenCleanWords.includes(cleaned);
+        if(isMatch) correctMatches++;
+        return { word: origWord, correct: isMatch };
+      });
+
+      const accuracy = Math.round((correctMatches / Math.max(1, targetWords.length)) * 100);
+      return { accuracy: Math.min(100, accuracy), breakdown: wordBreakdown };
+    }
+
+    function renderSpeakingCard(){
+      // Hủy mọi phiên âm thanh / ghi âm trước đó khi chuyển câu
+      stopSpeakingRecording(false);
+      if('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+      const list = speakingDatabase[currentSpeakingTopic] || speakingDatabase.grammar;
+      if(currentSpeakingIndex >= list.length) currentSpeakingIndex = 0;
+      if(currentSpeakingIndex < 0) currentSpeakingIndex = list.length - 1;
+      const item = list[currentSpeakingIndex];
+
+      const tagEl = document.getElementById("speakingTopicTag");
+      const counterEl = document.getElementById("speakingCounter");
+      const targetEl = document.getElementById("speakingTargetText");
+      const ipaEl = document.getElementById("speakingIpa");
+      const meaningEl = document.getElementById("speakingMeaning");
+      const resultBox = document.getElementById("speakingResultBox");
+      const waveEl = document.getElementById("speakingWave");
+
+      if(tagEl) tagEl.textContent = item.type;
+      if(counterEl) counterEl.textContent = `Câu ${currentSpeakingIndex + 1} / ${list.length}`;
+      if(targetEl) targetEl.textContent = item.text;
+      if(ipaEl) ipaEl.textContent = item.ipa;
+      if(meaningEl) meaningEl.textContent = `"${item.meaning}"`;
+
+      if(resultBox) resultBox.classList.add("hidden");
+      if(waveEl) waveEl.classList.add("hidden");
+
+      // Reset buttons
+      const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
+      if(playAudioBtn){
+        playAudioBtn.disabled = false;
+        playAudioBtn.innerHTML = "🔊 Nghe phát âm mẫu";
+      }
+      const micBtn = document.getElementById("speakingMicBtn");
+      if(micBtn) micBtn.disabled = false;
+    }
+
+    function renderSpeakingLab(){
+      renderSpeakingCard();
+    }
+
+    // Play Target Audio
+    const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
+    if(playAudioBtn){
+      playAudioBtn.addEventListener("click", () => {
+        const list = speakingDatabase[currentSpeakingTopic] || speakingDatabase.grammar;
+        const item = list[currentSpeakingIndex];
+        if(item) speakEnglishText(item.text);
+      });
+    }
+
+    // Prev / Next Navigation
+    const prevSpkBtn = document.getElementById("speakingPrevBtn");
+    if(prevSpkBtn){
+      prevSpkBtn.addEventListener("click", () => {
+        currentSpeakingIndex--;
+        renderSpeakingCard();
+      });
+    }
+    const nextSpkBtn = document.getElementById("speakingNextBtn");
+    if(nextSpkBtn){
+      nextSpkBtn.addEventListener("click", () => {
+        currentSpeakingIndex++;
+        renderSpeakingCard();
+      });
+    }
+
+    // Topic tabs
+    document.querySelectorAll(".speaking-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".speaking-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        currentSpeakingTopic = tab.dataset.topic;
+        currentSpeakingIndex = 0;
+        renderSpeakingCard();
+      });
+    });
+
+    function finishAndEvaluateSpeaking(){
+      const transcript = accumulatedTranscript.trim();
+      if(!transcript){
+        showToast("Chưa thu được giọng đọc. Hãy bấm 'Bắt đầu nói' và đọc to câu mẫu nhé!");
+        return;
+      }
+
+      const list = speakingDatabase[currentSpeakingTopic] || speakingDatabase.grammar;
+      const targetItem = list[currentSpeakingIndex];
+      const evaluation = evaluateSpeechAccuracy(targetItem.text, transcript);
+
+      // Update UI
+      const resultBox = document.getElementById("speakingResultBox");
+      const percentEl = document.getElementById("speakingScorePercent");
+      const verdictEl = document.getElementById("speakingVerdict");
+      const feedbackEl = document.getElementById("speakingFeedback");
+      const transcriptEl = document.getElementById("speakingTranscript");
+      const wordPillsEl = document.getElementById("speakingWordPills");
+      const coachBubble = document.getElementById("capybaraCoachBubble");
+      const scoreCircle = document.getElementById("speakingScoreCircle");
+
+      if(percentEl) percentEl.textContent = `${evaluation.accuracy}%`;
+      if(transcriptEl) transcriptEl.textContent = `"${transcript}"`;
+
+      if(wordPillsEl){
+        wordPillsEl.innerHTML = evaluation.breakdown.map(b => 
+          `<span class="word-pill ${b.correct ? 'correct' : 'missed'}">${b.correct ? '✓' : '✕'} ${b.word}</span>`
+        ).join("");
+      }
+
+      // Save Stats & Reward
+      const stats = getLearningStats();
+      stats.speakingAttempts = (stats.speakingAttempts || 0) + 1;
+      stats.bestSpeakingScore = Math.max(stats.bestSpeakingScore || 0, evaluation.accuracy);
+
+      if(evaluation.accuracy >= 90){
+        playSuccessSound();
+        if(verdictEl) verdictEl.textContent = "🌟 Xuất sắc! Phát âm rất chuẩn";
+        if(feedbackEl) feedbackEl.textContent = "Tuyệt vời! Bạn phát âm trôi chảy như người bản xứ. Thưởng +15 XP & +2 Cà rốt 🥕";
+        if(scoreCircle) scoreCircle.style.borderColor = "#22c55e";
+        if(coachBubble) coachBubble.textContent = "Quá đỉnh luôn bạn ơi! Phát âm chuẩn 100%. Nhận 2 củ cà rốt nhé! 🦫🎉";
+        stats.points = (stats.points || 0) + 15;
+        stats.carrots = (stats.carrots || 0) + 2;
+        showToast("🌟 Phát âm xuất sắc: +15 XP, +2 Cà rốt 🥕!");
+      } else if(evaluation.accuracy >= 70){
+        playSuccessSound();
+        if(verdictEl) verdictEl.textContent = "👍 Khá tốt! Đạt yêu cầu";
+        if(feedbackEl) feedbackEl.textContent = "Bạn đã đọc đúng hầu hết các từ. Chú ý các từ màu đỏ để cải thiện thêm nhé. Thưởng +10 XP & +1 Cà rốt 🥕";
+        if(scoreCircle) scoreCircle.style.borderColor = "#f59e0b";
+        if(coachBubble) coachBubble.textContent = "Khá lắm! Cố gắng luyện thêm âm đuôi là chuẩn không cần chỉnh nè! 🦫💪";
+        stats.points = (stats.points || 0) + 10;
+        stats.carrots = (stats.carrots || 0) + 1;
+        showToast("👍 Phát âm khá tốt: +10 XP, +1 Cà rốt 🥕!");
+      } else {
+        playWrongSound();
+        if(verdictEl) verdictEl.textContent = "💪 Cần cố gắng thêm!";
+        if(feedbackEl) feedbackEl.textContent = "Hãy bấm 'Nghe phát âm mẫu' vài lần rồi đọc lại to và rõ ràng hơn nhé. Thưởng +5 XP khích lệ.";
+        if(scoreCircle) scoreCircle.style.borderColor = "#ef4444";
+        if(coachBubble) coachBubble.textContent = "Đừng nản lòng nha! Bấm nghe lại câu mẫu rồi thử đọc lại cùng mình nào! 🦫✨";
+        stats.points = (stats.points || 0) + 5;
+        showToast("💪 Đã ghi nhận lượt đọc: +5 XP!");
+      }
+
+      updateStudyStreak(stats);
+      setLearningStats(stats);
+      renderLearningFeatures();
+
+      if(resultBox) resultBox.classList.remove("hidden");
+    }
+
+    // Web Speech Recognition Handler
+    const micBtn = document.getElementById("speakingMicBtn");
+    if(micBtn){
+      micBtn.addEventListener("click", () => {
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if(!SpeechRec){
+          showToast("⚠️ Trình duyệt của bạn không hỗ trợ Web Speech Recognition! Vui lòng dùng Chrome hoặc Edge.");
+          return;
+        }
+
+        // Nếu đang trong trạng thái ĐANG NGHE -> Bấm lần 2 để KẾT THÚC & CHẤM ĐIỂM
+        if(isSpeakingRecording){
+          stopSpeakingRecording(true);
+          return;
+        }
+
+        // Nếu đang phát âm mẫu, dừng phát âm trước khi bật mic
+        if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
+          if(playAudioBtn){
+            playAudioBtn.disabled = false;
+            playAudioBtn.innerHTML = "🔊 Nghe phát âm mẫu";
+          }
+        }
+
+        // Ẩn kết quả cũ khi bắt đầu lượt nói mới
+        const resultBox = document.getElementById("speakingResultBox");
+        if(resultBox) resultBox.classList.add("hidden");
+
+        accumulatedTranscript = "";
+
+        // Bắt đầu ghi âm chế độ continuous (nghe liên tục, không tự ngắt khi ngập ngừng)
+        speechRecognitionInstance = new SpeechRec();
+        speechRecognitionInstance.lang = "en-US";
+        speechRecognitionInstance.continuous = true;
+        speechRecognitionInstance.interimResults = true;
+        speechRecognitionInstance.maxAlternatives = 1;
+
+        speechRecognitionInstance.onstart = () => {
+          isSpeakingRecording = true;
+          const micLabel = document.getElementById("speakingMicLabel");
+          const micIcon = document.getElementById("speakingMicIcon");
+          const waveEl = document.getElementById("speakingWave");
+          const liveText = document.getElementById("speakingLiveText");
+
+          micBtn.classList.add("recording");
+          if(micLabel) micLabel.textContent = "Hoàn thành & Chấm điểm";
+          if(micIcon) micIcon.textContent = "⏹️";
+          if(waveEl) waveEl.classList.remove("hidden");
+          if(liveText) liveText.textContent = "Đang lắng nghe... Hãy đọc toàn bộ câu mẫu trên!";
+        };
+
+        speechRecognitionInstance.onresult = (event) => {
+          let interim = "";
+          let finalStr = "";
+          for (let i = 0; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalStr += event.results[i][0].transcript + " ";
+            } else {
+              interim += event.results[i][0].transcript;
+            }
+          }
+          accumulatedTranscript = (finalStr + interim).trim();
+          const liveText = document.getElementById("speakingLiveText");
+          if(liveText && accumulatedTranscript) {
+            liveText.textContent = `Đang nghe được: "${accumulatedTranscript}"`;
+          }
+        };
+
+        speechRecognitionInstance.onerror = (event) => {
+          console.warn("Speech recognition error:", event.error);
+          if(event.error !== "no-speech" && event.error !== "aborted"){
+            showToast("Micro chưa nhận diện được âm thanh. Hãy nói to hơn nhé!");
+          }
+        };
+
+        speechRecognitionInstance.onend = () => {
+          isSpeakingRecording = false;
+          const micLabel = document.getElementById("speakingMicLabel");
+          const micIcon = document.getElementById("speakingMicIcon");
+          const waveEl = document.getElementById("speakingWave");
+
+          micBtn.classList.remove("recording");
+          if(micLabel) micLabel.textContent = "Bắt đầu nói";
+          if(micIcon) micIcon.textContent = "🎙️";
+          if(waveEl) waveEl.classList.add("hidden");
+
+          // Tiến hành đánh giá sau khi học sinh đã đọc xong và kết thúc nghe
+          finishAndEvaluateSpeaking();
+        };
+
+        try{
+          speechRecognitionInstance.start();
+        }catch(e){
+          console.error("Start speech recognition error:", e);
+        }
+      });
+    }
+
+    // ============================================================
+    // KHỞI ĐỘNG HỆ THỐNG
+    // ============================================================
     // Đồng hồ tập trung
     let focusDuration=25*60,focusSeconds=focusDuration,focusInterval=null,focusModeLabel="Phiên học tập";
     function renderFocusTime(){document.getElementById("focusTime").textContent=`${String(Math.floor(focusSeconds/60)).padStart(2,"0")}:${String(focusSeconds%60).padStart(2,"0")}`;document.getElementById("focusLabel").textContent=focusModeLabel}
@@ -1481,9 +2336,16 @@
       focusInterval=setInterval(()=>{
         focusSeconds=Math.max(0,focusSeconds-1);renderFocusTime();
         if(focusSeconds===0){
-          stopFocus();showToast("Hoàn thành phiên tập trung! +20 XP");
+          stopFocus();showToast("Hoàn thành phiên tập trung! +20 XP, +3 Cà rốt 🥕");
           if(focusModeLabel==="Phiên học tập"){
-            const stats=getLearningStats();updateStudyStreak(stats);stats.focusSessions+=1;stats.focusMinutes+=Math.round(focusDuration/60);setLearningStats(stats);completeDailyPlanTask("focus");
+            const stats=getLearningStats();
+            updateStudyStreak(stats);
+            stats.focusSessions+=1;
+            stats.focusMinutes+=Math.round(focusDuration/60);
+            stats.carrots=(stats.carrots||0)+3;
+            setLearningStats(stats);
+            completeDailyPlanTask("focus");
+            renderLearningFeatures();
           }
         }
       },1000);
@@ -1492,9 +2354,10 @@
 
     // Trung tâm thông báo
     const notificationItems=[
-      {id:"assignment",icon:"▤",title:"Bài luyện mới",detail:"Mid-term Practice 01 đang chờ bạn hoàn thành.",time:"Hôm nay"},
-      {id:"streak",icon:"🔥",title:"Duy trì chuỗi học",detail:"Hoàn thành một nhiệm vụ để giữ chuỗi học tập.",time:"Hôm nay"},
-      {id:"feature",icon:"✨",title:"Tính năng mới",detail:"Ôn thông minh, phòng tập trung và huy hiệu đã sẵn sàng.",time:"Vừa cập nhật"}
+      {id:"speaking",icon:"🎙️",title:"Luyện nói AI",detail:"Phòng luyện nói & nhận diện giọng nói AI đã sẵn sàng.",time:"Mới"},
+      {id:"capybara",icon:"🦫",title:"Bạn đồng hành Capybara",detail:"Tương tác cùng Capybara và tích lũy cà rốt để thăng cấp.",time:"Mới"},
+      {id:"assignment",icon:"▤",title:"Bài luyện mới",detail:"Mid-term Practice 01 với chế độ thi an toàn đang chờ bạn.",time:"Hôm nay"},
+      {id:"streak",icon:"🔥",title:"Duy trì chuỗi học",detail:"Hoàn thành một nhiệm vụ để giữ chuỗi học tập.",time:"Hôm nay"}
     ];
     function getReadNotifications(){try{return JSON.parse(localStorage.getItem(notificationsKey)||"[]")}catch{return []}}
     function renderNotifications(){
@@ -1502,12 +2365,21 @@
       document.getElementById("notificationDot").classList.toggle("hidden",unread.length===0);
       document.getElementById("notificationList").innerHTML=notificationItems.map(n=>`<div class="notification-item ${read.includes(n.id)?"":"unread"}"><div class="notification-icon">${n.icon}</div><div><strong>${n.title}</strong><p>${n.detail}</p><time>${n.time}</time></div></div>`).join("");
     }
-    document.getElementById("notificationBtn").addEventListener("click",e=>{e.stopPropagation();document.getElementById("notificationPanel").classList.toggle("open")});
-    document.getElementById("markNotificationsRead").addEventListener("click",()=>{localStorage.setItem(notificationsKey,JSON.stringify(notificationItems.map(n=>n.id)));renderNotifications();showToast("Đã đánh dấu tất cả là đã đọc")});
-    document.addEventListener("click",e=>{const panel=document.getElementById("notificationPanel");if(panel.classList.contains("open")&&!panel.contains(e.target)&&e.target!==document.getElementById("notificationBtn"))panel.classList.remove("open")});
+    const notifBtn = document.getElementById("notificationBtn");
+    if(notifBtn){
+      notifBtn.addEventListener("click",e=>{e.stopPropagation();document.getElementById("notificationPanel").classList.toggle("open")});
+    }
+    const markReadBtn = document.getElementById("markNotificationsRead");
+    if(markReadBtn){
+      markReadBtn.addEventListener("click",()=>{localStorage.setItem(notificationsKey,JSON.stringify(notificationItems.map(n=>n.id)));renderNotifications();showToast("Đã đánh dấu tất cả là đã đọc")});
+    }
+    document.addEventListener("click",e=>{const panel=document.getElementById("notificationPanel");if(panel && panel.classList.contains("open")&&!panel.contains(e.target)&&e.target!==notifBtn)panel.classList.remove("open")});
 
-    // Hoàn thành nhiệm vụ flashcard sau khi đánh dấu đủ 5 thẻ đã nhớ trong phiên
-    document.getElementById("markKnown").addEventListener("click",()=>{setTimeout(()=>{if(flashKnown.size>=5)completeDailyPlanTask("flashcard")},0)});
+    // Hoàn thành nhiệm vụ flashcard
+    const markKnownBtn = document.getElementById("markKnown");
+    if(markKnownBtn){
+      markKnownBtn.addEventListener("click",()=>{setTimeout(()=>{if(flashKnown.size>=5)completeDailyPlanTask("flashcard")},0)});
+    }
 
     renderDailyPlan();renderFocusTime();renderNotifications();renderLearningFeatures();
 

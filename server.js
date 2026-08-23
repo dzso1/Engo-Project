@@ -3,6 +3,8 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const https = require("https");
+const dns = require("dns").promises;
 const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
@@ -105,6 +107,101 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+app.get("/api/tts", (req, res) => {
+  const text = (req.query.text || "").trim();
+  const lang = (req.query.lang || "vi").trim();
+  if (!text) {
+    return res.status(400).send("Text is required");
+  }
+  const cleanText = text.replace(/[\u{1F300}-\u{1FAFF}]|[\u{2600}-\u{27BF}]/gu, '').replace(/[()]/g, ' ').trim().slice(0, 300);
+  const targetUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${encodeURIComponent(lang)}&client=tw-ob`;
+
+  const ttsReq = https.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (ttsRes) => {
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    ttsRes.pipe(res);
+  });
+
+  ttsReq.on("error", (err) => {
+    console.error("TTS proxy error:", err);
+    res.status(500).send("TTS Error");
+  });
+});
+
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  "tempmail.com", "10minutemail.com", "mailinator.com", "guerrillamail.com",
+  "yopmail.com", "sharklasers.com", "trashmail.com", "getairmail.com",
+  "dispostable.com", "burnermail.io", "fakeinbox.com", "temp-mail.org",
+  "throwawaymail.com", "getnada.com", "fakemailgenerator.com", "mohmal.com",
+  "crazymailing.com", "tempail.com", "emailondeck.com", "maildrop.cc"
+]);
+
+async function verifyEmailAddress(email) {
+  const trimmed = String(email || "").trim().toLowerCase();
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  if (!trimmed || !emailRegex.test(trimmed)) {
+    return { valid: false, reason: "Định dạng email không hợp lệ (ví dụ đúng: student@gmail.com)." };
+  }
+
+  const [username, domain] = trimmed.split("@");
+  if (!username || !domain) {
+    return { valid: false, reason: "Email thiếu tên người dùng hoặc tên miền." };
+  }
+
+  // Chặn email tạm thời / rác
+  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
+    return { valid: false, reason: "Không được sử dụng email tạm thời / email rác để đăng ký." };
+  }
+
+  // Kiểm tra cú pháp chuẩn riêng của Gmail
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    if (username.length < 6 || username.length > 30) {
+      return { valid: false, reason: "Tên tài khoản Gmail phải có độ dài từ 6 đến 30 ký tự." };
+    }
+    if (!/^[a-z0-9.]+$/.test(username)) {
+      return { valid: false, reason: "Tên tài khoản Gmail chỉ được chứa chữ cái (a-z), số (0-9) và dấu chấm (.)." };
+    }
+    if (username.startsWith(".") || username.endsWith(".") || username.includes("..")) {
+      return { valid: false, reason: "Tên tài khoản Gmail không được bắt đầu, kết thúc bằng dấu chấm hoặc chứa 2 dấu chấm liên tiếp." };
+    }
+  }
+
+  // Tra cứu bản ghi MX thực tế qua DNS
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+    if (!mxRecords || mxRecords.length === 0) {
+      return { valid: false, reason: `Tên miền @${domain} không có máy chủ nhận email (MX record).` };
+    }
+    return {
+      valid: true,
+      domain,
+      isGmail: domain === "gmail.com" || domain === "googlemail.com",
+      mxHost: mxRecords[0].exchange
+    };
+  } catch (err) {
+    // Dự phòng cho các tên miền phổ biến nếu mất mạng tạm thời
+    if (["gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "edu.vn"].includes(domain)) {
+      return { valid: true, domain, isGmail: domain.includes("gmail"), isFallback: true };
+    }
+    return { valid: false, reason: `Tên miền @${domain} không tồn tại trên hệ thống máy chủ thư (${err.code || "ENOTFOUND"}).` };
+  }
+}
+
+// API kiểm tra tính hợp lệ và tồn tại của email
+app.get("/api/auth/verify-email", async (req, res) => {
+  const email = req.query.email;
+  if (!email) {
+    return res.status(400).json({ success: false, valid: false, message: "Vui lòng cung cấp email cần kiểm tra." });
+  }
+  const checkResult = await verifyEmailAddress(email);
+  return res.json({
+    success: true,
+    valid: checkResult.valid,
+    message: checkResult.valid ? "Email hợp lệ và có máy chủ thư điện tử (MX) hoạt động thật." : checkResult.reason,
+    details: checkResult
+  });
+});
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     await assessmentReady;
@@ -120,6 +217,13 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
+
+    // Kiểm tra tính xác thực của email (Gmail / DNS MX check)
+    const emailCheck = await verifyEmailAddress(normalizedEmail);
+    if (!emailCheck.valid) {
+      return res.status(400).json({ success: false, message: emailCheck.reason });
+    }
+
     const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);
     if (existing.length) {
       return res.status(409).json({ success: false, message: "Email này đã được đăng ký." });
