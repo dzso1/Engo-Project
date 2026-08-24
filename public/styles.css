@@ -501,10 +501,18 @@
     .auth-copy p{font-size:16px;line-height:1.75;color:#e0e7ff;margin:0 0 26px}
     .auth-features{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .auth-feature{padding:14px;border-radius:16px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.15);font-size:13px}
-    .auth-form-panel{display:grid;place-items:center;padding:34px;background:
-      radial-gradient(circle at 100% 0%,rgba(99,102,241,.10),transparent 30%),white}
-    .auth-card{width:min(460px,100%);padding:30px;border-radius:26px;background:white;border:1px solid var(--line);box-shadow:0 24px 65px rgba(15,23,42,.10)}
-    .auth-card h2{margin:0 0 7px;font-size:27px}.auth-card>p{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.55}
+    .auth-form-panel{
+      display:flex;justify-content:center;align-items:flex-start;
+      padding:24px;overflow-y:auto;max-height:100vh;
+      background:radial-gradient(circle at 100% 0%,rgba(99,102,241,.10),transparent 30%),white;
+    }
+    .auth-card{
+      width:min(460px,100%);padding:28px 24px;border-radius:26px;
+      background:white;border:1px solid var(--line);
+      box-shadow:0 24px 65px rgba(15,23,42,.10);
+      margin:auto 0;
+    }
+    .auth-card h2{margin:0 0 7px;font-size:27px}.auth-card>p{margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.55}
     .auth-tabs{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:14px;background:#f1f5f9;margin-bottom:20px}
     .auth-tab{border:0;background:transparent;padding:10px;border-radius:11px;font-weight:850;color:#64748b}
     .auth-tab.active{background:white;color:var(--primary);box-shadow:0 4px 14px rgba(15,23,42,.08)}
@@ -592,6 +600,40 @@
       opacity:0;transform:translateY(12px);pointer-events:none;transition:.25s ease
     }
     .toast.show{opacity:1;transform:none}
+
+    /* Error Healing Room */
+    .healing-header { margin-bottom: 20px; }
+    .healing-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .healing-stat-card { padding: 16px; border-radius: 16px; text-align: center; background: linear-gradient(145deg, #eef2ff, #f8f7ff); border: 1px solid #e0e7ff; }
+    .healing-tabs { display: flex; gap: 8px; margin: 20px 0; }
+    .healing-tab { border: 0; background: #f1f5f9; padding: 10px 18px; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; color: #64748b; }
+    .healing-tab:hover { background: #e2e8f0; }
+    .healing-tab.active { background: #4f46e5; color: white; box-shadow: 0 4px 12px rgba(79,70,229,0.2); }
+    .healing-panel { display: none; }
+    .healing-panel.active { display: block; animation: fade 0.25s ease; }
+    .healing-error-card { border: 1px solid #fecaca; border-radius: 16px; padding: 20px; margin-bottom: 16px; background: #fff; box-shadow: 0 4px 12px rgba(239,68,68,0.05); }
+    .healing-error-card .error-badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; margin-bottom: 8px; }
+    .healing-error-card .error-badge.red { background: #fef2f2; color: #dc2626; }
+    .healing-error-card .error-badge.yellow { background: #fffbeb; color: #d97706; }
+    .healing-error-card .error-badge.green { background: #f0fdf4; color: #16a34a; }
+    .healing-heatmap-group { margin-bottom: 24px; }
+    .healing-heatmap-group h4 { margin: 0 0 12px 0; font-size: 15px; color: #334155; }
+    .healing-heatmap-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #475569; }
+    .healing-heatmap-row:last-child { border-bottom: none; }
+    .healing-heatmap-dots { display: flex; gap: 4px; }
+    .healing-heatmap-dot { width: 14px; height: 14px; border-radius: 4px; }
+    .healing-heatmap-dot.mastered { background: #22c55e; }
+    .healing-heatmap-dot.shaky { background: #f59e0b; }
+    .healing-heatmap-dot.weak { background: #ef4444; }
+    .healing-heatmap-dot.unknown { background: #e2e8f0; }
+    
+    .healing-modal-content { max-width: 560px; padding: 28px; }
+    .healing-progress-bar { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin: 16px 0; }
+    .healing-progress-fill { height: 100%; background: linear-gradient(90deg, #4f46e5, #7c3aed); border-radius: 99px; transition: width 0.3s; }
+    .healing-option { display: block; width: 100%; padding: 14px 18px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 12px; background: white; text-align: left; font-size: 14px; cursor: pointer; transition: all 0.15s; font-weight: 500; color: #334155; }
+    .healing-option:hover { border-color: #818cf8; background: #eef2ff; }
+    .healing-option.correct { border-color: #22c55e; background: #f0fdf4; color: #166534; }
+    .healing-option.wrong { border-color: #ef4444; background: #fef2f2; color: #991b1b; }
 
     /* Dashboard + giao diện tối */
     body, .sidebar, .topbar, .card, .modal-card, .auth-card,
@@ -1420,3 +1462,15 @@
       .capybara-actions-row{justify-content:center}
     }
 
+    /* Error Healing Room Dark Mode */
+    body.dark-mode .healing-stat-card { background: #1e293b; border-color: #334155; }
+    body.dark-mode .healing-tab { background: #1e293b; color: #94a3b8; }
+    body.dark-mode .healing-tab:hover { background: #334155; }
+    body.dark-mode .healing-tab.active { background: #4f46e5; color: white; }
+    body.dark-mode .healing-error-card { background: #1e293b; border-color: #7f1d1d; box-shadow: none; }
+    body.dark-mode .healing-heatmap-row { border-color: #334155; color: #cbd5e1; }
+    body.dark-mode .healing-heatmap-group h4 { color: #e2e8f0; }
+    body.dark-mode .healing-heatmap-dot.unknown { background: #334155; }
+    body.dark-mode .healing-progress-bar { background: #334155; }
+    body.dark-mode .healing-option { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+    body.dark-mode .healing-option:hover { background: #1b2440; border-color: #818cf8; }

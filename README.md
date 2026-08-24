@@ -1,86 +1,129 @@
-# <p align="center"><img src="./public/images/engologo.png" width="130" alt="ENGO Logo"><br>🌟 ENGO - DANH SÁCH TÍNH NĂNG NỀN TẢNG HỌC TIẾNG ANH 🌟</p>
+# <p align="center"><img src="./public/images/engologo.png" width="130" alt="ENGO Logo"><br>🌟 ENGO LEARNING HUB - NỀN TẢNG HỌC & KIỂM TRA TIẾNG ANH THCS THÔNG MINH 🌟</p>
+
+> **ENGO Learning Hub** là nền tảng chuyển đổi số giáo dục tiếng Anh THCS toàn diện, kết hợp Trí tuệ nhân tạo (AI), Cơ chế trò chơi hóa (Gamification), Giám sát thi an toàn và Chữa lỗi thông minh.
 
 ---
 
 ## 1. 🎓 PHÂN HỆ HỌC SINH (STUDENT PORTAL)
 
-### 1.1. Quản lý tài khoản cá nhân
-* **Đăng ký & Đăng nhập:** Đăng ký tài khoản theo khối lớp (Khối 6, 7, 8, 9) và đăng nhập nhanh chóng.
-* **Tự xóa tài khoản (Self Delete):** Tự động xóa thông tin và tài khoản của mình khỏi hệ thống khi không còn nhu cầu sử dụng.
+### 1.1. 🏥 Phòng Chữa Lỗi Thông Minh (Smart Error Healing Room - Tính năng độc quyền)
+* **Chẩn đoán & Bắt lỗi tự động:** Sau mỗi bài kiểm tra hoặc bài luyện tập, hệ thống tự động phát hiện câu làm sai, phân loại vào 1 trong 12 dạng lỗi ngữ pháp THCS (Hiện tại đơn, Quá khứ đơn, Cấu trúc so sánh...).
+* **Hồ sơ bệnh án ngữ pháp:** Cung cấp giải thích chi tiết tại sao sai, quy tắc ngữ pháp trọng tâm và mẹo nhớ cốt lõi từ Capybara.
+* **Luyện tập chữa lỗi 3 câu cùng dạng:** Tự động trích xuất 3 câu hỏi trắc nghiệm cùng dạng từ ngân hàng 120 câu hỏi THCS chuẩn hóa.
+* **Cơ chế chữa khỏi & Thưởng điểm:** Học sinh hoàn thành chính xác 3/3 câu $\rightarrow$ Lỗi được đánh dấu **"✅ ĐÃ CHỮA KHỎI"**, thưởng ngay **+15 XP & +1 Cà rốt 🥕**.
+* **Bản đồ Nhiệt Ngữ Pháp Cá Nhân (Grammar Heatmap):** Đánh giá trực quan mức độ thành thạo qua 4 trạng thái:
+  * 🟢 **Thành thạo (Mastered)**
+  * 🟡 **Đang củng cố (Shaky)**
+  * 🔴 **Yếu - Cần chữa gấp (Weak)**
+  * ⚪ **Chưa kiểm tra (Unknown)**
 
-### 1.2. 🦫 Bạn đồng hành ảo Capybara & Gamification (Tính mới NCKH)
-* **Linh vật Capybara tương tác:** Trợ lý ảo Capybara hiển thị ngay trên Dashboard với các cấp độ tiến hóa (Lv.1 Capybara Mầm Non $\rightarrow$ Lv.5 Capybara Bậc Thầy).
-* **🥕 Kho Cà rốt tích lũy (Carrot Bank):** Nhận thưởng cà rốt khi hoàn thành bài tập, luyện phát âm đạt điểm cao, hoặc hoàn thành phiên tập trung Pomodoro.
-* **Trò chuyện giọng nói cùng Capybara:** Bấm nút trò chuyện để Capybara chia sẻ lời khuyên học tập, nhắc nhở quy tắc ngữ pháp bằng giọng nói Audio (Text-to-Speech).
-* **Nuôi & Nâng cấp Capybara:** Dùng 10 Cà rốt để "Cho Capybara ăn" đổi lấy +50 XP và tăng cấp độ đồng hành.
+---
 
-### 1.3. 🎙️ Phòng Luyện Nói & Phát Âm AI (AI Speaking Lab - Tính mới NCKH)
-* **Kho mẫu câu phong phú:** Luyện phát âm theo 3 chủ đề trọng tâm:
-  1. *Ngữ pháp Thì Hiện tại đơn & Quá khứ đơn (Grammar Focus)*
-  2. *Giao tiếp đời sống & Trường học (Daily Communication)*
-  3. *Chủ đề bài học Global Success 9 (Unit 1 & Unit 2)*
-* **🔊 Phát âm bản xứ chuẩn quốc tế:** Tích hợp Audio Text-to-Speech phát âm chuẩn giọng US/UK kèm phiên âm quốc tế IPA và nghĩa tiếng Việt.
-* **🎙️ Nhận diện giọng nói AI (Web Speech API):** Thu âm trực tiếp qua micro với hiệu ứng sóng âm động và chuyển đổi giọng nói thành văn bản theo thời gian thực.
-* **Bộ chấm điểm AI chuẩn xác (% Accuracy):** So khớp từng từ và tính điểm phần trăm phát âm chuẩn xác.
-* **Phân tích từng từ (Word-by-word Breakdown):** Đánh dấu màu xanh lá cho từ đọc chuẩn, màu đỏ/gạch chân cho từ đọc chưa rõ hoặc bị thiếu.
-* **Đồng hành & Thưởng điểm:** Gia sư Capybara đưa ra nhận xét động viên tức thì và thưởng Cà rốt + XP khi đạt điểm xuất sắc ($\ge 90\%$).
+### 1.2. 🦫 Bạn Đồng Hành Capybara & Gamification Toàn Diện
+* **5 Cấp độ tiến hóa của Capybara:**
+  * *Lv.1: Capybara Mầm Non* (Khởi đầu)
+  * *Lv.2: Capybara Chăm Chỉ* (10 🥕)
+  * *Lv.3: Capybara Học Giả* (30 🥕)
+  * *Lv.4: Capybara Thông Thái* (65 🥕)
+  * *Lv.5: Capybara Bậc Thầy* (115 🥕) $\rightarrow$ **Kích hoạt Buff x1.5 XP vĩnh viễn**, Hào quang Vương miện Vàng và Kho Cà rốt Danh dự.
+* **🥕 Kinh tế Cà rốt (Carrot Economy):** Nhận thưởng cà rốt khi hoàn thành Pomodoro (+3 🥕), luyện phát âm AI (+1 đến +2 🥕), chữa lỗi ngữ pháp (+1 🥕).
+* **Nuôi & Cho ăn:** Dùng Cà rốt cho Capybara ăn để quy đổi thành XP và tăng cấp độ.
+* **Bộ sưu tập 8 Huy hiệu thành tích:** Mở khóa các danh hiệu khi hoàn thành bài đầu tiên, đạt điểm 10 tuyệt đối, duy trì chuỗi Streak 7 ngày...
+* **Kế hoạch học tập hàng ngày (Daily Quest):** 3 nhiệm vụ ngày (Flashcard, Quiz, Pomodoro) với checkbox khóa chống gian lận.
 
-### 1.4. Ôn luyện ngữ pháp tương tác & AI Mentor
-* **Chuyên đề ngữ pháp trọng tâm:** Luyện tập các thì cơ bản và nâng cao trong chương trình THCS (Present Simple, Past Simple, Present Continuous, Comparatives...).
-* **Đa dạng dạng bài:** Bài tập trắc nghiệm 4 lựa chọn (A, B, C, D), bài tập chia thì động từ và điền khuyết.
-* **Giải thích chi tiết chuẩn AI:** Phân tích 3 bước: Quy tắc ngữ pháp $\rightarrow$ Dấu hiệu nhận biết $\rightarrow$ Lời khuyên chống bẫy từ Capybara.
+---
 
-### 1.5. 🛡️ Làm bài kiểm tra trực tuyến có Giám sát An toàn (Smart Anti-Cheat Guard - Tính mới NCKH)
-* **Nhận bài từ Giáo viên:** Làm các bài kiểm tra 15 phút, 1 tiết hoặc bài ôn tập do giáo viên bộ môn giao.
-* **Đồng hồ đếm ngược:** Hiển thị thời gian làm bài thực tế, tự động khóa và nộp bài khi hết giờ.
-* **Tự động lưu tạm thời:** Lưu trữ trạng thái câu trả lời trong quá trình làm bài để tránh mất dữ liệu khi gián đoạn mạng.
-* **🛡️ Phát hiện chuyển Tab & Rời màn hình:** Cảnh báo đỏ lập tức khi học sinh chuyển tab sang tra Google/ChatGPT và ghi nhận số lần vi phạm vào báo cáo gửi giáo viên.
-* **⛔ Chống sao chép (Anti-Copy):** Khóa chức năng copy câu hỏi và khóa chuột phải trong phòng thi.
-* **🔀 Đổi mã đề / Xáo trộn ngẫu nhiên:** Xáo trộn thứ tự câu hỏi và phương án A-B-C-D ngẫu nhiên để chống nhìn bài.
+### 1.3. 🎙️ Phòng Luyện Nói & Phát Âm AI (AI Speaking Lab)
+* **Kho mẫu câu chuẩn hóa:** 3 chủ đề lớn: *Ngữ pháp trọng tâm*, *Giao tiếp đời sống*, và *Unit 1-2 Global Success 9*.
+* **Nhận diện giọng nói thời gian thực (Web Speech API):** Hiệu ứng sóng âm động, nhận diện giọng nói và chuyển thành văn bản tức thì.
+* **Chấm điểm từng từ (Word-by-word Breakdown):** Đánh dấu màu xanh lá cho từ phát âm chuẩn, màu đỏ cho từ phát âm sai hoặc bị thiếu.
+* **Phát âm mẫu bản xứ:** Tích hợp Audio Text-to-Speech phát âm chuẩn giọng US/UK kèm phiên âm quốc tế IPA và nghĩa tiếng Việt.
 
-### 1.6. Theo dõi tiến độ & Bảng điểm
-* **Chấm điểm tự động:** Nhận điểm số ngay lập tức (thang điểm 10) sau khi nhấn nộp bài.
-* **Lịch sử học tập cá nhân:** Xem lại toàn bộ danh sách các bài kiểm tra đã làm, điểm số đạt được và nhận xét chi tiết từ giáo viên.
-* **Bản đồ năng lực Radar 6 kỹ năng:** Đánh giá độ thành thạo Nghe, Nói, Đọc, Viết, Ngữ pháp, Từ vựng theo thời gian thực.
+---
+
+### 1.4. 🛡️ Phòng Thi An Toàn & Quy Chế Trừ Điểm 3 Nấc (Anti-Cheat Guard)
+* **Quy chế trừ điểm phòng thi nghiêm ngặt:**
+  * ⚠️ **Lần 1 rời tab:** Cảnh báo vi phạm + **Trừ -0.50 điểm**.
+  * ⚠️ **Lần 2 rời tab:** Cảnh báo nghiêm trọng + **Trừ thêm -0.75 điểm** (Tổng trừ: `-1.25đ`).
+  * ⛔ **Lần 3 rời tab:** **Trừ thêm -1.00 điểm** (Tổng trừ: `-2.25đ`) và **TỰ ĐỘNG KHÓA & NỘP BÀI NGAY LẬP TỨC!**
+* **Chống gian lận toàn diện:** Khóa copy câu hỏi, khóa chuột phải, xáo trộn ngẫu nhiên câu hỏi & đáp án (Fisher-Yates Shuffle).
+* **Tự động lưu bài làm:** Tự động lưu tiến độ vào LocalStorage mỗi 15 giây.
+
+---
+
+### 1.5. 🎴 Flashcard Từ Vựng 3D & ⏱️ Đồng Hồ Pomodoro
+* **Flashcard 3D:** Lật thẻ tương tác 3 chiều, học từ vựng, phiên âm IPA, nghĩa tiếng Việt và câu ví dụ ngữ cảnh; phân loại từ đã nhớ/chưa nhớ.
+* **Pomodoro Timer:** 3 chế độ (25p học tập / 5p nghỉ ngắn / 15p nghỉ dài), tự động tính số phút tập trung và tặng thưởng Cà rốt.
 
 ---
 
 ## 2. 👩‍🏫 PHÂN HỆ GIÁO VIÊN (TEACHER HUB)
 
-### 2.1. Tạo bài kiểm tra thông minh
-* **Tạo đề tự động từ file Word (.docx):** Tải trực tiếp file đề thi DOCX có sẵn từ máy tính, hệ thống tự động bóc tách tiêu đề, danh sách câu hỏi, các phương án A-B-C-D và đáp án chuẩn chỉ trong vài giây.
-* **Tạo đề thủ công:** Tự do đặt tên bài kiểm tra, cấu hình thời gian làm bài (phút), hạn chót nộp bài và soạn câu hỏi trực tiếp trên form.
-* **Tùy biến câu hỏi:** Xem trước, chỉnh sửa nội dung, thay đổi thứ tự hoặc xóa bớt câu hỏi trước khi xuất bản đề.
+### 2.1. Nhập đề tự động từ file Word (.docx)
+* **AI Document Parser (mammoth):** Tự động bóc tách file Word đề thi tiếng Anh THCS thành 4 phần thi chuẩn:
+  1. *Phonetics* (Trắc nghiệm phát âm/trọng âm)
+  2. *Grammar & Vocabulary* (Trắc nghiệm từ vựng, ngữ pháp)
+  3. *Reading* (Bóc tách bài đọc hiểu và câu hỏi điền từ)
+  4. *Writing* (Tự luận viết lại câu và viết đoạn văn $\rightarrow$ gửi giáo viên chấm).
 
-### 2.2. Quản lý ngân hàng đề thi
-* **Danh sách đề thi:** Theo dõi toàn bộ các bài kiểm tra đã tạo, trạng thái mở/đóng và thời gian tạo.
-* **Xóa đề thi:** Hỗ trợ nút `🗑️ Xóa` để xóa nhanh các bài kiểm tra cũ hoặc bài thi thử nghiệm.
-
-### 2.3. Chấm điểm & Quản lý bài nộp của học sinh
-* **Chấm trắc nghiệm tự động 100%:** Hệ thống tự động so khớp đáp án và tính điểm cho học sinh.
-* **Chấm bài tự luận (Writing):** Giao diện riêng cho phép giáo viên đọc bài viết, chấm điểm và gửi nhận xét, sửa lỗi ngữ pháp cho từng học sinh.
-* **Xóa bài nộp lỗi:** Xóa bài nộp không hợp lệ hoặc cho phép học sinh làm lại khi cần thiết.
-
-### 2.4. Thống kê & Phân tích kết quả học tập (Learning Analytics)
-* **Bảng điểm tổng hợp:** Xem bảng điểm đầy đủ của toàn bộ học sinh trong lớp theo từng bài kiểm tra.
-* **Chỉ số phân tích:** Thống kê điểm trung bình, điểm cao nhất, điểm thấp nhất và tỷ lệ hoàn thành bài tập.
-* **Phân loại năng lực:** Hỗ trợ phát hiện học sinh còn yếu ở các chuyên đề ngữ pháp cụ thể để kịp thời phụ đạo.
+### 2.2. Bảng điểm học sinh & Giám sát thi cử
+* **Bảng điểm trực quan theo lớp:** Lọc kết quả theo lớp (9A1, 9A2, 9A3, 9A4) và theo từng đề kiểm tra.
+* **Huy hiệu giám sát thi cử:**
+  * 🟢 `✓ Nghiêm túc` (0 vi phạm)
+  * 🟡 `⚠️ 1 lần rời tab (-0.5đ)`
+  * 🟠 `⚠️ 2 lần rời tab (-1.25đ)`
+  * 🔴 `⛔ Bị thu bài (3 lần -2.25đ)`
+* **Chấm bài tự luận (Writing):** Modal chấm điểm tự luận (thang 0 – 3 điểm) kèm nhận xét sư phạm chi tiết cho từng học sinh.
 
 ---
 
-## 3. 🛡️ PHÂN HỆ QUẢN TRỊ VIÊN (ADMIN PORTAL)
+## 3. 👪 PHÂN HỆ PHỤ HUYNH (PARENT PORTAL)
 
-* **Quản lý người dùng toàn hệ thống:** Xem danh sách toàn bộ tài khoản giáo viên và học sinh trong trường.
-* **Phân quyền người dùng (RBAC):** Phân định rạch ròi 3 cấp độ quyền hạn: `Admin`, `Teacher`, `Student`.
-* **Tạo & Xóa tài khoản:** Cấp tài khoản mới cho giáo viên hoặc xóa tài khoản học sinh khi ra trường.
+### 3.1. Khóa đăng ký tự do
+* Tài khoản phụ huynh do nhà trường/giáo viên cấp hoặc liên kết qua mã định danh học sinh, **không cho phép đăng ký tự do ngoài màn hình đăng ký**.
+
+### 3.2. Báo cáo học tập thời gian thực
+* **Tổng quan năng lực của con:** Điểm trung bình hệ 10, số bài kiểm tra đã hoàn thành, nhận xét từ giáo viên bộ môn.
+* **Báo cáo tính trung thực thi cử:** Theo dõi **Chỉ số Độ nghiêm túc thi cử (%)** và tổng số lần rời tab bài thi của con.
+* **Biểu đồ Radar 6 kỹ năng:** Theo dõi sự tiến bộ của con qua Listening, Speaking, Vocab, Grammar, Reading, Writing.
 
 ---
 
-## 4. ⚙️ TÍNH NĂNG KỸ THUẬT & BẢO MẬT HỆ THỐNG
+## 4. 🔧 PHÂN HỆ QUẢN TRỊ VIÊN (ADMIN PORTAL)
 
-* **AI Web Speech Recognition & Synthesis:** Ứng dụng công nghệ xử lý giọng nói HTML5 trực tiếp trên trình duyệt, không tốn phí bản quyền API.
-* **Bảo mật xác thực JWT:** Sử dụng JSON Web Token lưu trữ trong `HttpOnly Cookie` chống tấn công XSS.
-* **Mã hóa mật khẩu an toàn:** Toàn bộ mật khẩu người dùng được băm (hash) bằng thuật toán `Bcrypt`.
-* **Bộ bóc tách DOCX chuyên dụng:** Module bóc tách định dạng văn bản Word sử dụng regex thông minh, nhận diện chính xác cấu trúc đề thi trắc nghiệm tiếng Anh.
-* **Tự động cấu hình CSDL:** Tự động tạo bảng dữ liệu và thiết lập quan hệ (Schema Auto-setup) khi khởi chạy server.
-* **Giao diện hiện đại (Responsive SPA):** Tương thích hoàn hảo trên máy tính phòng máy, laptop, máy tính bảng và điện thoại di động.
+* **Quản lý người dùng MySQL:** Xem danh sách, tạo mới, duyệt giáo viên (`pending` $\rightarrow$ `active`), khóa/mở khóa tài khoản, xóa tài khoản.
+* **Bảo vệ tài khoản tối cao:** Cơ chế chặn xóa hoặc khóa tài khoản Admin hoạt động cuối cùng.
+* **Sao lưu & Khôi phục:** Xuất file JSON dữ liệu, nhập dữ liệu dự phòng, đo lường tình trạng ứng dụng/database.
+
+---
+
+## 5. 🔐 BẢO MẬT & XÁC THỰC TÀI KHOẢN ĐA TẦNG
+
+* **Xác thực Email OTP 6 số qua Resend API:** Gửi mã xác thực về hòm thư Gmail thật, đếm ngược 5 phút, giới hạn 5 lần nhập sai.
+* **Bộ lọc AI Gibberish Detector:** Phát hiện và chặn các email gõ bàn phím rác (`asdfgh`, `qwerty`, chuỗi phụ âm liên tiếp).
+* **Tra cứu máy chủ MX trực tiếp (DNS MX Lookup):** Kiểm tra tên miền nhận mail thực tế trước khi gửi OTP.
+* **Chặn Disposable Email:** Danh sách đen hơn 20 nhà cung cấp email tạm thời/rác.
+* **JWT Cookie Session:** Token `HttpOnly Cookie`, SameSite=Lax, mã hóa mật khẩu `bcryptjs` 12 rounds.
+
+---
+
+## 🚀 HƯỚNG DẪN KHỞI CHẠY (LOCAL DEVELOPMENT)
+
+### 1. Yêu cầu môi trường
+* Node.js v16+
+* MySQL Server (Database: `engo`)
+
+### 2. Cài đặt & Cấu hình
+```bash
+# Cài đặt các gói phụ thuộc
+npm install
+
+# Tạo bảng dữ liệu MySQL
+mysql -u root -p engo < database/assessment-schema.sql
+```
+
+### 3. Khởi chạy ứng dụng
+```bash
+node server.js
+```
+👉 Truy cập ứng dụng tại: `http://localhost:3000`
