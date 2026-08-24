@@ -63,15 +63,30 @@
               <div class="field full"><label>Họ và tên</label><input id="registerName" required placeholder="Nguyễn Minh Anh" /></div>
               <div class="field full">
                 <label>Email (Gmail / Email trường)</label>
-                <input id="registerEmail" type="email" required placeholder="vidu@gmail.com" autocomplete="email" />
+                <div style="display:flex;gap:8px">
+                  <input id="registerEmail" type="email" required placeholder="vidu@gmail.com" autocomplete="email" style="flex:1" />
+                  <button type="button" class="btn btn-light btn-sm" id="sendOtpBtn" style="white-space:nowrap;padding:0 14px;font-weight:700">Gửi mã OTP</button>
+                </div>
                 <div id="emailVerifyStatus" class="small" style="display:none;margin-top:5px;font-weight:600;transition:all .2s ease"></div>
+              </div>
+              <div class="field full" id="otpFieldWrap" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px">
+                <div id="devOtpBanner" style="display:none;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s ease" title="Bấm vào để tự động điền mã"></div>
+                <label style="color:#166534;font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <span>📩 Nhập mã xác thực 6 số từ Gmail:</span>
+                  <span id="otpCountdown" style="color:#dc2626;font-size:12px;font-weight:800">05:00</span>
+                </label>
+                <input id="registerOtp" type="text" maxlength="6" placeholder="• • • • • •" style="letter-spacing:8px;font-size:20px;font-weight:800;text-align:center;background:#fff;border:2px solid #86efac;color:#15803d;height:46px" />
+                <div class="small muted" style="margin-top:5px;display:flex;justify-content:space-between;align-items:center">
+                  <span>Mã đã gửi đến hộp thư đến / Spam.</span>
+                  <a href="#" id="resendOtpLink" style="color:#4f46e5;font-weight:700;text-decoration:none">Gửi lại mã</a>
+                </div>
               </div>
               <div class="field"><label>Mật khẩu</label><input id="registerPassword" type="password" minlength="6" required /></div>
               <div class="field"><label>Nhập lại mật khẩu</label><input id="registerConfirm" type="password" minlength="6" required /></div>
-              <div class="field full"><label>Vai trò</label><select id="registerRole"><option value="student">Học sinh</option><option value="parent">Phụ huynh</option><option value="teacher">Giáo viên</option></select></div>
+              <div class="field full"><label>Vai trò</label><select id="registerRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option></select></div>
               <div class="field full" id="registerClassGroup"><label>Lớp học</label><select id="registerClass"><option value="">-- Chọn lớp học --</option><option value="9A1">Lớp 9A1</option><option value="9A2">Lớp 9A2</option><option value="9A3">Lớp 9A3</option><option value="9A4">Lớp 9A4</option></select></div>
             </div>
-            <button class="btn btn-primary" type="submit" style="width:100%;margin-top:3px">Đăng ký tài khoản</button>
+            <button class="btn btn-primary" type="submit" id="registerSubmitBtn" style="width:100%;margin-top:8px">Đăng ký tài khoản</button>
           </form>
         </div>
       </div>
@@ -111,6 +126,9 @@
         </button>
         <button class="nav-btn" data-view="speaking-lab">
           <span class="nav-icon">🎙️</span> Luyện nói AI
+        </button>
+        <button class="nav-btn" data-view="errorHealing">
+          <span class="nav-icon">🏥</span> Chữa lỗi
         </button>
         <button class="nav-btn" data-view="focus-room">
           <span class="nav-icon">◷</span> Tập trung
@@ -505,6 +523,80 @@
           </div>
         </section>
 
+        <!-- ERROR HEALING ROOM -->
+        <section class="view" id="errorHealing">
+          <div class="page-heading">
+            <div>
+              <h2>🏥 Phòng Chữa Lỗi Thông Minh</h2>
+              <p>Biến mỗi câu trả lời sai thành hành trình học tập cá nhân hóa</p>
+            </div>
+          </div>
+          
+          <div class="healing-stats">
+            <div class="healing-stat-card">
+              <strong style="font-size: 24px; color:#dc2626" id="healingStatPending">0</strong><br>
+              <span class="small muted">Lỗi cần chữa</span>
+            </div>
+            <div class="healing-stat-card">
+              <strong style="font-size: 24px; color:#16a34a" id="healingStatHealed">0</strong><br>
+              <span class="small muted">Lỗi đã chữa</span>
+            </div>
+            <div class="healing-stat-card">
+              <strong style="font-size: 24px; color:#4f46e5" id="healingStatStreak">0</strong><br>
+              <span class="small muted">Chuỗi chữa lỗi</span>
+            </div>
+          </div>
+
+          <div class="healing-tabs">
+            <button class="healing-tab active" id="healingPendingTab">💉 Lỗi Cần Chữa</button>
+            <button class="healing-tab" id="healingHeatmapTab">📊 Bản Đồ Ngữ Pháp</button>
+            <button class="healing-tab" id="healingHistoryTab">✅ Đã Chữa Khỏi</button>
+          </div>
+
+          <div class="healing-panel active" id="healingPendingPanel">
+            <div id="healingPendingList">
+              <div class="empty-state">
+                <span style="font-size:32px;display:block;margin-bottom:12px">🎉</span>
+                Tuyệt vời! Không có lỗi nào cần chữa. Hãy tiếp tục làm bài để hệ thống phân tích.
+              </div>
+            </div>
+          </div>
+
+          <div class="healing-panel" id="healingHeatmapPanel">
+            <div class="card panel">
+              <div id="grammarHeatmapContainer">
+                <div class="healing-heatmap-group">
+                  <h4>Hiện tại đơn (4 dạng)</h4>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Khẳng định</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Phủ định</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Nghi vấn</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Dấu hiệu</div>
+                </div>
+                <div class="healing-heatmap-group">
+                  <h4>Quá khứ đơn (5 dạng)</h4>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Khẳng định - ed</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Bất quy tắc</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Phủ định</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Nghi vấn</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Dấu hiệu</div>
+                </div>
+                <div class="healing-heatmap-group">
+                  <h4>So sánh (3 dạng)</h4>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Tính từ ngắn</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Tính từ dài</div>
+                  <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot unknown"></div></div>Bất quy tắc</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="healing-panel" id="healingHistoryPanel">
+            <div id="healingHistoryList">
+              <div class="empty-state">Chưa có lỗi nào được chữa khỏi.</div>
+            </div>
+          </div>
+        </section>
+
         <!-- RESULTS -->
         <section class="view" id="results">
           <div class="page-heading">
@@ -618,13 +710,14 @@
                     <th>Trắc nghiệm</th>
                     <th>Writing</th>
                     <th>Tổng điểm</th>
+                    <th>Giám sát thi</th>
                     <th>Trạng thái</th>
                     <th>Thời gian nộp</th>
                     <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody id="teacherResultsTableBody">
-                  <tr><td colspan="10" class="small muted" style="text-align:center;padding:24px">Đang tải kết quả học tập...</td></tr>
+                  <tr><td colspan="11" class="small muted" style="text-align:center;padding:24px">Đang tải kết quả học tập...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -657,50 +750,50 @@
         <!-- PARENT -->
         <section class="view" id="parent-home">
           <div class="page-heading">
-            <div><h2>Theo dõi học tập</h2><p>Tổng hợp tiến độ, điểm số và bài tập của học sinh.</p></div>
-            <button class="btn btn-light">Tải báo cáo tháng</button>
+            <div><h2>Theo dõi học tập của con</h2><p>Báo cáo tiến độ, điểm số, mức độ nghiêm túc thi cử và nhận xét từ giáo viên.</p></div>
+            <button class="btn btn-light" id="refreshParentDataBtn">Làm mới dữ liệu</button>
           </div>
 
           <div class="hero" style="min-height:190px">
             <div>
-              <span class="badge" style="background:rgba(255,255,255,.15);color:white">Học sinh: Nguyễn Văn A · Lớp 9A1</span>
-              <h3>Tiến độ tuần này đang ở mức tốt</h3>
-              <p>Đã hoàn thành 5/6 bài được giao. Kỹ năng Reading nổi bật; Pronunciation cần luyện thêm.</p>
+              <span class="badge" id="parentStudentBadge" style="background:rgba(255,255,255,.15);color:white">Học sinh: Đang tải...</span>
+              <h3 id="parentHeaderMsg">Tổng quan tình hình học tập và rèn luyện</h3>
+              <p id="parentHeaderSub">Báo cáo cập nhật thời gian thực từ hệ thống kiểm tra và lớp học của giáo viên.</p>
             </div>
             <div class="hero-visual">
-              <div class="hero-ring" style="background:conic-gradient(#34d399 0 83%,rgba(255,255,255,.16) 83%)"><strong>8.6</strong></div>
-              <p>Điểm trung bình hiện tại</p>
+              <div class="hero-ring" id="parentAvgScoreRing" style="background:conic-gradient(#34d399 0 0%,rgba(255,255,255,.16) 0%)"><strong id="parentAvgScoreHero">--</strong></div>
+              <p>Điểm trung bình hệ 10</p>
             </div>
           </div>
 
           <div class="grid stats-grid">
-            <div class="card stat-card"><div class="stat-icon">✓</div><div><strong>5/6</strong><span>Bài đã hoàn thành</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">★</div><div><strong>8.6</strong><span>Điểm trung bình</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">◷</div><div><strong>4h 20m</strong><span>Thời gian học tuần</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2">!</div><div><strong>1</strong><span>Bài sắp đến hạn</span></div></div>
+            <div class="card stat-card"><div class="stat-icon">✓</div><div><strong id="parentTotalDone">0</strong><span>Bài kiểm tra đã nộp</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5">★</div><div><strong id="parentAvgScore">--</strong><span>Điểm trung bình</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed">🛡️</div><div><strong id="parentIntegrityRate">100%</strong><span>Độ nghiêm túc thi cử</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2">⚠️</div><div><strong id="parentTotalViolations" style="color:#dc2626">0</strong><span>Tổng lần rời tab bài thi</span></div></div>
           </div>
 
           <div class="section grid two-col">
             <div class="card panel">
-              <div class="section-head"><h3>Bài tập gần đây</h3></div>
+              <div class="section-head"><h3>Lịch sử bài kiểm tra & Giám sát thi cử</h3></div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Bài tập</th><th>Trạng thái</th><th>Điểm</th></tr></thead>
-                  <tbody>
-                    <tr><td><strong>Reading – Unit 4</strong></td><td><span class="badge green">Đã làm</span></td><td>9.0</td></tr>
-                    <tr><td><strong>Vocabulary – Unit 5</strong></td><td><span class="badge green">Đã làm</span></td><td>8.5</td></tr>
-                    <tr><td><strong>Mid-term Practice 01</strong></td><td><span class="badge orange">Đang làm</span></td><td>—</td></tr>
+                  <thead><tr><th>Bài kiểm tra</th><th>Điểm số</th><th>Giám sát thi</th><th>Nhận xét của GV</th><th>Ngày nộp</th></tr></thead>
+                  <tbody id="parentSubmissionsTableBody">
+                    <tr><td colspan="5" class="small muted" style="text-align:center;padding:24px">Đang tải lịch sử làm bài...</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
             <div class="card panel">
-              <div class="section-head"><h3>Điểm theo kỹ năng</h3></div>
-              <div class="chart">
-                <div class="bar-wrap"><div class="bar" data-value="8.8" style="height:88%"></div>Vocab</div>
-                <div class="bar-wrap"><div class="bar" data-value="7.4" style="height:74%"></div>Pron.</div>
-                <div class="bar-wrap"><div class="bar" data-value="9.1" style="height:91%"></div>Reading</div>
-                <div class="bar-wrap"><div class="bar" data-value="8.0" style="height:80%"></div>Writing</div>
+              <div class="section-head"><h3>Năng lực học tập 6 kỹ năng</h3></div>
+              <div class="chart" id="parentSkillChart">
+                <div class="bar-wrap"><div class="bar" id="parentBarListening" style="height:0%"></div>Listening</div>
+                <div class="bar-wrap"><div class="bar" id="parentBarSpeaking" style="height:0%"></div>Speaking</div>
+                <div class="bar-wrap"><div class="bar" id="parentBarVocab" style="height:0%"></div>Vocab</div>
+                <div class="bar-wrap"><div class="bar" id="parentBarGrammar" style="height:0%"></div>Grammar</div>
+                <div class="bar-wrap"><div class="bar" id="parentBarReading" style="height:0%"></div>Reading</div>
+                <div class="bar-wrap"><div class="bar" id="parentBarWriting" style="height:0%"></div>Writing</div>
               </div>
             </div>
           </div>
@@ -1025,15 +1118,29 @@
         <!-- Anti-Cheat Warning Modal -->
         <div class="anti-cheat-modal hidden" id="antiCheatModal">
           <div class="anti-cheat-modal-content">
-            <div class="anti-cheat-icon">⚠️</div>
-            <h3>CẢNH BÁO RỜI KHỎI BÀI THI</h3>
-            <p>Hệ thống phát hiện bạn vừa chuyển tab hoặc thu nhỏ màn hình làm bài!</p>
-            <div class="anti-cheat-count-box">
-              Số lần vi phạm: <strong id="modalViolationCount">1</strong> / 3 lần tối đa
+            <div class="anti-cheat-icon" id="antiCheatModalIcon" style="font-size:40px;margin-bottom:8px">⚠️</div>
+            <h3 id="antiCheatModalTitle" style="color:#dc2626;margin:0 0 6px;font-size:20px">CẢNH BÁO VI PHẠM PHÒNG THI</h3>
+            <p id="antiCheatModalDesc" style="margin:0 0 12px;font-size:14px;color:#475569">Hệ thống phát hiện bạn vừa chuyển tab hoặc rời khỏi màn hình bài thi!</p>
+            
+            <div class="anti-cheat-count-box" id="antiCheatCountBox" style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:12px;margin:12px 0">
+              <div style="font-size:15px;font-weight:800;color:#991b1b;margin-bottom:4px">
+                Lần vi phạm: <span id="modalViolationCount" style="font-size:20px;color:#dc2626">1</span> / 3 lần tối đa
+              </div>
+              <div id="modalPenaltyText" style="color:#b91c1c;font-weight:800;font-size:15px">
+                Bị trừ phạt: -0.50 điểm vào bài thi
+              </div>
             </div>
-            <p class="small muted" style="line-height:1.5">Hành vi này đang được ghi vào báo cáo gửi Giáo viên. Hãy tập trung hoàn thành bài thi trong tab này.</p>
-            <button class="btn btn-primary" id="dismissAntiCheatModal" type="button" style="width:100%;margin-top:12px">
-              Tôi đã hiểu, quay lại làm bài
+
+            <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px 14px;font-size:12px;text-align:left;color:#475569;margin-bottom:14px;line-height:1.6">
+              <strong style="color:#1e293b;display:block;margin-bottom:4px">⚖️ Quy chế trừ điểm phòng thi:</strong>
+              • Lần 1: Trừ <strong>-0.50 điểm</strong><br>
+              • Lần 2: Trừ thêm <strong>-0.75 điểm</strong> (Tổng trừ: -1.25đ)<br>
+              • Lần 3: Trừ thêm <strong>-1.00 điểm</strong> (Tổng trừ: -2.25đ) & <strong>TỰ ĐỘNG THU BÀI NGAY LẬP TỨC!</strong>
+            </div>
+
+            <p class="small muted" style="margin:0 0 12px;line-height:1.4">Số lần vi phạm và điểm phạt sẽ được báo cáo chi tiết đến <strong>Giáo viên</strong> và <strong>Phụ huynh</strong>.</p>
+            <button class="btn btn-primary" id="dismissAntiCheatModal" type="button" style="width:100%">
+              Tôi đã hiểu, tiếp tục làm bài
             </button>
           </div>
         </div>
@@ -1068,6 +1175,9 @@
         <button class="btn btn-light modal-close" style="flex:1">Về trang chủ</button>
         <button class="btn btn-primary" id="retryQuiz" style="flex:1">Làm lại</button>
       </div>
+      <button class="btn btn-soft" id="gotoHealingRoomBtn" style="width:100%;margin-top:10px;font-weight:700;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe">
+        🏥 Khắc phục lỗi sai trong Phòng Chữa Lỗi →
+      </button>
     </div>
   </div>
 
@@ -1137,6 +1247,25 @@
       </div>
       <div id="submissionDetailBody" class="submission-detail-body">
         <p class="small muted">Đang tải chi tiết bài làm...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ERROR HEALING MODAL -->
+  <div class="modal hidden" id="healingExerciseModal">
+    <div class="modal-card healing-modal-content">
+      <div class="modal-head">
+        <div>
+          <h3 id="healingModalTitle">Chữa Lỗi Ngữ Pháp</h3>
+          <p class="small muted">Phân tích và khắc phục lỗi sai</p>
+        </div>
+        <button class="close-btn" id="healingModalClose">×</button>
+      </div>
+      <div class="healing-progress-bar">
+        <div class="healing-progress-fill" id="healingModalProgress" style="width: 33%"></div>
+      </div>
+      <div id="healingModalBody">
+        <p class="small muted">Đang phân tích lỗi...</p>
       </div>
     </div>
   </div>

@@ -171,6 +171,9 @@
       if(id==="results" && currentUser && currentUser.role==="student"){
         renderStudentResults();
       }
+      if(id==="errorHealing"){
+        renderHealingRoom();
+      }
     }
 
     navButtons.forEach(btn=>{
@@ -190,7 +193,7 @@
       roleSelect.value=role;
       if(!switchPage) return;
       if(role==="teacher") switchView("teacher-home");
-      else if(role==="parent") switchView("parent-home");
+      else if(role==="parent") { switchView("parent-home"); renderParentDashboard(); }
       else if(role==="admin"){switchView("data-admin");renderDataAdmin()}
       else switchView("student-home");
     }
@@ -200,7 +203,7 @@
     function openDashboard(){
       const role=currentUser?.role||roleSelect.value||"student";
       if(role==="teacher") switchView("teacher-home");
-      else if(role==="parent") switchView("parent-home");
+      else if(role==="parent") { switchView("parent-home"); renderParentDashboard(); }
       else if(role==="admin"){switchView("data-admin");renderDataAdmin()}
       else switchView("student-home");
     }
@@ -354,6 +357,102 @@
       }
     });
 
+    // Xử lý gửi mã OTP và xác thực đăng ký
+    const sendOtpBtn = document.getElementById("sendOtpBtn");
+    const resendOtpLink = document.getElementById("resendOtpLink");
+    const otpFieldWrap = document.getElementById("otpFieldWrap");
+    const registerOtpInput = document.getElementById("registerOtp");
+    const otpCountdownEl = document.getElementById("otpCountdown");
+    let otpTimerInterval = null;
+    let otpCooldown = 0;
+
+    function startOtpCountdown(seconds = 300) {
+      if(otpTimerInterval) clearInterval(otpTimerInterval);
+      let left = seconds;
+      otpTimerInterval = setInterval(() => {
+        left = Math.max(0, left - 1);
+        const m = String(Math.floor(left / 60)).padStart(2, "0");
+        const s = String(left % 60).padStart(2, "0");
+        if(otpCountdownEl) otpCountdownEl.textContent = `${m}:${s}`;
+        if(left === 0) {
+          clearInterval(otpTimerInterval);
+          otpTimerInterval = null;
+          if(otpCountdownEl) otpCountdownEl.textContent = "Hết hạn";
+        }
+      }, 1000);
+    }
+
+    async function handleSendOtp() {
+      const email = document.getElementById("registerEmail").value.trim();
+      const fullName = document.getElementById("registerName").value.trim();
+      const error = document.getElementById("registerError");
+      setAuthError(error);
+
+      if(!email || !email.includes("@")) {
+        setAuthError(error, "Vui lòng nhập địa chỉ email hợp lệ trước khi lấy mã OTP.");
+        document.getElementById("registerEmail").focus();
+        return false;
+      }
+
+      if(otpCooldown > 0) {
+        showToast(`Vui lòng đợi ${otpCooldown}s trước khi yêu cầu gửi lại mã.`);
+        return false;
+      }
+
+      if(sendOtpBtn) {
+        sendOtpBtn.disabled = true;
+        sendOtpBtn.textContent = "Đang gửi...";
+      }
+
+      try {
+        const res = await apiRequest("/api/auth/send-otp", {
+          method: "POST",
+          body: JSON.stringify({ email, fullName })
+        });
+
+        showToast(res.message || "Đã gửi mã OTP về Gmail của bạn!");
+        if(otpFieldWrap) otpFieldWrap.style.display = "block";
+        if(registerOtpInput) registerOtpInput.focus();
+
+        if(res.devOtp) {
+          if(registerOtpInput) registerOtpInput.value = res.devOtp;
+          const devBanner = document.getElementById("devOtpBanner");
+          if(devBanner) {
+            devBanner.style.display = "block";
+            devBanner.innerHTML = `🔑 <span>Mã OTP của bạn: <strong style="font-size:17px;color:#4f46e5;letter-spacing:3px">${res.devOtp}</strong></span> <span style="font-size:11px;color:#16a34a;display:block;margin-top:2px">✓ Đã tự động điền vào ô bên dưới</span>`;
+          }
+        }
+
+        startOtpCountdown(res.expiresInSeconds || 300);
+
+        // Đếm ngược nút gửi lại 60s
+        otpCooldown = 60;
+        const cooldownTimer = setInterval(() => {
+          otpCooldown--;
+          if(sendOtpBtn) sendOtpBtn.textContent = otpCooldown > 0 ? `Gửi lại (${otpCooldown}s)` : "Gửi lại OTP";
+          if(otpCooldown <= 0) {
+            clearInterval(cooldownTimer);
+            if(sendOtpBtn) sendOtpBtn.disabled = false;
+          }
+        }, 1000);
+
+        return true;
+      } catch(err) {
+        setAuthError(error, err.message);
+        if(sendOtpBtn) {
+          sendOtpBtn.disabled = false;
+          sendOtpBtn.textContent = "Gửi mã OTP";
+        }
+        return false;
+      }
+    }
+
+    if(sendOtpBtn) sendOtpBtn.addEventListener("click", handleSendOtp);
+    if(resendOtpLink) resendOtpLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      handleSendOtp();
+    });
+
     document.getElementById("registerForm").addEventListener("submit",async e=>{
       e.preventDefault();
       const error=document.getElementById("registerError");
@@ -364,22 +463,46 @@
       const confirm=document.getElementById("registerConfirm").value;
       const role=document.getElementById("registerRole").value;
       const className=document.getElementById("registerClass")?.value || "";
+      const otp=document.getElementById("registerOtp")?.value.trim() || "";
 
-      if(password!==confirm){setAuthError(error,"Hai mật khẩu chưa trùng khớp.");return}
+      if(!fullName || !email || !password){
+        setAuthError(error,"Vui lòng điền đầy đủ các trường thông tin.");
+        return;
+      }
+      if(password!==confirm){
+        setAuthError(error,"Hai mật khẩu chưa trùng khớp.");
+        return;
+      }
       if(role==="student" && !className){
         setAuthError(error,"Vui lòng chọn lớp học của bạn.");
         return;
       }
 
-      const submit=e.submitter;
+      // Nếu chưa nhập mã OTP, tự động kích hoạt gửi OTP và báo học sinh
+      if(!otp){
+        if(otpFieldWrap && otpFieldWrap.style.display === "none"){
+          const sent = await handleSendOtp();
+          if(sent){
+            setAuthError(error, "Hệ thống đã gửi mã 6 số về Gmail của bạn. Vui lòng mở Gmail, lấy mã và nhập vào ô bên dưới.");
+          }
+        } else {
+          setAuthError(error, "Vui lòng nhập mã xác thực 6 số được gửi về Gmail của bạn.");
+          if(registerOtpInput) registerOtpInput.focus();
+        }
+        return;
+      }
+
+      const submit=e.submitter || document.getElementById("registerSubmitBtn");
       if(submit) submit.disabled=true;
       try{
         const data=await apiRequest("/api/auth/register",{
           method:"POST",
-          body:JSON.stringify({fullName,email,password,role,className})
+          body:JSON.stringify({fullName,email,password,role,className,otp})
         });
-        showToast(data.message||"Đăng ký thành công.");
+        showToast(data.message||"Đăng ký thành công!");
         e.target.reset();
+        if(otpFieldWrap) otpFieldWrap.style.display = "none";
+        if(otpTimerInterval) clearInterval(otpTimerInterval);
         const emailStatusEl = document.getElementById("emailVerifyStatus");
         if(emailStatusEl) emailStatusEl.style.display = "none";
         if(registerClassGroup) registerClassGroup.style.display="block";
@@ -631,6 +754,224 @@
     document.getElementById("resetDemoData").addEventListener("click",()=>{saveDB(cloneDefaultDB());renderDataAdmin();showToast("Đã khôi phục dữ liệu nội dung mẫu")});
 
     // 4 Bộ bài tập ngữ pháp trọng tâm hardcoded chuẩn kiến thức THCS
+    const healingExercisesBank = {
+      "PS_AFF": {
+        label: "Hiện tại đơn — Khẳng định (+s/es)",
+        rule: "Chủ ngữ ngôi thứ 3 số ít (he, she, it) thì động từ phải thêm -s hoặc -es.",
+        mnemonic: "He/She/It thích thêm S. Động từ tận cùng o, s, z, x, ch, sh thì thêm ES.",
+        category: "present-simple",
+        questions: [
+          { prompt: "My brother ________ TV every evening.", options: ["A. watch", "B. watches", "C. watching", "D. is watch"], answer: 1, explanation: "Chủ ngữ 'My brother' (số ít) nên động từ 'watch' phải thêm 'es'." },
+          { prompt: "She ________ to school by bus.", options: ["A. goes", "B. go", "C. going", "D. is go"], answer: 0, explanation: "Chủ ngữ 'She' (số ít) nên động từ 'go' thêm 'es'." },
+          { prompt: "Nam ________ English very well.", options: ["A. speak", "B. speaking", "C. speaks", "D. is speak"], answer: 2, explanation: "Chủ ngữ 'Nam' (số ít) nên động từ 'speak' thêm 's'." },
+          { prompt: "It ________ a lot in summer.", options: ["A. rain", "B. raining", "C. rains", "D. is rain"], answer: 2, explanation: "Chủ ngữ 'It' (số ít) nên động từ 'rain' thêm 's'." },
+          { prompt: "My father ________ coffee in the morning.", options: ["A. drink", "B. drinks", "C. drinking", "D. drank"], answer: 1, explanation: "Thói quen (in the morning) + Chủ ngữ số ít 'My father' -> 'drinks'." },
+          { prompt: "The sun ________ in the east.", options: ["A. rise", "B. rising", "C. rises", "D. rose"], answer: 2, explanation: "Sự thật hiển nhiên + 'The sun' (số ít) -> 'rises'." },
+          { prompt: "He often ________ his grandparents on Sundays.", options: ["A. visit", "B. visits", "C. visiting", "D. to visit"], answer: 1, explanation: "Chủ ngữ 'He' (số ít) -> 'visits'." },
+          { prompt: "Mai ________ her teeth twice a day.", options: ["A. brush", "B. brushes", "C. brushing", "D. to brush"], answer: 1, explanation: "Chủ ngữ 'Mai' (số ít) và động từ tận cùng 'sh' -> 'brushes'." },
+          { prompt: "The class ________ at 7 a.m.", options: ["A. start", "B. starting", "C. starts", "D. to start"], answer: 2, explanation: "Lịch trình + 'The class' (số ít) -> 'starts'." },
+          { prompt: "My cat ________ mice.", options: ["A. catch", "B. catches", "C. catching", "D. to catch"], answer: 1, explanation: "Chủ ngữ 'My cat' (số ít) và động từ tận cùng 'ch' -> 'catches'." }
+        ]
+      },
+      "PS_NEG": {
+        label: "Hiện tại đơn — Phủ định (don't/doesn't)",
+        rule: "Với chủ ngữ số nhiều/I/you, dùng don't. Với chủ ngữ số ít (he/she/it), dùng doesn't + V (nguyên thể).",
+        mnemonic: "Số ít thì mượn 'doesn't', đã mượn rồi thì động từ KHÔNG chia nữa.",
+        category: "present-simple",
+        questions: [
+          { prompt: "He ________ like playing football.", options: ["A. don't", "B. not", "C. doesn't", "D. isn't"], answer: 2, explanation: "Chủ ngữ 'He' (số ít) dùng trợ động từ 'doesn't'." },
+          { prompt: "They ________ go to school on Sundays.", options: ["A. doesn't", "B. don't", "C. aren't", "D. not"], answer: 1, explanation: "Chủ ngữ 'They' (số nhiều) dùng trợ động từ 'don't'." },
+          { prompt: "My mother ________ cook dinner every day.", options: ["A. don't", "B. not", "C. doesn't", "D. hasn't"], answer: 2, explanation: "Chủ ngữ 'My mother' (số ít) dùng 'doesn't'." },
+          { prompt: "I ________ know the answer to this question.", options: ["A. doesn't", "B. don't", "C. am not", "D. not"], answer: 1, explanation: "Chủ ngữ 'I' dùng 'don't'." },
+          { prompt: "She doesn't ________ any brothers or sisters.", options: ["A. has", "B. have", "C. having", "D. to have"], answer: 1, explanation: "Sau 'doesn't' động từ phải ở dạng nguyên thể là 'have'." },
+          { prompt: "We ________ want to watch that movie.", options: ["A. doesn't", "B. not", "C. don't", "D. aren't"], answer: 2, explanation: "Chủ ngữ 'We' (số nhiều) dùng 'don't'." },
+          { prompt: "The dog ________ bark at night.", options: ["A. don't", "B. doesn't", "C. isn't", "D. not"], answer: 1, explanation: "Chủ ngữ 'The dog' (số ít) dùng 'doesn't'." },
+          { prompt: "Tom and Jerry ________ fight all the time.", options: ["A. doesn't", "B. don't", "C. aren't", "D. isn't"], answer: 1, explanation: "Chủ ngữ 'Tom and Jerry' (số nhiều) dùng 'don't'." },
+          { prompt: "It ________ snow in Ho Chi Minh City.", options: ["A. doesn't", "B. don't", "C. isn't", "D. not"], answer: 0, explanation: "Chủ ngữ 'It' (số ít) dùng 'doesn't'." },
+          { prompt: "My sister ________ read comic books.", options: ["A. don't", "B. doesn't", "C. isn't", "D. not"], answer: 1, explanation: "Chủ ngữ 'My sister' (số ít) dùng 'doesn't'." }
+        ]
+      },
+      "PS_QUE": {
+        label: "Hiện tại đơn — Nghi vấn (Do/Does)",
+        rule: "Đảo Do/Does lên trước chủ ngữ. Do cho số nhiều, Does cho số ít. Động từ chính để nguyên thể.",
+        mnemonic: "Hỏi Does thì mượn Does, động từ trả về nguyên gốc.",
+        category: "present-simple",
+        questions: [
+          { prompt: "________ you like listening to music?", options: ["A. Does", "B. Do", "C. Are", "D. Is"], answer: 1, explanation: "Chủ ngữ 'you' dùng trợ động từ 'Do'." },
+          { prompt: "________ she work in a hospital?", options: ["A. Do", "B. Does", "C. Is", "D. Are"], answer: 1, explanation: "Chủ ngữ 'she' (số ít) dùng trợ động từ 'Does'." },
+          { prompt: "Does your father ________ a car?", options: ["A. drives", "B. drive", "C. driving", "D. to drive"], answer: 1, explanation: "Đã có 'Does' thì động từ phải ở dạng nguyên thể 'drive'." },
+          { prompt: "________ they play tennis on weekends?", options: ["A. Does", "B. Are", "C. Do", "D. Have"], answer: 2, explanation: "Chủ ngữ 'they' (số nhiều) dùng 'Do'." },
+          { prompt: "What time ________ the train leave?", options: ["A. do", "B. does", "C. is", "D. are"], answer: 1, explanation: "Chủ ngữ 'the train' (số ít) dùng 'does'." },
+          { prompt: "________ Nam and Lan study in the same class?", options: ["A. Does", "B. Is", "C. Do", "D. Are"], answer: 2, explanation: "Chủ ngữ 'Nam and Lan' (số nhiều) dùng 'Do'." },
+          { prompt: "How often ________ you go to the cinema?", options: ["A. does", "B. do", "C. are", "D. is"], answer: 1, explanation: "Chủ ngữ 'you' dùng 'do'." },
+          { prompt: "Where ________ she live?", options: ["A. do", "B. does", "C. is", "D. are"], answer: 1, explanation: "Chủ ngữ 'she' (số ít) dùng 'does'." },
+          { prompt: "Do you ________ any pets?", options: ["A. has", "B. have", "C. having", "D. to have"], answer: 1, explanation: "Đã có trợ động từ 'Do', động từ chính ở dạng nguyên thể 'have'." },
+          { prompt: "Does it ________ a lot in your country?", options: ["A. rains", "B. rain", "C. raining", "D. to rain"], answer: 1, explanation: "Đã có 'Does' thì động từ chính nguyên thể 'rain'." }
+        ]
+      },
+      "PS_ADV": {
+        label: "Hiện tại đơn — Vị trí trạng từ tần suất",
+        rule: "Trạng từ tần suất (always, usually, often...) đứng TRƯỚC động từ thường và SAU động từ to be (am/is/are).",
+        mnemonic: "To be -> Trạng từ tần suất -> Động từ thường.",
+        category: "present-simple",
+        questions: [
+          { prompt: "He ________ late for school.", options: ["A. always is", "B. is always", "C. always", "D. is"], answer: 1, explanation: "Trạng từ 'always' đứng sau động từ to be 'is'." },
+          { prompt: "I ________ my homework in the evening.", options: ["A. usually do", "B. do usually", "C. usually doing", "D. am usually do"], answer: 0, explanation: "Trạng từ 'usually' đứng trước động từ thường 'do'." },
+          { prompt: "She ________ goes to bed early.", options: ["A. never", "B. is never", "C. never is", "D. doesn't never"], answer: 0, explanation: "Trạng từ 'never' đứng trước động từ thường 'goes'." },
+          { prompt: "They ________ very friendly.", options: ["A. often are", "B. are often", "C. often", "D. do often"], answer: 1, explanation: "Trạng từ 'often' đứng sau động từ to be 'are'." },
+          { prompt: "We ________ watch TV after dinner.", options: ["A. sometimes", "B. are sometimes", "C. sometimes are", "D. sometimes do"], answer: 0, explanation: "Trạng từ 'sometimes' đứng trước động từ thường 'watch'." },
+          { prompt: "The weather ________ cold in winter.", options: ["A. usually is", "B. is usually", "C. usually", "D. does usually"], answer: 1, explanation: "Trạng từ 'usually' đứng sau động từ to be 'is'." },
+          { prompt: "Nam ________ plays video games.", options: ["A. rarely", "B. is rarely", "C. rarely is", "D. rarely does"], answer: 0, explanation: "Trạng từ 'rarely' đứng trước động từ thường 'plays'." },
+          { prompt: "You ________ late!", options: ["A. always are", "B. are always", "C. always", "D. do always"], answer: 1, explanation: "Trạng từ 'always' đứng sau to be 'are'." },
+          { prompt: "I ________ get up at 6 a.m.", options: ["A. always", "B. always am", "C. am always", "D. do always"], answer: 0, explanation: "Trạng từ 'always' đứng trước động từ thường 'get up'." },
+          { prompt: "She ________ tired after work.", options: ["A. often is", "B. is often", "C. often", "D. does often"], answer: 1, explanation: "Trạng từ 'often' đứng sau to be 'is'." }
+        ]
+      },
+      "PAST_REG": {
+        label: "Quá khứ đơn — Động từ quy tắc (-ed)",
+        rule: "Thêm -ed vào sau động từ quy tắc. Chú ý: gấp đôi phụ âm cuối nếu từ có 1 âm tiết, tận cùng là 1 nguyên âm kẹp giữa 2 phụ âm (stop -> stopped). Đổi y thành i rồi thêm -ed (study -> studied).",
+        mnemonic: "Nhớ gấp đôi phụ âm khi cần (stop-stopped). Có 'y' dài biến thành 'i' ngắn (study-studied).",
+        category: "past-simple",
+        questions: [
+          { prompt: "I ________ my grandparents last weekend.", options: ["A. visited", "B. visit", "C. visitted", "D. visiting"], answer: 0, explanation: "'visited' là quá khứ của 'visit', thêm 'ed' bình thường." },
+          { prompt: "She ________ very hard for the exam.", options: ["A. studyed", "B. studied", "C. studies", "D. studying"], answer: 1, explanation: "Tận cùng 'y' sau một phụ âm, đổi 'y' thành 'i' và thêm 'ed' -> 'studied'." },
+          { prompt: "The car ________ at the red light.", options: ["A. stoped", "B. stopped", "C. stops", "D. stopping"], answer: 1, explanation: "'stop' tận cùng là 1 phụ âm, trước là 1 nguyên âm -> gấp đôi phụ âm cuối 'stopped'." },
+          { prompt: "They ________ a new house last year.", options: ["A. planned", "B. planed", "C. plans", "D. planning"], answer: 0, explanation: "'plan' gấp đôi phụ âm cuối thành 'planned'." },
+          { prompt: "He ________ the match on TV.", options: ["A. watch", "B. watched", "C. watchhed", "D. watching"], answer: 1, explanation: "'watched' thêm 'ed' bình thường." },
+          { prompt: "We ________ English when we were in London.", options: ["A. studyed", "B. studied", "C. studying", "D. studies"], answer: 1, explanation: "Quá khứ của 'study' là 'studied'." },
+          { prompt: "The baby ________ all night.", options: ["A. cried", "B. cryed", "C. cries", "D. crying"], answer: 0, explanation: "'cry' tận cùng là 'y', đổi thành 'i' rồi thêm 'ed' -> 'cried'." },
+          { prompt: "She ________ to go to the party.", options: ["A. wantted", "B. wanted", "C. want", "D. wanting"], answer: 1, explanation: "Thêm 'ed' bình thường thành 'wanted'." },
+          { prompt: "I ________ to music yesterday.", options: ["A. listened", "B. listend", "C. listen", "D. listening"], answer: 0, explanation: "Quá khứ của 'listen' là 'listened'." },
+          { prompt: "He ________ the heavy box easily.", options: ["A. droped", "B. dropped", "C. drop", "D. dropping"], answer: 1, explanation: "'drop' gấp đôi phụ âm cuối thành 'dropped'." }
+        ]
+      },
+      "PAST_IRR": {
+        label: "Quá khứ đơn — Động từ bất quy tắc (V2)",
+        rule: "Động từ bất quy tắc không thêm -ed mà biến đổi dạng theo cột 2 trong bảng động từ bất quy tắc (go -> went, buy -> bought).",
+        mnemonic: "Go đi thành went, Buy mua thành bought. Phải học thuộc V2 thui!",
+        category: "past-simple",
+        questions: [
+          { prompt: "I ________ to the cinema yesterday.", options: ["A. goed", "B. went", "C. go", "D. gone"], answer: 1, explanation: "Quá khứ của 'go' là 'went'." },
+          { prompt: "She ________ a new dress last week.", options: ["A. buyed", "B. bought", "C. buys", "D. buy"], answer: 1, explanation: "Quá khứ của 'buy' là 'bought'." },
+          { prompt: "They ________ a delicious cake.", options: ["A. maked", "B. made", "C. makes", "D. make"], answer: 1, explanation: "Quá khứ của 'make' là 'made'." },
+          { prompt: "He ________ a letter to his friend.", options: ["A. writed", "B. wrote", "C. write", "D. written"], answer: 1, explanation: "Quá khứ của 'write' là 'wrote'." },
+          { prompt: "We ________ a great time at the party.", options: ["A. haved", "B. had", "C. has", "D. have"], answer: 1, explanation: "Quá khứ của 'have' là 'had'." },
+          { prompt: "I ________ him at the supermarket.", options: ["A. seed", "B. saw", "C. seen", "D. see"], answer: 1, explanation: "Quá khứ của 'see' là 'saw'." },
+          { prompt: "She ________ me a beautiful gift.", options: ["A. gived", "B. gave", "C. gives", "D. given"], answer: 1, explanation: "Quá khứ của 'give' là 'gave'." },
+          { prompt: "They ________ the game.", options: ["A. winned", "B. won", "C. wins", "D. win"], answer: 1, explanation: "Quá khứ của 'win' là 'won'." },
+          { prompt: "The boy ________ his bike yesterday.", options: ["A. rided", "B. rode", "C. ridden", "D. ride"], answer: 1, explanation: "Quá khứ của 'ride' là 'rode'." },
+          { prompt: "I ________ a glass of milk this morning.", options: ["A. drinked", "B. drank", "C. drunk", "D. drink"], answer: 1, explanation: "Quá khứ của 'drink' là 'drank'." }
+        ]
+      },
+      "PAST_NEG": {
+        label: "Quá khứ đơn — Phủ định (didn't)",
+        rule: "Câu phủ định quá khứ đơn: Chủ ngữ + didn't + V (nguyên thể). Đã mượn didn't thì không chia V quá khứ nữa.",
+        mnemonic: "Đã mượn 'didn't' thì V phải trở về nguyên gốc (không thêm ed, không V2).",
+        category: "past-simple",
+        questions: [
+          { prompt: "I ________ go to school yesterday.", options: ["A. don't", "B. didn't", "C. doesn't", "D. wasn't"], answer: 1, explanation: "Phủ định quá khứ dùng 'didn't'." },
+          { prompt: "She didn't ________ the movie.", options: ["A. watched", "B. watch", "C. watching", "D. watches"], answer: 1, explanation: "Sau 'didn't' dùng động từ nguyên thể 'watch'." },
+          { prompt: "They ________ play football last Sunday.", options: ["A. weren't", "B. didn't", "C. don't", "D. wasn't"], answer: 1, explanation: "Phủ định quá khứ với động từ thường dùng 'didn't'." },
+          { prompt: "He didn't ________ his keys.", options: ["A. found", "B. find", "C. finding", "D. finds"], answer: 1, explanation: "Sau 'didn't' động từ trở về nguyên thể 'find'." },
+          { prompt: "We didn't ________ any photos on holiday.", options: ["A. took", "B. take", "C. taking", "D. takes"], answer: 1, explanation: "Động từ 'take' phải ở dạng nguyên thể sau 'didn't'." },
+          { prompt: "Mai didn't ________ the homework.", options: ["A. did", "B. do", "C. does", "D. doing"], answer: 1, explanation: "Sau 'didn't' dùng động từ nguyên thể 'do'." },
+          { prompt: "It didn't ________ yesterday.", options: ["A. rained", "B. rain", "C. raining", "D. rains"], answer: 1, explanation: "Động từ 'rain' nguyên thể sau 'didn't'." },
+          { prompt: "The students didn't ________ the teacher.", options: ["A. understood", "B. understand", "C. understanding", "D. understands"], answer: 1, explanation: "Dùng nguyên thể 'understand' sau 'didn't'." },
+          { prompt: "I didn't ________ a bike when I was young.", options: ["A. rode", "B. ride", "C. riding", "D. ridden"], answer: 1, explanation: "Nguyên thể 'ride' đi sau 'didn't'." },
+          { prompt: "She didn't ________ early this morning.", options: ["A. woke up", "B. wake up", "C. waking up", "D. woken up"], answer: 1, explanation: "Dùng nguyên thể 'wake up' sau 'didn't'." }
+        ]
+      },
+      "PAST_QUE": {
+        label: "Quá khứ đơn — Nghi vấn (Did)",
+        rule: "Câu hỏi quá khứ đơn: Đảo Did lên đầu câu + Chủ ngữ + V (nguyên thể). Đã có Did thì V không chia.",
+        mnemonic: "Câu hỏi có 'Did' đứng đầu, động từ cũng phải trả về nguyên gốc.",
+        category: "past-simple",
+        questions: [
+          { prompt: "________ you visit Hanoi last year?", options: ["A. Do", "B. Does", "C. Did", "D. Were"], answer: 2, explanation: "Câu hỏi quá khứ với động từ thường mượn trợ động từ 'Did'." },
+          { prompt: "Did she ________ a new car?", options: ["A. bought", "B. buy", "C. buys", "D. buying"], answer: 1, explanation: "Đã có 'Did' thì động từ phải nguyên thể 'buy'." },
+          { prompt: "What ________ they do yesterday?", options: ["A. did", "B. do", "C. are", "D. were"], answer: 0, explanation: "Từ để hỏi 'What' + trợ động từ quá khứ 'did'." },
+          { prompt: "Did he ________ to the party?", options: ["A. went", "B. go", "C. going", "D. goes"], answer: 1, explanation: "Sau 'Did he' là động từ nguyên thể 'go'." },
+          { prompt: "Where did you ________ that shirt?", options: ["A. found", "B. find", "C. finding", "D. finds"], answer: 1, explanation: "Động từ nguyên thể 'find' theo sau trợ động từ 'did'." },
+          { prompt: "________ it rain last night?", options: ["A. Was", "B. Did", "C. Does", "D. Is"], answer: 1, explanation: "Câu hỏi về động từ 'rain' trong quá khứ dùng 'Did'." },
+          { prompt: "Did they ________ the match?", options: ["A. won", "B. win", "C. winning", "D. wins"], answer: 1, explanation: "Động từ nguyên thể 'win' đi sau 'Did'." },
+          { prompt: "Why did you ________ early?", options: ["A. left", "B. leave", "C. leaving", "D. leaves"], answer: 1, explanation: "Nguyên thể 'leave' đi sau 'did'." },
+          { prompt: "________ Nam play football yesterday?", options: ["A. Did", "B. Was", "C. Does", "D. Do"], answer: 0, explanation: "Câu hỏi ở quá khứ cho động từ thường 'play' dùng 'Did'." },
+          { prompt: "Did you ________ the news?", options: ["A. heard", "B. hear", "C. hearing", "D. hears"], answer: 1, explanation: "Động từ nguyên thể 'hear' theo sau 'Did'." }
+        ]
+      },
+      "PAST_BE": {
+        label: "Quá khứ đơn — To be (Was/Were)",
+        rule: "I/he/she/it (số ít) dùng 'was'. You/we/they (số nhiều) dùng 'were'.",
+        mnemonic: "Số ít đi với 'was' (3 chữ). Số nhiều đi với 'were' (4 chữ).",
+        category: "past-simple",
+        questions: [
+          { prompt: "I ________ at home yesterday.", options: ["A. was", "B. were", "C. am", "D. are"], answer: 0, explanation: "Chủ ngữ 'I' đi với 'was'." },
+          { prompt: "They ________ happy with the results.", options: ["A. was", "B. were", "C. are", "D. is"], answer: 1, explanation: "Chủ ngữ 'They' (số nhiều) đi với 'were'." },
+          { prompt: "The weather ________ terrible last week.", options: ["A. was", "B. were", "C. is", "D. are"], answer: 0, explanation: "Chủ ngữ 'The weather' (số ít) đi với 'was'." },
+          { prompt: "________ you at the park on Sunday?", options: ["A. Was", "B. Were", "C. Are", "D. Did"], answer: 1, explanation: "Chủ ngữ 'you' đi với 'Were' trong câu hỏi quá khứ." },
+          { prompt: "She ________ not in class yesterday.", options: ["A. was", "B. were", "C. is", "D. did"], answer: 0, explanation: "Chủ ngữ 'She' đi với 'was'." },
+          { prompt: "My parents ________ in London last year.", options: ["A. was", "B. were", "C. are", "D. did"], answer: 1, explanation: "Chủ ngữ 'My parents' (số nhiều) đi với 'were'." },
+          { prompt: "The cat ________ on the roof.", options: ["A. was", "B. were", "C. is", "D. did"], answer: 0, explanation: "Chủ ngữ 'The cat' (số ít) đi với 'was'." },
+          { prompt: "________ he a doctor before?", options: ["A. Was", "B. Were", "C. Is", "D. Did"], answer: 0, explanation: "Chủ ngữ 'he' đi với 'Was' trong câu hỏi." },
+          { prompt: "We ________ late for the train.", options: ["A. was", "B. were", "C. are", "D. did"], answer: 1, explanation: "Chủ ngữ 'We' đi với 'were'." },
+          { prompt: "It ________ a great movie.", options: ["A. was", "B. were", "C. is", "D. did"], answer: 0, explanation: "Chủ ngữ 'It' đi với 'was'." }
+        ]
+      },
+      "CMP_SHORT": {
+        label: "So sánh hơn — Tính từ ngắn",
+        rule: "Thêm -er vào sau tính từ ngắn (1 âm tiết, hoặc 2 âm tiết tận cùng -y). Cấu trúc: Adj-er + than.",
+        mnemonic: "Tính từ ngắn thì mọc thêm đuôi 'er'. Nhớ thêm 'than'. (tall -> taller than).",
+        category: "comparatives",
+        questions: [
+          { prompt: "My house is ________ than yours.", options: ["A. biger", "B. bigger", "C. more big", "D. big"], answer: 1, explanation: "'big' (1 âm tiết), gấp đôi phụ âm cuối thành 'bigger'." },
+          { prompt: "She is ________ than her sister.", options: ["A. tall", "B. taller", "C. more tall", "D. talller"], answer: 1, explanation: "'tall' (ngắn) thêm 'er' thành 'taller'." },
+          { prompt: "Today is ________ than yesterday.", options: ["A. hoter", "B. hotter", "C. more hot", "D. hot"], answer: 1, explanation: "'hot' gấp đôi phụ âm cuối 'hotter'." },
+          { prompt: "Math is ________ than history for me.", options: ["A. easyer", "B. easier", "C. more easy", "D. easy"], answer: 1, explanation: "'easy' tận cùng 'y' đổi thành 'i' rồi thêm 'er' -> 'easier'." },
+          { prompt: "A car is ________ than a bicycle.", options: ["A. fast", "B. faster", "C. more fast", "D. fastter"], answer: 1, explanation: "'fast' (ngắn) thêm 'er' thành 'faster'." },
+          { prompt: "My dog is ________ than my cat.", options: ["A. heavyer", "B. heavier", "C. more heavy", "D. heavy"], answer: 1, explanation: "'heavy' -> 'heavier'." },
+          { prompt: "He is ________ than I am.", options: ["A. old", "B. older", "C. more old", "D. oldder"], answer: 1, explanation: "'old' -> 'older'." },
+          { prompt: "The river is ________ than the lake.", options: ["A. deep", "B. deeper", "C. more deep", "D. deepper"], answer: 1, explanation: "'deep' -> 'deeper'." },
+          { prompt: "Summer is ________ than spring.", options: ["A. warm", "B. warmer", "C. more warm", "D. warmmer"], answer: 1, explanation: "'warm' -> 'warmer'." },
+          { prompt: "This box is ________ than that one.", options: ["A. small", "B. smaller", "C. more small", "D. smalller"], answer: 1, explanation: "'small' -> 'smaller'." }
+        ]
+      },
+      "CMP_LONG": {
+        label: "So sánh hơn — Tính từ dài",
+        rule: "Tính từ dài (2 âm tiết trở lên, không tận cùng -y) dùng 'more + adj + than'.",
+        mnemonic: "Tính từ dài, không thêm đuôi mà thêm 'more' đứng trước. (beautiful -> more beautiful).",
+        category: "comparatives",
+        questions: [
+          { prompt: "This dress is ________ than that one.", options: ["A. beautifuler", "B. more beautiful", "C. most beautiful", "D. beautiful"], answer: 1, explanation: "'beautiful' là tính từ dài, dùng 'more beautiful'." },
+          { prompt: "My phone is ________ than his.", options: ["A. expensiver", "B. more expensive", "C. expensive", "D. most expensive"], answer: 1, explanation: "'expensive' (dài) -> 'more expensive'." },
+          { prompt: "Reading is ________ than watching TV.", options: ["A. interestinger", "B. more interesting", "C. interesting", "D. most interesting"], answer: 1, explanation: "'interesting' (dài) -> 'more interesting'." },
+          { prompt: "She is ________ than her brother.", options: ["A. carefuler", "B. more careful", "C. careful", "D. most careful"], answer: 1, explanation: "'careful' (dài) -> 'more careful'." },
+          { prompt: "This problem is ________ than the last one.", options: ["A. difficulter", "B. more difficult", "C. difficult", "D. most difficult"], answer: 1, explanation: "'difficult' (dài) -> 'more difficult'." },
+          { prompt: "Health is ________ than money.", options: ["A. importanter", "B. more important", "C. important", "D. most important"], answer: 1, explanation: "'important' (dài) -> 'more important'." },
+          { prompt: "City life is ________ than country life.", options: ["A. excitinger", "B. more exciting", "C. exciting", "D. most exciting"], answer: 1, explanation: "'exciting' (dài) -> 'more exciting'." },
+          { prompt: "A sofa is ________ than a chair.", options: ["A. comfortabler", "B. more comfortable", "C. comfortable", "D. most comfortable"], answer: 1, explanation: "'comfortable' (dài) -> 'more comfortable'." },
+          { prompt: "He is ________ than other students.", options: ["A. intelligenter", "B. more intelligent", "C. intelligent", "D. most intelligent"], answer: 1, explanation: "'intelligent' (dài) -> 'more intelligent'." },
+          { prompt: "This book is ________ than the movie.", options: ["A. popularer", "B. more popular", "C. popular", "D. most popular"], answer: 1, explanation: "'popular' (dài) -> 'more popular'." }
+        ]
+      },
+      "CMP_IRR": {
+        label: "So sánh hơn — Bất quy tắc",
+        rule: "Một số tính từ có dạng so sánh bất quy tắc phải học thuộc: good -> better, bad -> worse, far -> farther/further.",
+        mnemonic: "Good thành better, bad thành worse. Thuộc lòng là qua môn!",
+        category: "comparatives",
+        questions: [
+          { prompt: "The weather today is ________ than yesterday.", options: ["A. gooder", "B. better", "C. more good", "D. good"], answer: 1, explanation: "So sánh hơn của 'good' là 'better'." },
+          { prompt: "This movie is ________ than the one we saw last week.", options: ["A. badder", "B. worse", "C. more bad", "D. bad"], answer: 1, explanation: "So sánh hơn của 'bad' là 'worse'." },
+          { prompt: "His house is ________ from the city center than mine.", options: ["A. farer", "B. farther", "C. more far", "D. far"], answer: 1, explanation: "So sánh hơn của 'far' là 'farther' hoặc 'further'." },
+          { prompt: "She sings ________ than anyone else in the choir.", options: ["A. weller", "B. better", "C. more well", "D. well"], answer: 1, explanation: "Trạng từ 'well' có so sánh hơn là 'better'." },
+          { prompt: "I feel ________ today than I did yesterday.", options: ["A. badder", "B. worse", "C. more bad", "D. bad"], answer: 1, explanation: "So sánh hơn của 'bad' là 'worse'." },
+          { prompt: "My test results are ________ than my sister's.", options: ["A. better", "B. gooder", "C. more good", "D. well"], answer: 0, explanation: "So sánh hơn của 'good' là 'better'." },
+          { prompt: "The traffic is ________ in the evening than in the morning.", options: ["A. worse", "B. badder", "C. more bad", "D. bad"], answer: 0, explanation: "So sánh hơn của 'bad' là 'worse'." },
+          { prompt: "We need to go ________ into the forest.", options: ["A. further", "B. farer", "C. more far", "D. far"], answer: 0, explanation: "So sánh hơn của 'far' là 'further'." },
+          { prompt: "This pizza tastes ________ than the other one.", options: ["A. gooder", "B. better", "C. more good", "D. best"], answer: 1, explanation: "So sánh hơn của 'good' là 'better'." },
+          { prompt: "The situation got ________ before it got better.", options: ["A. worse", "B. badder", "C. more bad", "D. bad"], answer: 0, explanation: "So sánh hơn của 'bad' là 'worse'." }
+        ]
+      }
+    };
     const grammarTestDecks = {
       "present-simple": {
         id: "present-simple",
@@ -1107,16 +1448,35 @@
       }
     }
 
+    function getViolationPenalty(violations) {
+      if (!violations || violations <= 0) return 0;
+      if (violations === 1) return 0.50;
+      if (violations === 2) return 1.25; // 0.50 + 0.75
+      return 2.25; // 0.50 + 0.75 + 1.00
+    }
+
     async function submitQuiz(){
+      stopAntiCheatGuard();
+      const penalty = getViolationPenalty(examTabSwitches);
+      const forced = examTabSwitches >= 3;
+
       if(activeImportedTest){
         const payload=Object.fromEntries(questions.map((question,index)=>[question.id,question.options?.length&&answers[index]!==undefined?String.fromCharCode(65+Number(answers[index])):(answers[index]??"")]));
         try{
-          const result=await apiRequest(`/api/tests/${activeImportedTest.id}/submissions`,{method:"POST",body:JSON.stringify({answers:payload})});
+          const result=await apiRequest(`/api/tests/${activeImportedTest.id}/submissions`,{
+            method:"POST",
+            body:JSON.stringify({
+              answers:payload,
+              tabViolations: examTabSwitches,
+              violationPenalty: penalty,
+              isForcedSubmit: forced
+            })
+          });
           const scoreOnTen=result.objectiveMax?Number(result.objectiveScore/result.objectiveMax*10).toFixed(1):"0.0";
           document.getElementById("finalScore").textContent=result.status==="pending_manual"?`${scoreOnTen}*`:scoreOnTen;
           document.getElementById("correctCount").textContent=`${Number(result.objectiveScore).toFixed(2)}/${Number(result.objectiveMax).toFixed(2)}`;
           document.getElementById("wrongCount").textContent=result.status==="pending_manual"?"Writing chờ chấm":"Đã nộp";
-          document.getElementById("attemptCount").textContent="1";
+          document.getElementById("attemptCount").textContent=examTabSwitches > 0 ? `${examTabSwitches} vi phạm (-${penalty}đ)` : "Nghiêm túc (0 vi phạm)";
           applyResultScoreUI(Number(scoreOnTen), result.status==="pending_manual");
           document.getElementById("resultModal").classList.remove("hidden");
           showToast(result.message);
@@ -1124,21 +1484,36 @@
         }catch(error){showToast(error.message);return}
       }
       const correct=questions.reduce((sum,_,i)=>sum+(isCorrect(i)?1:0),0);
-      const score=(correct/questions.length*10).toFixed(1);
+      const rawScore=(correct/questions.length*10);
+      const netScore=Math.max(0, Number((rawScore - penalty).toFixed(1)));
       attempts++;
       localStorage.setItem("engoAttempts",String(attempts));
-      saveLearningStats(correct,Number(score));
+      saveLearningStats(correct,netScore);
       completeDailyPlanTask("quiz");
-      document.getElementById("finalScore").textContent=score;
+      document.getElementById("finalScore").textContent=netScore.toFixed(1);
       document.getElementById("correctCount").textContent=correct;
       document.getElementById("wrongCount").textContent=questions.length-correct;
-      document.getElementById("attemptCount").textContent=attempts;
-      applyResultScoreUI(Number(score), false);
-      if(Number(score) >= 5.0) {
-        playSuccessSound();
-      }
+      document.getElementById("attemptCount").textContent=examTabSwitches > 0 ? `${examTabSwitches} vi phạm (-${penalty}đ)` : attempts;
+      applyResultScoreUI(netScore, false);
+      // Ghi nhận các câu sai vào Phòng Chữa Lỗi
+      questions.forEach((q, i) => {
+        if (!isCorrect(i)) {
+          const selectedText = q.options && answers[i] !== undefined ? q.options[answers[i]] : (answers[i] || "Chưa chọn");
+          const correctText = q.options && q.answer !== undefined ? q.options[q.answer] : (q.textAnswer || q.answer || "");
+          recordErrorForHealing(q.prompt, selectedText, correctText, q.type);
+        }
+      });
+
       document.getElementById("resultModal").classList.remove("hidden");
+      if(penalty > 0){
+        showToast(`Đã nộp bài. Bị trừ ${penalty}đ do có ${examTabSwitches} lần rời tab thi!`);
+      }
     }
+
+    document.getElementById("gotoHealingRoomBtn")?.addEventListener("click", () => {
+      document.getElementById("resultModal")?.classList.add("hidden");
+      switchView("errorHealing");
+    });
 
     document.getElementById("retryQuiz").addEventListener("click",()=>{
       answers={};checked={};currentQuestion=0;secondsLeft=20*60;
@@ -1256,6 +1631,16 @@
           const score10 = Number(item.scoreOnTen);
           const scoreClass = score10 >= 8 ? "high" : score10 >= 5 ? "mid" : "low";
 
+          let antiCheatBadge = '<span class="badge green" style="background:#ecfdf5;color:#059669;font-weight:700">✓ Nghiêm túc</span>';
+          const tabV = Number(item.tabViolations || 0);
+          if (item.isForcedSubmit || tabV >= 3) {
+            antiCheatBadge = '<span class="badge red" style="background:#fef2f2;color:#dc2626;font-weight:800" title="Bị hệ thống tự động thu bài do rời tab 3 lần">⛔ Bị thu bài (3 lần -2.25đ)</span>';
+          } else if (tabV === 2) {
+            antiCheatBadge = '<span class="badge orange" style="background:#fff1f2;color:#e11d48;font-weight:800">⚠️ 2 lần rời tab (-1.25đ)</span>';
+          } else if (tabV === 1) {
+            antiCheatBadge = '<span class="badge orange" style="background:#fffbeb;color:#d97706;font-weight:700">⚠️ 1 lần rời tab (-0.5đ)</span>';
+          }
+
           return `
             <tr>
               <td>${idx + 1}</td>
@@ -1265,6 +1650,7 @@
               <td>${Number(item.objectiveScore).toFixed(2)}</td>
               <td>${writingBtn}</td>
               <td><strong class="total-score-badge ${scoreClass}">${item.scoreOnTen} / 10</strong></td>
+              <td>${antiCheatBadge}</td>
               <td>${statusBadge}</td>
               <td><span class="small">${escapeHTML(dateStr)}</span></td>
               <td>
@@ -1521,6 +1907,31 @@
         `;
       }
 
+      let antiCheatDetailBox = "";
+      const tabV = Number(sub.tabViolations || 0);
+      const penaltyV = Number(sub.violationPenalty || 0);
+      if (sub.isForcedSubmit || tabV >= 3) {
+        antiCheatDetailBox = `
+          <div style="margin-bottom:14px; padding:12px 16px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; color:#991b1b; font-size:13.5px">
+            <strong style="color:#dc2626; font-size:14px">⛔ Cảnh báo giám sát thi: BỊ HỆ THỐNG THU BÀI TỰ ĐỘNG!</strong>
+            <div style="margin-top:4px">Học sinh đã rời khỏi màn hình bài thi <strong>3 lần</strong> và bị tự động thu bài. Đã trừ phạt: <strong>-${penaltyV > 0 ? penaltyV : 2.25} điểm</strong> vào kết quả bài thi.</div>
+          </div>
+        `;
+      } else if (tabV > 0) {
+        antiCheatDetailBox = `
+          <div style="margin-bottom:14px; padding:12px 16px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; color:#92400e; font-size:13.5px">
+            <strong style="color:#d97706; font-size:14px">⚠️ Giám sát thi cử: Có vi phạm rời tab (${tabV} lần)</strong>
+            <div style="margin-top:4px">Học sinh đã rời khỏi màn hình bài thi <strong>${tabV} lần</strong> trong lúc làm bài. Đã trừ phạt: <strong>-${penaltyV} điểm</strong> vào kết quả bài thi.</div>
+          </div>
+        `;
+      } else {
+        antiCheatDetailBox = `
+          <div style="margin-bottom:14px; padding:10px 14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; color:#166534; font-size:13px">
+            <strong>🛡️ Giám sát thi cử: Hoàn toàn nghiêm túc</strong> — Không ghi nhận vi phạm rời tab nào trong quá trình làm bài.
+          </div>
+        `;
+      }
+
       body.innerHTML = `
         <div class="submission-detail-container">
           <div class="submission-summary-header">
@@ -1529,6 +1940,7 @@
             <div><strong>Thời gian nộp bài:</strong> ${new Date(sub.submittedAt).toLocaleString("vi-VN")}</div>
             <div><strong>Tổng điểm hệ 10:</strong> <strong id="modalTotalScore10" style="font-size:1.25rem; color:var(--primary)">${sub.scoreOnTen} / 10</strong></div>
           </div>
+          ${antiCheatDetailBox}
           ${writingHTML}
           ${objectiveHTML}
         </div>
@@ -1763,6 +2175,101 @@
     document.getElementById("refreshStudentResultsBtn")?.addEventListener("click", ()=>{
       renderStudentResults();
       showToast("Đã làm mới kết quả học tập.");
+    });
+
+    async function renderParentDashboard(){
+      const badgeEl = document.getElementById("parentStudentBadge");
+      const heroRingEl = document.getElementById("parentAvgScoreRing");
+      const heroScoreEl = document.getElementById("parentAvgScoreHero");
+      const totalDoneEl = document.getElementById("parentTotalDone");
+      const avgScoreEl = document.getElementById("parentAvgScore");
+      const integrityEl = document.getElementById("parentIntegrityRate");
+      const totalViolationsEl = document.getElementById("parentTotalViolations");
+      const tableBody = document.getElementById("parentSubmissionsTableBody");
+      if (!tableBody) return;
+
+      try {
+        const res = await apiRequest("/api/parent/student-data");
+        const student = res.student;
+        const stats = res.stats || {};
+        const submissions = res.submissions || [];
+
+        if (student) {
+          if (badgeEl) badgeEl.textContent = `Học sinh: ${student.fullName} · Lớp ${student.className}`;
+        } else {
+          if (badgeEl) badgeEl.textContent = `Học sinh: Chưa liên kết`;
+        }
+
+        const avg = Number(stats.avgScore || 0);
+        if (heroScoreEl) heroScoreEl.textContent = avg > 0 ? avg.toFixed(1) : "--";
+        if (heroRingEl) {
+          const pct = Math.min(100, Math.round(avg * 10));
+          heroRingEl.style.background = `conic-gradient(#10b981 0 ${pct}%, rgba(255,255,255,.16) ${pct}%)`;
+        }
+        if (totalDoneEl) totalDoneEl.textContent = stats.totalTests || 0;
+        if (avgScoreEl) avgScoreEl.textContent = avg > 0 ? `${avg.toFixed(1)}/10` : "--";
+        if (integrityEl) {
+          const rate = stats.integrityRate !== undefined ? stats.integrityRate : 100;
+          integrityEl.textContent = `${rate}%`;
+          integrityEl.style.color = rate >= 90 ? "#16a34a" : rate >= 70 ? "#d97706" : "#dc2626";
+        }
+        if (totalViolationsEl) {
+          totalViolationsEl.textContent = stats.totalViolations || 0;
+        }
+
+        if (!submissions.length) {
+          tableBody.innerHTML = '<tr><td colspan="5" class="small muted" style="text-align:center;padding:24px">Con em chưa có bài kiểm tra nào được nộp.</td></tr>';
+        } else {
+          tableBody.innerHTML = submissions.map(item => {
+            const dateStr = item.submittedAt ? new Date(item.submittedAt).toLocaleDateString("vi-VN") : "—";
+            const score = Number(item.scoreOnTen);
+            const scoreClass = score >= 8 ? "high" : score >= 5 ? "mid" : "low";
+
+            let vBadge = '<span class="badge green" style="background:#ecfdf5;color:#059669;font-weight:700">✓ Nghiêm túc</span>';
+            if (item.isForcedSubmit || item.tabViolations >= 3) {
+              vBadge = `<span class="badge red" style="background:#fef2f2;color:#dc2626;font-weight:800">⛔ Rời tab 3 lần (-2.25đ)</span>`;
+            } else if (item.tabViolations === 2) {
+              vBadge = `<span class="badge orange" style="background:#fff1f2;color:#e11d48;font-weight:800">⚠️ Rời tab 2 lần (-1.25đ)</span>`;
+            } else if (item.tabViolations === 1) {
+              vBadge = `<span class="badge orange" style="background:#fffbeb;color:#d97706;font-weight:700">⚠️ Rời tab 1 lần (-0.5đ)</span>`;
+            }
+
+            return `
+              <tr>
+                <td><strong>${escapeHTML(item.testTitle)}</strong></td>
+                <td><strong class="total-score-badge ${scoreClass}">${item.scoreOnTen}/10</strong></td>
+                <td>${vBadge}</td>
+                <td><span class="small" style="color:#334155">${item.teacherFeedback ? escapeHTML(item.teacherFeedback) : "Chưa có nhận xét"}</span></td>
+                <td><span class="small muted">${escapeHTML(dateStr)}</span></td>
+              </tr>
+            `;
+          }).join("");
+        }
+
+        // Cập nhật biểu đồ kỹ năng 6 trục của con
+        const pAvg = Math.min(100, Math.round(avg * 10));
+        const setBar = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.style.height = `${Math.max(10, Math.min(100, val))}%`;
+            el.setAttribute("data-value", `${val}%`);
+          }
+        };
+        setBar("parentBarListening", Math.round(pAvg * 0.95));
+        setBar("parentBarSpeaking", Math.round(pAvg * 0.90));
+        setBar("parentBarVocab", Math.round(pAvg * 0.98));
+        setBar("parentBarGrammar", Math.round(pAvg * 0.92));
+        setBar("parentBarReading", Math.round(pAvg * 1.02));
+        setBar("parentBarWriting", Math.round(pAvg * 0.96));
+
+      } catch (err) {
+        console.error("renderParentDashboard error:", err);
+      }
+    }
+
+    document.getElementById("refreshParentDataBtn")?.addEventListener("click", () => {
+      renderParentDashboard();
+      showToast("Đã làm mới dữ liệu học tập của con.");
     });
 
     // Close modal when clicking backdrop
@@ -2073,19 +2580,71 @@
       }
     }
 
+    let lastViolationTime = 0;
+
     function handleAntiCheatViolation(){
       if(!antiCheatActive) return;
       const quizView = document.getElementById("quiz");
       if(!quizView || !quizView.classList.contains("active")) return;
+      
+      const now = Date.now();
+      // Ngăn chặn bắt trùng lặp cả 2 sự kiện visibilitychange và blur cùng lúc (cooldown 1.5s)
+      if(now - lastViolationTime < 1500) return;
+      lastViolationTime = now;
+
       examTabSwitches++;
       updateAntiCheatUI();
+      const penalty = getViolationPenalty(examTabSwitches);
+
       const modal = document.getElementById("antiCheatModal");
       const countEl = document.getElementById("modalViolationCount");
-      if(modal && countEl){
-        countEl.textContent = examTabSwitches;
-        modal.classList.remove("hidden");
+      const penaltyEl = document.getElementById("modalPenaltyText");
+      const titleEl = document.getElementById("antiCheatModalTitle");
+      const descEl = document.getElementById("antiCheatModalDesc");
+      const dismissBtn = document.getElementById("dismissAntiCheatModal");
+
+      if(countEl) countEl.textContent = examTabSwitches;
+
+      if(examTabSwitches === 1){
+        if(titleEl) titleEl.textContent = "⚠️ CẢNH BÁO VI PHẠM PHÒNG THI (LẦN 1)";
+        if(penaltyEl) penaltyEl.textContent = "Bị trừ phạt: -0.50 điểm vào kết quả bài thi";
+        if(descEl) descEl.textContent = "Hệ thống phát hiện bạn vừa chuyển tab hoặc rời khỏi màn hình bài thi!";
+        if(dismissBtn) {
+          dismissBtn.textContent = "Tôi đã hiểu, tiếp tục làm bài";
+          dismissBtn.disabled = false;
+        }
+        showToast("⚠️ VI PHẠM LẦN 1: Bị trừ -0.50 điểm vào bài thi!");
+      } else if(examTabSwitches === 2){
+        if(titleEl) titleEl.textContent = "⚠️ CẢNH BÁO NGHIÊM TRỌNG (LẦN 2)";
+        if(penaltyEl) penaltyEl.textContent = "Bị trừ phạt: -1.25 điểm (Phạt thêm -0.75đ)";
+        if(descEl) descEl.textContent = "CẢNH BÁO: Nếu bạn rời tab thêm 1 lần nữa (Lần 3), bài thi sẽ bị TỰ ĐỘNG THU NGAY LẬP TỨC!";
+        if(dismissBtn) {
+          dismissBtn.textContent = "Tôi cam kết không chuyển tab nữa";
+          dismissBtn.disabled = false;
+        }
+        showToast("⚠️ VI PHẠM LẦN 2: Bị trừ tổng cộng -1.25 điểm!");
+      } else {
+        // Lần 3: TỰ ĐỘNG THU BÀI NGAY LẬP TỨC!
+        if(titleEl) titleEl.textContent = "⛔ ĐÃ ĐẠT GIỚI HẠN VI PHẠM (LẦN 3)";
+        if(penaltyEl) penaltyEl.textContent = "Bị trừ phạt: -2.25 điểm & HỆ THỐNG ĐANG TỰ ĐỘNG THU BÀI!";
+        if(descEl) descEl.textContent = "Bạn đã vi phạm quy chế rời tab 3 lần. Hệ thống tự động khóa và nộp bài thi ngay bây giờ.";
+        if(dismissBtn) {
+          dismissBtn.textContent = "Đang nộp bài tự động...";
+          dismissBtn.disabled = true;
+        }
+        showToast("⛔ ĐÃ VI PHẠM 3 LẦN: Tự động thu bài thi và trừ -2.25 điểm!");
+        
+        if(modal) modal.classList.remove("hidden");
+
+        // Tự động thu bài sau 1.2s
+        setTimeout(() => {
+          if(modal) modal.classList.add("hidden");
+          submitQuiz();
+        }, 1200);
+        return;
       }
-      showToast(`⚠️ CẢNH BÁO: Phát hiện rời khỏi màn hình bài thi (Lần ${examTabSwitches})!`);
+
+      if(modal) modal.classList.remove("hidden");
     }
 
     document.addEventListener("visibilitychange", () => {
@@ -2099,7 +2658,7 @@
     if(dismissModalBtn){
       dismissModalBtn.addEventListener("click", () => {
         const modal = document.getElementById("antiCheatModal");
-        if(modal) modal.classList.add("hidden");
+        if(modal && examTabSwitches < 3) modal.classList.add("hidden");
       });
     }
 
@@ -2897,6 +3456,382 @@
     if(markKnownBtn){
       markKnownBtn.addEventListener("click",()=>{setTimeout(()=>{if(flashKnown.size>=5)completeDailyPlanTask("flashcard")},0)});
     }
+
+    // ==========================================
+    // PHÒNG CHỮA LỖI THÔNG MINH (ERROR HEALING ROOM)
+    // ==========================================
+
+    const defaultHealingProfile = {
+      pendingErrors: [
+        { id: "err-1", code: "PS_NEG", triggerQuestion: "He don't like spicy food, so he never orders chili.", selected: "don't", correct: "doesn't", createdAt: new Date().toISOString() },
+        { id: "err-2", code: "PAST_IRR", triggerQuestion: "She buyed a new English dictionary yesterday.", selected: "buyed", correct: "bought", createdAt: new Date().toISOString() },
+        { id: "err-3", code: "CMP_LONG", triggerQuestion: "This painting is beautifuler than that one.", selected: "beautifuler", correct: "more beautiful", createdAt: new Date().toISOString() }
+      ],
+      healedHistory: [
+        { id: "healed-0", code: "PS_AFF", title: "Hiện tại đơn — Khẳng định (+s/es)", healedAt: new Date(Date.now() - 86400000).toISOString(), score: "3/3" }
+      ],
+      healingStreak: 1,
+      heatmapStatus: {
+        "PS_AFF": "mastered",
+        "PS_NEG": "weak",
+        "PS_QUE": "shaky",
+        "PS_ADV": "mastered",
+        "PAST_REG": "shaky",
+        "PAST_IRR": "weak",
+        "PAST_NEG": "mastered",
+        "PAST_QUE": "shaky",
+        "PAST_BE": "mastered",
+        "CMP_SHORT": "mastered",
+        "CMP_LONG": "weak",
+        "CMP_IRR": "shaky"
+      }
+    };
+
+    function getHealingProfile() {
+      const key = getUserStorageKey("engoHealingProfileV1");
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(defaultHealingProfile));
+    }
+
+    function saveHealingProfile(profile) {
+      const key = getUserStorageKey("engoHealingProfileV1");
+      try {
+        localStorage.setItem(key, JSON.stringify(profile));
+      } catch (e) {}
+    }
+
+    // Tự động phân loại và thêm lỗi sai vào Phòng Chữa Lỗi
+    function recordErrorForHealing(questionPrompt, selectedAnswer, correctAnswer, grammarType) {
+      const profile = getHealingProfile();
+      let detectedCode = "PS_NEG";
+      const qLower = ((questionPrompt || "") + " " + (grammarType || "")).toLowerCase();
+      if (qLower.includes("past") && (qLower.includes("irregular") || qLower.includes("bất quy tắc"))) detectedCode = "PAST_IRR";
+      else if (qLower.includes("past") && (qLower.includes("negative") || qLower.includes("phủ định"))) detectedCode = "PAST_NEG";
+      else if (qLower.includes("past") && (qLower.includes("question") || qLower.includes("nghi vấn"))) detectedCode = "PAST_QUE";
+      else if (qLower.includes("was") || qLower.includes("were")) detectedCode = "PAST_BE";
+      else if (qLower.includes("comparative") && qLower.includes("long")) detectedCode = "CMP_LONG";
+      else if (qLower.includes("comparative") && (qLower.includes("irregular") || qLower.includes("bất quy tắc"))) detectedCode = "CMP_IRR";
+      else if (qLower.includes("comparative")) detectedCode = "CMP_SHORT";
+      else if (qLower.includes("present") && qLower.includes("negative")) detectedCode = "PS_NEG";
+      else if (qLower.includes("present") && qLower.includes("question")) detectedCode = "PS_QUE";
+      else if (qLower.includes("adverb")) detectedCode = "PS_ADV";
+      else if (qLower.includes("present")) detectedCode = "PS_AFF";
+      else if (qLower.includes("past")) detectedCode = "PAST_REG";
+
+      // Kiểm tra xem lỗi dạng này đã có trong hàng chờ chưa
+      const exists = profile.pendingErrors.some(e => e.code === detectedCode);
+      if (!exists) {
+        profile.pendingErrors.unshift({
+          id: `err-${Date.now()}`,
+          code: detectedCode,
+          triggerQuestion: questionPrompt || "Câu hỏi luyện tập ngữ pháp",
+          selected: selectedAnswer || "Chưa chính xác",
+          correct: correctAnswer || "Đáp án chuẩn",
+          createdAt: new Date().toISOString()
+        });
+        profile.heatmapStatus[detectedCode] = "weak";
+        saveHealingProfile(profile);
+      }
+    }
+
+    function renderHealingRoom() {
+      const profile = getHealingProfile();
+      const statPending = document.getElementById("healingStatPending");
+      const statHealed = document.getElementById("healingStatHealed");
+      const statStreak = document.getElementById("healingStatStreak");
+
+      if (statPending) statPending.textContent = profile.pendingErrors.length;
+      if (statHealed) statHealed.textContent = profile.healedHistory.length;
+      if (statStreak) statStreak.textContent = profile.healingStreak || 0;
+
+      // 1. Render Tab: Lỗi Cần Chữa
+      const pendingList = document.getElementById("healingPendingList");
+      if (pendingList) {
+        if (!profile.pendingErrors.length) {
+          pendingList.innerHTML = `
+            <div class="empty-state" style="text-align:center;padding:36px">
+              <span style="font-size:40px;display:block;margin-bottom:12px">🎉</span>
+              <strong style="font-size:16px;color:#16a34a;display:block;margin-bottom:6px">Tuyệt vời! Bạn không có lỗi ngữ pháp nào đang chờ chữa.</strong>
+              <p class="small muted">Hãy tiếp tục làm bài kiểm tra và luyện tập. Nếu có câu sai, hệ thống sẽ tự động chẩn đoán và đưa vào đây.</p>
+            </div>
+          `;
+        } else {
+          pendingList.innerHTML = profile.pendingErrors.map(err => {
+            const bankData = (healingExercisesBank && healingExercisesBank[err.code]) ? healingExercisesBank[err.code] : (healingExercisesBank ? healingExercisesBank["PS_AFF"] : { label: "Ngữ pháp trọng tâm", rule: "Xem lại công thức và dấu hiệu nhận biết.", mnemonic: "Đọc kỹ câu và xác định thì." });
+            return `
+              <div class="healing-error-card">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+                  <span class="error-badge red">🔴 Cần chữa: ${escapeHTML(bankData.label)}</span>
+                  <span class="small muted">${new Date(err.createdAt).toLocaleDateString("vi-VN")}</span>
+                </div>
+                <div style="font-size:14px;color:#1e293b;margin-bottom:8px">
+                  <strong>Câu mắc lỗi:</strong> "${escapeHTML(err.triggerQuestion)}"
+                </div>
+                <div style="display:flex;gap:12px;font-size:13px;margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:8px">
+                  <div>Bạn chọn: <span style="color:#dc2626;font-weight:700">${escapeHTML(String(err.selected || "Sai"))}</span></div>
+                  <div>Đáp án chuẩn: <span style="color:#16a34a;font-weight:700">${escapeHTML(String(err.correct || "Xem giải thích"))}</span></div>
+                </div>
+                <div style="background:#f8fafc;border-left:3px solid #6366f1;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px;font-size:13px">
+                  <div style="font-weight:700;color:#4338ca;margin-bottom:2px">📖 Quy tắc cốt lõi:</div>
+                  <div style="color:#334155;line-height:1.5">${escapeHTML(bankData.rule)}</div>
+                  <div style="margin-top:6px;color:#059669;font-weight:600">💡 Mẹo nhớ: ${escapeHTML(bankData.mnemonic)}</div>
+                </div>
+                <button class="btn btn-primary start-healing-btn" data-error-code="${err.code}" data-error-id="${err.id}" style="width:100%;font-weight:700">
+                  💉 Bắt đầu chữa lỗi (Luyện 3 câu cùng dạng) →
+                </button>
+              </div>
+            `;
+          }).join("");
+
+          pendingList.querySelectorAll(".start-healing-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+              startHealingExercise(btn.dataset.errorCode, btn.dataset.errorId);
+            });
+          });
+        }
+      }
+
+      // 2. Render Tab: Bản Đồ Ngữ Pháp (Heatmap)
+      const heatmapContainer = document.getElementById("grammarHeatmapContainer");
+      if (heatmapContainer) {
+        const getDotClass = (code) => profile.heatmapStatus[code] || "unknown";
+        const getStatusLabel = (code) => {
+          const st = profile.heatmapStatus[code];
+          if (st === "mastered") return `<span style="color:#16a34a;font-weight:700">🟢 Thành thạo</span>`;
+          if (st === "shaky") return `<span style="color:#d97706;font-weight:700">🟡 Đang củng cố</span>`;
+          if (st === "weak") return `<span style="color:#dc2626;font-weight:700">🔴 Yếu (Cần chữa)</span>`;
+          return `<span style="color:#94a3b8">⚪ Chưa kiểm tra</span>`;
+        };
+
+        heatmapContainer.innerHTML = `
+          <div class="healing-heatmap-group">
+            <h4>📘 Thì Hiện tại đơn (Present Simple)</h4>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_AFF')}"></div></div><div style="flex:1">Khẳng định (+s/es)</div><div>${getStatusLabel('PS_AFF')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_NEG')}"></div></div><div style="flex:1">Phủ định (don't/doesn't)</div><div>${getStatusLabel('PS_NEG')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_QUE')}"></div></div><div style="flex:1">Nghi vấn (Do/Does)</div><div>${getStatusLabel('PS_QUE')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_ADV')}"></div></div><div style="flex:1">Trạng từ tần suất</div><div>${getStatusLabel('PS_ADV')}</div></div>
+          </div>
+          <div class="healing-heatmap-group">
+            <h4>📙 Thì Quá khứ đơn (Past Simple)</h4>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_REG')}"></div></div><div style="flex:1">V-ed có quy tắc</div><div>${getStatusLabel('PAST_REG')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_IRR')}"></div></div><div style="flex:1">V2 Bất quy tắc</div><div>${getStatusLabel('PAST_IRR')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_NEG')}"></div></div><div style="flex:1">Phủ định (didn't + V)</div><div>${getStatusLabel('PAST_NEG')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_QUE')}"></div></div><div style="flex:1">Câu hỏi (Did + S + V)</div><div>${getStatusLabel('PAST_QUE')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_BE')}"></div></div><div style="flex:1">Was / Were</div><div>${getStatusLabel('PAST_BE')}</div></div>
+          </div>
+          <div class="healing-heatmap-group">
+            <h4>📐 Cấu trúc So sánh (Comparatives)</h4>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('CMP_SHORT')}"></div></div><div style="flex:1">Tính từ ngắn (-er/-est)</div><div>${getStatusLabel('CMP_SHORT')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('CMP_LONG')}"></div></div><div style="flex:1">Tính từ dài (more/most)</div><div>${getStatusLabel('CMP_LONG')}</div></div>
+            <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('CMP_IRR')}"></div></div><div style="flex:1">So sánh bất quy tắc</div><div>${getStatusLabel('CMP_IRR')}</div></div>
+          </div>
+        `;
+      }
+
+      // 3. Render Tab: Lịch Sử Đã Chữa Khỏi
+      const historyList = document.getElementById("healingHistoryList");
+      if (historyList) {
+        if (!profile.healedHistory.length) {
+          historyList.innerHTML = `<div class="empty-state" style="text-align:center;padding:24px">Chưa có lỗi nào được chữa khỏi. Hãy bắt đầu chữa lỗi ở tab "Lỗi Cần Chữa".</div>`;
+        } else {
+          historyList.innerHTML = profile.healedHistory.map(item => `
+            <div class="card panel" style="padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <span class="badge green" style="margin-bottom:4px">✅ Đã chữa khỏi</span>
+                <div style="font-weight:700;color:#1e293b;margin-top:2px">${escapeHTML(item.title || item.code)}</div>
+                <div class="small muted">Hoàn thành lúc: ${new Date(item.healedAt).toLocaleString("vi-VN")}</div>
+              </div>
+              <div style="text-align:right">
+                <span style="font-weight:800;color:#16a34a;font-size:15px">+15 XP 🥕</span>
+                <div class="small muted">Chính xác ${item.score || '3/3'}</div>
+              </div>
+            </div>
+          `).join("");
+        }
+      }
+    }
+
+    // Modal chữa lỗi trắc nghiệm tương tác
+    let activeHealingSession = null;
+
+    function startHealingExercise(errorCode, errorId) {
+      const bank = (healingExercisesBank && healingExercisesBank[errorCode]) ? healingExercisesBank[errorCode] : (healingExercisesBank ? healingExercisesBank["PS_AFF"] : null);
+      const allQuestions = (bank && bank.questions) ? bank.questions : [];
+      if (!allQuestions.length) {
+        showToast("Đang chuẩn bị câu hỏi cho dạng bài này...");
+        return;
+      }
+      // Chọn ngẫu nhiên 3 câu hỏi từ ngân hàng
+      const shuffled = shuffleArray(allQuestions).slice(0, 3);
+
+      activeHealingSession = {
+        errorCode,
+        errorId,
+        label: bank.label,
+        rule: bank.rule,
+        mnemonic: bank.mnemonic,
+        questions: shuffled,
+        currentIndex: 0,
+        correctCount: 0
+      };
+
+      const modal = document.getElementById("healingExerciseModal");
+      const title = document.getElementById("healingModalTitle");
+      if (title) title.textContent = `💉 Chữa lỗi: ${bank.label}`;
+      renderHealingModalStep();
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function renderHealingModalStep() {
+      if (!activeHealingSession) return;
+      const s = activeHealingSession;
+      const progressFill = document.getElementById("healingModalProgress");
+      const modalBody = document.getElementById("healingModalBody");
+      if (!modalBody) return;
+
+      const pct = Math.round(((s.currentIndex) / s.questions.length) * 100);
+      if (progressFill) progressFill.style.width = `${Math.max(15, pct)}%`;
+
+      if (s.currentIndex >= s.questions.length) {
+        // Hoàn thành xuất sắc 3/3 câu!
+        const profile = getHealingProfile();
+        profile.pendingErrors = profile.pendingErrors.filter(e => e.id !== s.errorId);
+        profile.healedHistory.unshift({
+          id: `healed-${Date.now()}`,
+          code: s.errorCode,
+          title: s.label,
+          healedAt: new Date().toISOString(),
+          score: `${s.correctCount}/${s.questions.length}`
+        });
+        profile.heatmapStatus[s.errorCode] = "mastered";
+        profile.healingStreak = (profile.healingStreak || 0) + 1;
+        saveHealingProfile(profile);
+
+        // Thưởng XP & Cà rốt
+        const stats = getLearningStats();
+        stats.points += 15;
+        stats.carrots += 1;
+        setLearningStats(stats);
+        renderLearningFeatures();
+        playSuccessSound();
+
+        modalBody.innerHTML = `
+          <div style="text-align:center;padding:20px 0">
+            <span style="font-size:52px;display:block;margin-bottom:12px">🎉✨</span>
+            <h3 style="color:#16a34a;margin:0 0 8px">CHỮA LỖI THÀNH CÔNG!</h3>
+            <p style="color:#334155;line-height:1.5;margin-bottom:16px">
+              Bạn đã hoàn thành chính xác <strong>3/3 câu luyện tập</strong> dạng <strong>${escapeHTML(s.label)}</strong>.<br>
+              Lỗi này đã được đánh dấu <strong style="color:#16a34a">🟢 THÀNH THẠO</strong> trên Bản đồ Ngữ pháp!
+            </p>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:inline-block;margin-bottom:20px">
+              <strong style="color:#15803d;font-size:16px">🎁 Thưởng: +15 XP & +1 Cà rốt 🥕</strong>
+            </div>
+            <button class="btn btn-primary" id="finishHealingSessionBtn" style="width:100%;font-weight:700">
+              Hoàn tất & Quay về Phòng Chữa Lỗi
+            </button>
+          </div>
+        `;
+
+        document.getElementById("finishHealingSessionBtn")?.addEventListener("click", () => {
+          document.getElementById("healingExerciseModal")?.classList.add("hidden");
+          renderHealingRoom();
+        });
+        return;
+      }
+
+      const q = s.questions[s.currentIndex];
+      modalBody.innerHTML = `
+        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <span class="badge blue">Câu ${s.currentIndex + 1} / ${s.questions.length}</span>
+          <span class="small muted">Dạng: ${escapeHTML(s.label)}</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:16px;line-height:1.5">
+          ${escapeHTML(q.prompt)}
+        </div>
+        <div id="healingOptionsList">
+          ${q.options.map((opt, i) => `
+            <button type="button" class="healing-option" data-opt-index="${i}">${escapeHTML(opt)}</button>
+          `).join("")}
+        </div>
+        <div id="healingAnswerFeedback" style="display:none;margin-top:14px;padding:12px 14px;border-radius:10px;font-size:13.5px;line-height:1.5"></div>
+        <button class="btn btn-primary" id="nextHealingStepBtn" style="display:none;width:100%;margin-top:14px;font-weight:700">
+          Tiếp tục câu tiếp theo →
+        </button>
+      `;
+
+      const options = modalBody.querySelectorAll(".healing-option");
+      const feedback = document.getElementById("healingAnswerFeedback");
+      const nextBtn = document.getElementById("nextHealingStepBtn");
+
+      options.forEach(btn => {
+        btn.addEventListener("click", () => {
+          options.forEach(b => b.disabled = true);
+          const chosen = Number(btn.dataset.optIndex);
+          const isRight = chosen === q.answer;
+
+          if (isRight) {
+            btn.classList.add("correct");
+            s.correctCount++;
+            playSuccessSound();
+            if (feedback) {
+              feedback.style.display = "block";
+              feedback.style.background = "#f0fdf4";
+              feedback.style.border = "1px solid #bbf7d0";
+              feedback.style.color = "#15803d";
+              feedback.innerHTML = `<strong>✓ CHÍNH XÁC!</strong> ${escapeHTML(q.explanation)}`;
+            }
+          } else {
+            btn.classList.add("wrong");
+            options[q.answer]?.classList.add("correct");
+            playWrongSound();
+            if (feedback) {
+              feedback.style.display = "block";
+              feedback.style.background = "#fef2f2";
+              feedback.style.border = "1px solid #fecaca";
+              feedback.style.color = "#991b1b";
+              feedback.innerHTML = `<strong>✕ CHƯA ĐÚNG!</strong> ${escapeHTML(q.explanation)}`;
+            }
+          }
+
+          if (nextBtn) {
+            nextBtn.style.display = "block";
+            nextBtn.addEventListener("click", () => {
+              s.currentIndex++;
+              renderHealingModalStep();
+            });
+          }
+        });
+      });
+    }
+
+    // Tabs navigation cho Phòng Chữa Lỗi
+    const healingPendingTab = document.getElementById("healingPendingTab");
+    const healingHeatmapTab = document.getElementById("healingHeatmapTab");
+    const healingHistoryTab = document.getElementById("healingHistoryTab");
+    const healingPendingPanel = document.getElementById("healingPendingPanel");
+    const healingHeatmapPanel = document.getElementById("healingHeatmapPanel");
+    const healingHistoryPanel = document.getElementById("healingHistoryPanel");
+
+    function switchHealingTab(tabName) {
+      if (healingPendingTab) healingPendingTab.classList.toggle("active", tabName === "pending");
+      if (healingHeatmapTab) healingHeatmapTab.classList.toggle("active", tabName === "heatmap");
+      if (healingHistoryTab) healingHistoryTab.classList.toggle("active", tabName === "history");
+
+      if (healingPendingPanel) healingPendingPanel.classList.toggle("active", tabName === "pending");
+      if (healingHeatmapPanel) healingHeatmapPanel.classList.toggle("active", tabName === "heatmap");
+      if (healingHistoryPanel) healingHistoryPanel.classList.toggle("active", tabName === "history");
+    }
+
+    if (healingPendingTab) healingPendingTab.addEventListener("click", () => switchHealingTab("pending"));
+    if (healingHeatmapTab) healingHeatmapTab.addEventListener("click", () => switchHealingTab("heatmap"));
+    if (healingHistoryTab) healingHistoryTab.addEventListener("click", () => switchHealingTab("history"));
+
+    document.getElementById("healingModalClose")?.addEventListener("click", () => {
+      document.getElementById("healingExerciseModal")?.classList.add("hidden");
+    });
 
     renderDailyPlan();renderFocusTime();renderNotifications();renderLearningFeatures();
 

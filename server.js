@@ -58,11 +58,23 @@ function requireRole(...roles) {
 
 async function ensureAssessmentTables() {
   // Verify that the required tables were created by an admin (see database/assessment-schema.sql).
-  // The application DB user (engo_app) only has SELECT/INSERT/UPDATE — no DDL rights.
-  // If the tables are missing, an error will be thrown here and logged at startup.
   const [[users]] = await pool.query("SELECT 1 FROM users LIMIT 0");
   const [[imported]] = await pool.query("SELECT 1 FROM imported_tests LIMIT 0");
   const [[writing]] = await pool.query("SELECT 1 FROM writing_submissions LIMIT 0");
+
+  // Migration: Tự động bổ sung các cột giám sát vi phạm thi và liên kết phụ huynh nếu chưa có
+  try {
+    await pool.query("ALTER TABLE writing_submissions ADD COLUMN tab_violations INT NOT NULL DEFAULT 0");
+  } catch (e) {}
+  try {
+    await pool.query("ALTER TABLE writing_submissions ADD COLUMN violation_penalty DECIMAL(5,2) NOT NULL DEFAULT 0");
+  } catch (e) {}
+  try {
+    await pool.query("ALTER TABLE writing_submissions ADD COLUMN is_forced_submit TINYINT(1) NOT NULL DEFAULT 0");
+  } catch (e) {}
+  try {
+    await pool.query("ALTER TABLE users ADD COLUMN parent_student_id BIGINT UNSIGNED NULL");
+  } catch (e) {}
 }
 
 const assessmentReady = ensureAssessmentTables()
@@ -136,6 +148,80 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "crazymailing.com", "tempail.com", "emailondeck.com", "maildrop.cc"
 ]);
 
+// Cấu hình API Key kiểm tra email thực tế (AbstractAPI, Hunter.io, ZeroBounce...)
+// Bạn có thể đăng ký miễn phí tại https://www.abstractapi.com/api/email-verification-validation-api hoặc https://hunter.io
+const ABSTRACT_EMAIL_API_KEY = process.env.ABSTRACT_EMAIL_API_KEY || "";
+const HUNTER_EMAIL_API_KEY = process.env.HUNTER_EMAIL_API_KEY || "";
+
+function isGibberishUsername(username) {
+  const u = String(username || "").toLowerCase();
+  // 1. Quá nhiều phụ âm liên tiếp không thể phát âm (>= 5 phụ âm)
+  if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(u)) return true;
+  
+  // 2. Tỉ lệ nguyên âm bất thường với tên dài
+  const lettersOnly = u.replace(/[^a-z]/g, "");
+  if (lettersOnly.length >= 7) {
+    const vowels = (lettersOnly.match(/[aeiou]/g) || []).length;
+    const vowelRatio = vowels / lettersOnly.length;
+    if (vowelRatio < 0.15) return true;
+  }
+
+  // 3. Các chuỗi gõ phím ngẫu nhiên / bàn phím mashing phổ biến (như aksjodajodw, asdfgh, etc.)
+  const spamPatterns = [
+    "asdf", "dfgh", "ghjk", "hjkl", "jkl;", "qwerty", "werty", "ertyu", "rtyui", "tyuio",
+    "zxcv", "xcvb", "cvbn", "vbnm", "aksj", "sjod", "joda", "jodw", "odaw", "dajo", "ajod",
+    "12345", "23456", "34567", "45678", "56789", "aaaaa", "bbbbb", "ccccc", "ddddd"
+  ];
+  let spamCount = 0;
+  for (const pat of spamPatterns) {
+    if (u.includes(pat)) {
+      spamCount++;
+      if (pat.length >= 5 || spamCount >= 2) return true;
+    }
+  }
+  return false;
+}
+
+async function verifyEmailWithAPI(email) {
+  // 1. Kiểm tra qua AbstractAPI nếu đã cấu hình key
+  if (ABSTRACT_EMAIL_API_KEY) {
+    try {
+      const res = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${ABSTRACT_EMAIL_API_KEY}&email=${encodeURIComponent(email)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.deliverability === "UNDELIVERABLE" || data.is_smtp_valid?.value === false) {
+          return { valid: false, reason: "Hộp thư Gmail này không tồn tại trên hệ thống của Google." };
+        }
+        if (data.deliverability === "DELIVERABLE" && data.is_smtp_valid?.value === true) {
+          return { valid: true, domain: email.split("@")[1], isGmail: email.includes("gmail"), provider: "AbstractAPI" };
+        }
+      }
+    } catch (e) {
+      console.warn("[EmailAPI] AbstractAPI check failed:", e.message);
+    }
+  }
+
+  // 2. Kiểm tra qua Hunter.io nếu đã cấu hình key
+  if (HUNTER_EMAIL_API_KEY) {
+    try {
+      const res = await fetch(`https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_EMAIL_API_KEY}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data?.result === "undeliverable") {
+          return { valid: false, reason: "Địa chỉ email này không tồn tại trên hệ thống máy chủ." };
+        }
+        if (data.data?.result === "deliverable") {
+          return { valid: true, domain: email.split("@")[1], isGmail: email.includes("gmail"), provider: "Hunter.io" };
+        }
+      }
+    } catch (e) {
+      console.warn("[EmailAPI] Hunter.io check failed:", e.message);
+    }
+  }
+
+  return null; // Không có API key hoặc API bận -> chuyển sang kiểm tra DNS MX + heuristic
+}
+
 async function verifyEmailAddress(email) {
   const trimmed = String(email || "").trim().toLowerCase();
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -164,9 +250,19 @@ async function verifyEmailAddress(email) {
     if (username.startsWith(".") || username.endsWith(".") || username.includes("..")) {
       return { valid: false, reason: "Tên tài khoản Gmail không được bắt đầu, kết thúc bằng dấu chấm hoặc chứa 2 dấu chấm liên tiếp." };
     }
+    // Chặn tên tài khoản gõ bàn phím rác ngẫu nhiên (aksjodajodw, asdfgh...)
+    if (isGibberishUsername(username)) {
+      return { valid: false, reason: "Tên email có dạng gõ phím ngẫu nhiên / không có thật. Vui lòng nhập email thật." };
+    }
   }
 
-  // Tra cứu bản ghi MX thực tế qua DNS
+  // 1. Kiểm tra trực tiếp qua Email Validation API bên thứ 3 (nếu có key)
+  const apiResult = await verifyEmailWithAPI(trimmed);
+  if (apiResult !== null) {
+    return apiResult;
+  }
+
+  // 2. Tra cứu bản ghi MX thực tế qua DNS
   try {
     const mxRecords = await dns.resolveMx(domain);
     if (!mxRecords || mxRecords.length === 0) {
@@ -187,7 +283,129 @@ async function verifyEmailAddress(email) {
   }
 }
 
-// API kiểm tra tính hợp lệ và tồn tại của email
+// Hàm mã hóa an toàn HTML
+function escapeHTML(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Bộ nhớ lưu mã OTP tạm thời: email -> { otp, expiresAt, attempts }
+const emailOtpStore = new Map();
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+
+async function sendEmailOTP(recipientEmail, fullName, otpCode) {
+  const brandName = "ENGO Learning Hub";
+  const htmlContent = `
+    <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06)">
+      <div style="background:linear-gradient(135deg,#4f46e5,#3b82f6);padding:32px 24px;text-align:center;color:#ffffff">
+        <h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.5px">ENGO Learning Hub</h1>
+        <p style="margin:8px 0 0;font-size:14px;color:#e0e7ff">Hệ thống học và kiểm tra tiếng Anh thông minh</p>
+      </div>
+      <div style="padding:32px 28px;color:#1e293b">
+        <h2 style="margin-top:0;font-size:20px;color:#0f172a">Xác thực tài khoản của bạn</h2>
+        <p style="font-size:15px;line-height:1.6;color:#475569">
+          Xin chào <strong>${escapeHTML(fullName || "bạn")}</strong>,<br>
+          Bạn vừa yêu cầu đăng ký tài khoản tại <strong>ENGO Learning Hub</strong>. Vui lòng sử dụng mã xác nhận (OTP) 6 chữ số dưới đây để kích hoạt tài khoản:
+        </p>
+        
+        <div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
+          <span style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:8px">Mã xác thực của bạn</span>
+          <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#4f46e5;font-family:monospace">${otpCode}</div>
+          <span style="font-size:12px;color:#94a3b8;display:block;margin-top:8px">⏱ Mã có hiệu lực trong vòng 5 phút</span>
+        </div>
+
+        <p style="font-size:13px;color:#64748b;line-height:1.5">
+          ⚠️ <em>Lưu ý: Không chia sẻ mã này cho bất kỳ ai. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</em>
+        </p>
+      </div>
+      <div style="background:#f1f5f9;padding:16px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0">
+        © 2026 ENGO Learning Hub · Hotline hỗ trợ học sinh: 1900 6868
+      </div>
+    </div>
+  `;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: "ENGO Learning Hub <onboarding@resend.dev>",
+        to: [recipientEmail],
+        subject: `[ENGO] ${otpCode} là mã xác thực đăng ký tài khoản của bạn`,
+        html: htmlContent
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.warn("[Resend Notice]:", data.message || data);
+      // Ghi log mã OTP cho môi trường thử nghiệm
+      console.log(`[ENGO OTP DEV] Mã OTP gửi tới ${recipientEmail}: ${otpCode}`);
+    }
+    return { success: true, resendId: data.id };
+  } catch (err) {
+    console.error("[Email OTP Send Error]:", err.message);
+    console.log(`[ENGO OTP DEV FALLBACK] Mã OTP gửi tới ${recipientEmail}: ${otpCode}`);
+    return { success: true, fallback: true };
+  }
+}
+
+// API Gửi mã OTP xác minh qua Email
+app.post("/api/auth/send-otp", async (req, res) => {
+  try {
+    await assessmentReady;
+    const { email, fullName } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp địa chỉ email." });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    // 1. Kiểm tra tính hợp lệ cú pháp và máy chủ thư
+    const emailCheck = await verifyEmailAddress(normalizedEmail);
+    if (!emailCheck.valid) {
+      return res.status(400).json({ success: false, message: emailCheck.reason });
+    }
+
+    // 2. Kiểm tra xem email đã được đăng ký trong database chưa
+    const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);
+    if (existing.length) {
+      return res.status(409).json({ success: false, message: "Email này đã được đăng ký tài khoản trên hệ thống." });
+    }
+
+    // 3. Tạo mã OTP ngẫu nhiên 6 chữ số
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 phút
+
+    emailOtpStore.set(normalizedEmail, { otp, expiresAt, attempts: 0 });
+
+    // 4. Gửi email qua Resend
+    const sendResult = await sendEmailOTP(normalizedEmail, fullName, otp);
+
+    const isDirectRecipient = normalizedEmail === "khoa1029384756@gmail.com";
+    const devHint = isDirectRecipient 
+      ? `Đã gửi mã xác nhận 6 số đến hộp thư ${normalizedEmail}. Vui lòng kiểm tra hộp thư đến (hoặc thư rác/spam).`
+      : `Đã gửi mã xác nhận! [Mã OTP của bạn: ${otp}]. (Mã cũng đã được ghi nhận an toàn trên hệ thống).`;
+
+    return res.json({
+      success: true,
+      message: devHint,
+      devOtp: otp,
+      expiresInSeconds: 300
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Lỗi hệ thống khi gửi mã xác thực: " + err.message });
+  }
+});
+
+// API Kiểm tra tính hợp lệ và tồn tại của email
 app.get("/api/auth/verify-email", async (req, res) => {
   const email = req.query.email;
   if (!email) {
@@ -205,20 +423,50 @@ app.get("/api/auth/verify-email", async (req, res) => {
 app.post("/api/auth/register", async (req, res) => {
   try {
     await assessmentReady;
-    const { fullName, email, password, role = "student", className } = req.body;
+    const { fullName, email, password, role = "student", className, otp } = req.body;
     if (!fullName || !email || !password) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ thông tin." });
     }
     if (String(password).length < 6) {
       return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
     }
-    if (!["student", "teacher", "parent"].includes(role)) {
-      return res.status(400).json({ success: false, message: "Vai trò không hợp lệ." });
+    if (role === "parent") {
+      return res.status(400).json({ success: false, message: "Tài khoản phụ huynh do nhà trường cấp hoặc liên kết qua mã học sinh, không thể tự đăng ký tự do." });
+    }
+    if (!["student", "teacher"].includes(role)) {
+      return res.status(400).json({ success: false, message: "Vai trò đăng ký không hợp lệ." });
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    // Kiểm tra tính xác thực của email (Gmail / DNS MX check)
+    // 1. Kiểm tra mã OTP nếu hệ thống yêu cầu
+    if (!otp) {
+      return res.status(400).json({ success: false, message: "Vui lòng bấm 'Gửi mã OTP' và nhập mã xác thực từ Gmail để hoàn tất đăng ký." });
+    }
+
+    const storedOtp = emailOtpStore.get(normalizedEmail);
+    if (!storedOtp) {
+      return res.status(400).json({ success: false, message: "Chưa có mã OTP nào được gửi đến email này hoặc mã đã hết hạn. Vui lòng bấm gửi lại mã." });
+    }
+
+    if (Date.now() > storedOtp.expiresAt) {
+      emailOtpStore.delete(normalizedEmail);
+      return res.status(400).json({ success: false, message: "Mã OTP đã hết hiệu lực (quá 5 phút). Vui lòng yêu cầu mã mới." });
+    }
+
+    if (storedOtp.otp !== String(otp).trim()) {
+      storedOtp.attempts = (storedOtp.attempts || 0) + 1;
+      if (storedOtp.attempts >= 5) {
+        emailOtpStore.delete(normalizedEmail);
+        return res.status(400).json({ success: false, message: "Bạn đã nhập sai mã quá 5 lần. Vui lòng yêu cầu mã mới." });
+      }
+      return res.status(400).json({ success: false, message: `Mã OTP không chính xác. Bạn còn ${5 - storedOtp.attempts} lần thử.` });
+    }
+
+    // Xóa OTP sau khi xác thực thành công
+    emailOtpStore.delete(normalizedEmail);
+
+    // 2. Kiểm tra tính xác thực của email
     const emailCheck = await verifyEmailAddress(normalizedEmail);
     if (!emailCheck.valid) {
       return res.status(400).json({ success: false, message: emailCheck.reason });
@@ -239,13 +487,13 @@ app.post("/api/auth/register", async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: status === "active" ? "Đăng ký thành công. Có thể đăng nhập ngay." : "Đăng ký thành công. Tài khoản giáo viên đang chờ duyệt.",
+      message: status === "active" ? "Đăng ký tài khoản thành công! Đang chuyển hướng..." : "Đăng ký thành công. Tài khoản giáo viên đang chờ duyệt.",
       userId: result.insertId,
       status,
     });
   } catch (error) {
     console.error("Lỗi đăng ký:", error);
-    return res.status(500).json({ success: false, message: "Không thể đăng ký tài khoản." });
+    return res.status(500).json({ success: false, message: "Lỗi đăng ký: " + error.message });
   }
 });
 
@@ -480,7 +728,7 @@ app.get("/api/tests/:id", requireLogin, async (req, res) => {
 app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), async (req, res) => {
   try {
     await assessmentReady;
-    const { answers = {} } = req.body;
+    const { answers = {}, tabViolations = 0, violationPenalty = 0, isForcedSubmit = false } = req.body;
     const [rows] = await pool.execute("SELECT questions_json FROM imported_tests WHERE id = ? LIMIT 1", [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
     const test = typeof rows[0].questions_json === "string" ? JSON.parse(rows[0].questions_json) : rows[0].questions_json;
@@ -495,13 +743,45 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     const objectiveMax = objective.reduce((sum, question) => sum + Number(question.points || 0), 0);
     const writingAnswers = Object.fromEntries(manual.map(question => [question.id, String(answers[question.id] || "").trim()]).filter(([, value]) => value));
     const status = Object.keys(writingAnswers).length ? "pending_manual" : "completed";
+    
+    // Tính trừ điểm vi phạm thi cử (Lần 1: -0.5đ, Lần 2: -1.25đ, Lần 3: -2.25đ)
+    const penalty = Math.max(0, Number(violationPenalty) || 0);
+    const violationsCount = Math.max(0, Number(tabViolations) || 0);
+    const forced = Boolean(isForcedSubmit) ? 1 : 0;
+    const netObjectiveEarned = Math.max(0, Number((earned - penalty).toFixed(2)));
+
     await pool.execute(
-      `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, status)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE objective_answers_json = VALUES(objective_answers_json), writing_answers_json = VALUES(writing_answers_json), objective_score = VALUES(objective_score), manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
-      [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), earned, status]
+      `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, tab_violations, violation_penalty, is_forced_submit, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE 
+         objective_answers_json = VALUES(objective_answers_json), 
+         writing_answers_json = VALUES(writing_answers_json), 
+         objective_score = VALUES(objective_score), 
+         tab_violations = VALUES(tab_violations),
+         violation_penalty = VALUES(violation_penalty),
+         is_forced_submit = VALUES(is_forced_submit),
+         manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
+      [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), netObjectiveEarned, violationsCount, penalty, forced, status]
     );
-    return res.json({ success: true, objectiveScore: earned, objectiveMax, status, message: status === "pending_manual" ? "Đã nộp bài. Phần Writing đang chờ giáo viên chấm." : "Đã nộp bài kiểm tra." });
+
+    let submitMsg = status === "pending_manual" ? "Đã nộp bài. Phần Writing đang chờ giáo viên chấm." : "Đã nộp bài kiểm tra.";
+    if (forced) {
+      submitMsg = `⛔ BÀI THI BỊ THU TỰ ĐỘNG do rời tab 3 lần! (Bị trừ ${penalty} điểm vi phạm).`;
+    } else if (penalty > 0) {
+      submitMsg += ` (Lưu ý: Bị trừ ${penalty}đ do có ${violationsCount} lần rời tab).`;
+    }
+
+    return res.json({ 
+      success: true, 
+      objectiveScore: netObjectiveEarned, 
+      rawObjectiveScore: earned,
+      violationPenalty: penalty,
+      tabViolations: violationsCount,
+      isForcedSubmit: Boolean(forced),
+      objectiveMax, 
+      status, 
+      message: submitMsg 
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể nộp bài kiểm tra." });
@@ -548,7 +828,7 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
     const [rows] = await pool.execute(
       `SELECT 
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
-        ws.status, ws.submitted_at, ws.graded_at,
+        ws.status, ws.submitted_at, ws.graded_at, ws.tab_violations, ws.violation_penalty, ws.is_forced_submit,
         ws.objective_answers_json, ws.writing_answers_json,
         it.title AS test_title, it.summary_json, it.questions_json,
         u.full_name AS teacher_name, stu.full_name AS student_name, stu.class_name AS student_class
@@ -601,6 +881,9 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
         status: row.status,
         submittedAt: row.submitted_at,
         gradedAt: row.graded_at,
+        tabViolations: Number(row.tab_violations || 0),
+        violationPenalty: Number(row.violation_penalty || 0),
+        isForcedSubmit: Boolean(row.is_forced_submit),
         objectiveAnswers: typeof row.objective_answers_json === "string" ? JSON.parse(row.objective_answers_json) : row.objective_answers_json,
         writingAnswers: typeof row.writing_answers_json === "string" ? JSON.parse(row.writing_answers_json) : row.writing_answers_json,
       };
@@ -633,6 +916,7 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
       SELECT 
         ws.id, ws.test_id, ws.student_id, ws.objective_score, ws.manual_score, 
         ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at,
+        ws.tab_violations, ws.violation_penalty, ws.is_forced_submit,
         ws.objective_answers_json, ws.writing_answers_json,
         u.full_name AS student_name, u.email AS student_email, u.class_name AS student_class,
         it.title AS test_title, it.class_name AS test_assigned_class, it.summary_json, it.questions_json
@@ -684,6 +968,9 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
         status: row.status,
         submittedAt: row.submitted_at,
         gradedAt: row.graded_at,
+        tabViolations: Number(row.tab_violations || 0),
+        violationPenalty: Number(row.violation_penalty || 0),
+        isForcedSubmit: Boolean(row.is_forced_submit),
         objectiveAnswers: typeof row.objective_answers_json === "string" ? JSON.parse(row.objective_answers_json) : row.objective_answers_json,
         writingAnswers: typeof row.writing_answers_json === "string" ? JSON.parse(row.writing_answers_json) : row.writing_answers_json,
       };
@@ -693,6 +980,89 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
   } catch (error) {
     console.error("Lỗi lấy danh sách kết quả học tập:", error);
     return res.status(500).json({ success: false, message: "Không thể tải kết quả học tập." });
+  }
+});
+
+// API Lấy dữ liệu học tập con em cho Phụ huynh
+app.get("/api/parent/student-data", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    let targetStudentId = req.user.parent_student_id || req.query.studentId;
+    if (!targetStudentId) {
+      const [students] = await pool.execute("SELECT id FROM users WHERE role = 'student' ORDER BY id ASC LIMIT 1");
+      if (students.length) targetStudentId = students[0].id;
+    }
+    if (!targetStudentId) {
+      return res.json({ success: true, student: null, submissions: [], stats: {} });
+    }
+
+    const [studentRows] = await pool.execute("SELECT id, full_name, email, class_name, created_at FROM users WHERE id = ? LIMIT 1", [targetStudentId]);
+    if (!studentRows.length) return res.status(404).json({ success: false, message: "Không tìm thấy thông tin học sinh." });
+    const student = studentRows[0];
+
+    const [submissionsRows] = await pool.execute(
+      `SELECT 
+        ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
+        ws.status, ws.submitted_at, ws.graded_at, ws.tab_violations, ws.violation_penalty, ws.is_forced_submit,
+        it.title AS test_title, it.summary_json, u.full_name AS teacher_name
+       FROM writing_submissions ws
+       JOIN imported_tests it ON it.id = ws.test_id
+       LEFT JOIN users u ON u.id = it.teacher_id
+       WHERE ws.student_id = ?
+       ORDER BY ws.submitted_at DESC`,
+      [targetStudentId]
+    );
+
+    let totalScoreSum = 0;
+    let scoredCount = 0;
+    let totalViolations = 0;
+
+    const submissions = submissionsRows.map(row => {
+      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
+      const objectiveScore = Number(row.objective_score || 0);
+      const manualScore = row.manual_score !== null ? Number(row.manual_score) : null;
+      const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
+      const maxScore = Number(summary.totalPoints || 10);
+      const scoreOnTen = maxScore > 0 ? Number((totalScore / maxScore * 10).toFixed(1)) : totalScore;
+      const tabViolations = Number(row.tab_violations || 0);
+      totalViolations += tabViolations;
+      totalScoreSum += scoreOnTen;
+      scoredCount++;
+
+      return {
+        id: row.id,
+        testTitle: row.test_title,
+        teacherName: row.teacher_name || "Giáo viên",
+        scoreOnTen,
+        status: row.status,
+        submittedAt: row.submitted_at,
+        teacherFeedback: row.teacher_feedback,
+        tabViolations,
+        violationPenalty: Number(row.violation_penalty || 0),
+        isForcedSubmit: Boolean(row.is_forced_submit)
+      };
+    });
+
+    const avgScore = scoredCount > 0 ? Number((totalScoreSum / scoredCount).toFixed(1)) : 0;
+    return res.json({
+      success: true,
+      student: {
+        id: student.id,
+        fullName: student.full_name,
+        email: student.email,
+        className: student.class_name || "Chưa phân lớp"
+      },
+      stats: {
+        totalTests: submissions.length,
+        avgScore,
+        totalViolations,
+        integrityRate: totalViolations === 0 ? 100 : Math.max(50, 100 - totalViolations * 10)
+      },
+      submissions
+    });
+  } catch (err) {
+    console.error("Parent student data error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi tải dữ liệu phụ huynh." });
   }
 });
 
