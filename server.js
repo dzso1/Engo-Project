@@ -57,14 +57,14 @@ function requireRole(...roles) {
 }
 
 async function ensureAssessmentTables() {
+  // 1. Tạo bảng users nếu chưa có
   try {
-    // 1. Tạo bảng users nếu chưa có
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         full_name VARCHAR(100) NOT NULL,
         email VARCHAR(100) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(20) NOT NULL DEFAULT 'student',
         class_name VARCHAR(50) NULL,
         parent_student_id BIGINT UNSIGNED NULL,
@@ -74,8 +74,10 @@ async function ensureAssessmentTables() {
         INDEX idx_users_role (role)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+  } catch (e) {}
 
-    // 2. Tạo bảng imported_tests nếu chưa có
+  // 2. Tạo bảng imported_tests nếu chưa có
+  try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS imported_tests (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -90,8 +92,10 @@ async function ensureAssessmentTables() {
         INDEX idx_imported_tests_class (class_name)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+  } catch (e) {}
 
-    // 3. Tạo bảng writing_submissions nếu chưa có
+  // 3. Tạo bảng writing_submissions nếu chưa có
+  try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS writing_submissions (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -112,29 +116,31 @@ async function ensureAssessmentTables() {
         INDEX idx_writing_status (status)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+  } catch (e) {}
 
-    // 4. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
-    try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN tab_violations INT NOT NULL DEFAULT 0"); } catch (e) {}
-    try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN violation_penalty DECIMAL(5,2) NOT NULL DEFAULT 0"); } catch (e) {}
-    try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN is_forced_submit TINYINT(1) NOT NULL DEFAULT 0"); } catch (e) {}
-    try { await pool.query("ALTER TABLE users ADD COLUMN parent_student_id BIGINT UNSIGNED NULL"); } catch (e) {}
-    try { await pool.query("ALTER TABLE users ADD COLUMN class_name VARCHAR(50) NULL"); } catch (e) {}
+  // 4. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
+  try { await pool.query("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"); } catch (e) {}
+  try { await pool.query("UPDATE users SET password_hash = password WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN tab_violations INT NOT NULL DEFAULT 0"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN violation_penalty DECIMAL(5,2) NOT NULL DEFAULT 0"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN is_forced_submit TINYINT(1) NOT NULL DEFAULT 0"); } catch (e) {}
+  try { await pool.query("ALTER TABLE users ADD COLUMN parent_student_id BIGINT UNSIGNED NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE users ADD COLUMN class_name VARCHAR(50) NULL"); } catch (e) {}
 
-    // 5. Nếu bảng users hoàn toàn trống, tự tạo tài khoản Admin và Giáo viên mẫu để dùng ngay
+  // 5. Nếu bảng users hoàn toàn trống, tự tạo tài khoản Admin và Giáo viên mẫu để dùng ngay
+  try {
     const [userRows] = await pool.query("SELECT COUNT(*) AS total FROM users");
     if (userRows && userRows[0] && userRows[0].total === 0) {
       const defaultHash = await bcrypt.hash("123456", 12);
       await pool.query(
-        `INSERT INTO users (full_name, email, password, role, status) VALUES 
+        `INSERT INTO users (full_name, email, password_hash, role, status) VALUES 
          ('Quản Trị Viên', 'admin@engo.edu.vn', ?, 'admin', 'active'),
          ('Cô Nguyễn Lan Hương', 'teacher@engo.edu.vn', ?, 'teacher', 'active')`,
         [defaultHash, defaultHash]
       );
-      console.log("[DB] Đã khởi tạo bảng MySQL và tài khoản mặc định (admin@engo.edu.vn / 123456).");
+      console.log("[DB] Đã khởi tạo tài khoản mặc định (admin@engo.edu.vn / 123456).");
     }
-  } catch (error) {
-    console.error("[DB] Lỗi khởi tạo bảng MySQL:", error.message);
-  }
+  } catch (e) {}
 }
 
 const assessmentReady = ensureAssessmentTables()
