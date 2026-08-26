@@ -1478,6 +1478,14 @@
           document.getElementById("wrongCount").textContent=result.status==="pending_manual"?"Writing chờ chấm":"Đã nộp";
           document.getElementById("attemptCount").textContent=examTabSwitches > 0 ? `${examTabSwitches} vi phạm (-${penalty}đ)` : "Nghiêm túc (0 vi phạm)";
           applyResultScoreUI(Number(scoreOnTen), result.status==="pending_manual");
+          // Ghi nhận các câu trắc nghiệm sai vào Phòng Chữa Lỗi
+          questions.forEach((q, i) => {
+            if (q.options?.length && !isCorrect(i)) {
+              const selectedText = answers[i] !== undefined ? q.options[answers[i]] : "Chưa chọn";
+              const correctText = q.answer !== undefined ? q.options[q.answer] : "";
+              recordErrorForHealing(q.prompt, selectedText, correctText, q.type || q.section);
+            }
+          });
           document.getElementById("resultModal").classList.remove("hidden");
           showToast(result.message);
           return;
@@ -3462,33 +3470,27 @@
     // ==========================================
 
     const defaultHealingProfile = {
-      pendingErrors: [
-        { id: "err-1", code: "PS_NEG", triggerQuestion: "He don't like spicy food, so he never orders chili.", selected: "don't", correct: "doesn't", createdAt: new Date().toISOString() },
-        { id: "err-2", code: "PAST_IRR", triggerQuestion: "She buyed a new English dictionary yesterday.", selected: "buyed", correct: "bought", createdAt: new Date().toISOString() },
-        { id: "err-3", code: "CMP_LONG", triggerQuestion: "This painting is beautifuler than that one.", selected: "beautifuler", correct: "more beautiful", createdAt: new Date().toISOString() }
-      ],
-      healedHistory: [
-        { id: "healed-0", code: "PS_AFF", title: "Hiện tại đơn — Khẳng định (+s/es)", healedAt: new Date(Date.now() - 86400000).toISOString(), score: "3/3" }
-      ],
-      healingStreak: 1,
+      pendingErrors: [],
+      healedHistory: [],
+      healingStreak: 0,
       heatmapStatus: {
-        "PS_AFF": "mastered",
-        "PS_NEG": "weak",
-        "PS_QUE": "shaky",
-        "PS_ADV": "mastered",
-        "PAST_REG": "shaky",
-        "PAST_IRR": "weak",
-        "PAST_NEG": "mastered",
-        "PAST_QUE": "shaky",
-        "PAST_BE": "mastered",
-        "CMP_SHORT": "mastered",
-        "CMP_LONG": "weak",
-        "CMP_IRR": "shaky"
+        "PS_AFF": "unknown",
+        "PS_NEG": "unknown",
+        "PS_QUE": "unknown",
+        "PS_ADV": "unknown",
+        "PAST_REG": "unknown",
+        "PAST_IRR": "unknown",
+        "PAST_NEG": "unknown",
+        "PAST_QUE": "unknown",
+        "PAST_BE": "unknown",
+        "CMP_SHORT": "unknown",
+        "CMP_LONG": "unknown",
+        "CMP_IRR": "unknown"
       }
     };
 
     function getHealingProfile() {
-      const key = getUserStorageKey("engoHealingProfileV1");
+      const key = getUserStorageKey("engoHealingProfileV2");
       try {
         const raw = localStorage.getItem(key);
         if (raw) return JSON.parse(raw);
@@ -3497,7 +3499,7 @@
     }
 
     function saveHealingProfile(profile) {
-      const key = getUserStorageKey("engoHealingProfileV1");
+      const key = getUserStorageKey("engoHealingProfileV2");
       try {
         localStorage.setItem(key, JSON.stringify(profile));
       } catch (e) {}
