@@ -120,6 +120,7 @@ async function ensureAssessmentTables() {
 
   // 4. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
   try { await pool.query("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL DEFAULT NULL"); } catch (e) {}
   try { await pool.query("UPDATE users SET password_hash = password WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN tab_violations INT NOT NULL DEFAULT 0"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN violation_penalty DECIMAL(5,2) NOT NULL DEFAULT 0"); } catch (e) {}
@@ -546,10 +547,16 @@ app.post("/api/auth/register", async (req, res) => {
     const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
     const passwordHash = await bcrypt.hash(password, 12);
     const status = role === "teacher" ? "pending" : "active";
-    const [result] = await pool.execute(
-      "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)",
-      [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status]
-    );
+    let insertSql = "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)";
+    let insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status];
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM users LIKE 'password'");
+      if (cols && cols.length > 0) {
+        insertSql = "INSERT INTO users (full_name, email, password_hash, password, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, passwordHash, role, studentClass, status];
+      }
+    } catch (e) {}
+    const [result] = await pool.execute(insertSql, insertParams);
 
     return res.status(201).json({
       success: true,
@@ -684,10 +691,16 @@ app.post("/api/admin/users", requireLogin, requireRole("admin"), async (req, res
 
     const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
     const passwordHash = await bcrypt.hash(password, 12);
-    const [result] = await pool.execute(
-      "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)",
-      [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status]
-    );
+    let insertSql = "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)";
+    let insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status];
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM users LIKE 'password'");
+      if (cols && cols.length > 0) {
+        insertSql = "INSERT INTO users (full_name, email, password_hash, password, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, passwordHash, role, studentClass, status];
+      }
+    } catch (e) {}
+    const [result] = await pool.execute(insertSql, insertParams);
     return res.status(201).json({ success: true, message: "Đã thêm tài khoản.", userId: result.insertId });
   } catch (error) {
     console.error(error);
