@@ -142,6 +142,33 @@ async function ensureAssessmentTables() {
       console.log("[DB] Đã khởi tạo tài khoản mặc định (admin@engo.edu.vn / 123456).");
     }
   } catch (e) {}
+
+  await syncSubmissionColumns();
+}
+
+let tableCols = {
+  tab_violations: false,
+  violation_penalty: false,
+  is_forced_submit: false
+};
+
+async function syncSubmissionColumns() {
+  try {
+    const [cols] = await pool.query("SHOW COLUMNS FROM writing_submissions");
+    const colNames = cols.map(c => c.Field);
+    tableCols.tab_violations = colNames.includes("tab_violations");
+    tableCols.violation_penalty = colNames.includes("violation_penalty");
+    tableCols.is_forced_submit = colNames.includes("is_forced_submit");
+  } catch (e) {
+    tableCols = { tab_violations: false, violation_penalty: false, is_forced_submit: false };
+  }
+}
+
+function getViolationSelectCols() {
+  const tabCol = tableCols.tab_violations ? "ws.tab_violations" : "0 AS tab_violations";
+  const penaltyCol = tableCols.violation_penalty ? "ws.violation_penalty" : "0 AS violation_penalty";
+  const forcedCol = tableCols.is_forced_submit ? "ws.is_forced_submit" : "0 AS is_forced_submit";
+  return `${tabCol}, ${penaltyCol}, ${forcedCol}`;
 }
 
 const assessmentReady = ensureAssessmentTables()
@@ -829,19 +856,32 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     const forced = Boolean(isForcedSubmit) ? 1 : 0;
     const netObjectiveEarned = Math.max(0, Number((earned - penalty).toFixed(2)));
 
-    await pool.execute(
-      `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, tab_violations, violation_penalty, is_forced_submit, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-         objective_answers_json = VALUES(objective_answers_json), 
-         writing_answers_json = VALUES(writing_answers_json), 
-         objective_score = VALUES(objective_score), 
-         tab_violations = VALUES(tab_violations),
-         violation_penalty = VALUES(violation_penalty),
-         is_forced_submit = VALUES(is_forced_submit),
-         manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
-      [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), netObjectiveEarned, violationsCount, penalty, forced, status]
-    );
+    if (tableCols.tab_violations) {
+      await pool.execute(
+        `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, tab_violations, violation_penalty, is_forced_submit, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           objective_answers_json = VALUES(objective_answers_json), 
+           writing_answers_json = VALUES(writing_answers_json), 
+           objective_score = VALUES(objective_score), 
+           tab_violations = VALUES(tab_violations),
+           violation_penalty = VALUES(violation_penalty),
+           is_forced_submit = VALUES(is_forced_submit),
+           manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
+        [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), netObjectiveEarned, violationsCount, penalty, forced, status]
+      );
+    } else {
+      await pool.execute(
+        `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, status)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           objective_answers_json = VALUES(objective_answers_json), 
+           writing_answers_json = VALUES(writing_answers_json), 
+           objective_score = VALUES(objective_score), 
+           manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
+        [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), netObjectiveEarned, status]
+      );
+    }
 
     let submitMsg = status === "pending_manual" ? "Đã nộp bài. Phần Writing đang chờ giáo viên chấm." : "Đã nộp bài kiểm tra.";
     if (forced) {
@@ -907,7 +947,7 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
     const [rows] = await pool.execute(
       `SELECT 
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
-        ws.status, ws.submitted_at, ws.graded_at, ws.tab_violations, ws.violation_penalty, ws.is_forced_submit,
+        ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()},
         ws.objective_answers_json, ws.writing_answers_json,
         it.title AS test_title, it.summary_json, it.questions_json,
         u.full_name AS teacher_name, stu.full_name AS student_name, stu.class_name AS student_class
@@ -995,7 +1035,7 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
       SELECT 
         ws.id, ws.test_id, ws.student_id, ws.objective_score, ws.manual_score, 
         ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at,
-        ws.tab_violations, ws.violation_penalty, ws.is_forced_submit,
+        ${getViolationSelectCols()},
         ws.objective_answers_json, ws.writing_answers_json,
         u.full_name AS student_name, u.email AS student_email, u.class_name AS student_class,
         it.title AS test_title, it.class_name AS test_assigned_class, it.summary_json, it.questions_json
@@ -1082,7 +1122,7 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
     const [submissionsRows] = await pool.execute(
       `SELECT 
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
-        ws.status, ws.submitted_at, ws.graded_at, ws.tab_violations, ws.violation_penalty, ws.is_forced_submit,
+        ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()},
         it.title AS test_title, it.summary_json, u.full_name AS teacher_name
        FROM writing_submissions ws
        JOIN imported_tests it ON it.id = ws.test_id
