@@ -46,6 +46,35 @@ ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS tab_violations INT NOT 
 ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS violation_penalty DECIMAL(5,2) NOT NULL DEFAULT 0;
 ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS is_forced_submit TINYINT(1) NOT NULL DEFAULT 0;
 
--- 5. Cấp quyền đầy đủ cho tài khoản engo_app
+-- 5. Tạo bảng speaking_assignments (bài tập speaking do giáo viên giao)
+CREATE TABLE IF NOT EXISTS speaking_assignments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  teacher_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  class_name VARCHAR(50) NULL,
+  sentence TEXT NOT NULL,
+  ipa VARCHAR(255) NULL,
+  translation TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_speaking_teacher (teacher_id),
+  INDEX idx_speaking_class (class_name),
+  CONSTRAINT fk_speaking_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6. Tạo bảng speaking_submissions (bài nộp luyện nói của học sinh)
+CREATE TABLE IF NOT EXISTS speaking_submissions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  assignment_id BIGINT UNSIGNED NOT NULL,
+  student_id BIGINT UNSIGNED NOT NULL,
+  accuracy_percent INT NOT NULL DEFAULT 0,
+  spoken_transcript TEXT NULL,
+  submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_speaking_sub (assignment_id, student_id),
+  INDEX idx_speaking_sub_student (student_id),
+  CONSTRAINT fk_speaking_sub_assign FOREIGN KEY (assignment_id) REFERENCES speaking_assignments(id) ON DELETE CASCADE,
+  CONSTRAINT fk_speaking_sub_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. Cấp quyền đầy đủ cho tài khoản engo_app
 GRANT ALL PRIVILEGES ON engo.* TO 'engo_app'@'localhost';
 FLUSH PRIVILEGES;

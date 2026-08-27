@@ -118,7 +118,41 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) {}
 
-  // 4. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
+  // 4. Tạo bảng speaking_assignments nếu chưa có
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS speaking_assignments (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        teacher_id BIGINT UNSIGNED NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        class_name VARCHAR(50) NULL,
+        sentence TEXT NOT NULL,
+        ipa VARCHAR(255) NULL,
+        translation TEXT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_speaking_teacher (teacher_id),
+        INDEX idx_speaking_class (class_name)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) {}
+
+  // 5. Tạo bảng speaking_submissions nếu chưa có
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS speaking_submissions (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        assignment_id BIGINT UNSIGNED NOT NULL,
+        student_id BIGINT UNSIGNED NOT NULL,
+        accuracy_percent INT NOT NULL DEFAULT 0,
+        spoken_transcript TEXT NULL,
+        submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_speaking_sub (assignment_id, student_id),
+        INDEX idx_speaking_sub_student (student_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) {}
+
+  // 6. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
   try { await pool.query("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL DEFAULT NULL"); } catch (e) {}
   try { await pool.query("UPDATE users SET password_hash = password WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL"); } catch (e) {}
@@ -1304,6 +1338,163 @@ app.patch("/api/teacher/writing-submissions/:id", requireLogin, requireRole("tea
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể lưu điểm Writing." });
+  }
+});
+
+// ==========================================
+// API GIAO & NỘP BÀI TẬP SPEAKING (AI SPEAKING ASSIGNMENTS)
+// ==========================================
+
+// 1. Giáo viên tạo bài tập Speaking mới
+app.post("/api/teacher/speaking-assignments", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { title, className, sentence, ipa, translation } = req.body;
+    if (!title || !sentence) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tiêu đề và câu tiếng Anh cần luyện nói." });
+    }
+    const targetClass = className && String(className).trim() ? String(className).trim() : null;
+    const [result] = await pool.execute(
+      `INSERT INTO speaking_assignments (teacher_id, title, class_name, sentence, ipa, translation)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [req.user.userId, String(title).trim(), targetClass, String(sentence).trim(), ipa ? String(ipa).trim() : null, translation ? String(translation).trim() : null]
+    );
+    return res.status(201).json({
+      success: true,
+      message: "Đã giao bài tập Speaking thành công!",
+      assignmentId: result.insertId
+    });
+  } catch (error) {
+    console.error("Lỗi giao bài speaking:", error);
+    return res.status(500).json({ success: false, message: "Không thể tạo bài tập Speaking: " + error.message });
+  }
+});
+
+// 2. Lấy danh sách bài tập Speaking (Học sinh & Giáo viên)
+app.get("/api/speaking/assignments", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    if (req.user.role === "teacher" || req.user.role === "admin") {
+      let query = `
+        SELECT sa.*, u.full_name AS teacher_name,
+               (SELECT COUNT(*) FROM speaking_submissions ss WHERE ss.assignment_id = sa.id) AS submission_count
+        FROM speaking_assignments sa
+        LEFT JOIN users u ON u.id = sa.teacher_id
+      `;
+      const params = [];
+      if (req.user.role === "teacher") {
+        query += " WHERE sa.teacher_id = ?";
+        params.push(req.user.userId);
+      }
+      query += " ORDER BY sa.created_at DESC";
+      const [rows] = await pool.execute(query, params);
+      return res.json({ success: true, assignments: rows });
+    }
+
+    // Nếu là học sinh: lấy bài tập của lớp mình hoặc bài giao toàn khối
+    const [userRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
+    const studentClass = userRows[0]?.class_name || null;
+
+    let query = `
+      SELECT sa.*, u.full_name AS teacher_name,
+             ss.accuracy_percent AS student_accuracy, ss.spoken_transcript AS student_transcript,
+             ss.submitted_at AS student_submitted_at
+      FROM speaking_assignments sa
+      LEFT JOIN users u ON u.id = sa.teacher_id
+      LEFT JOIN speaking_submissions ss ON ss.assignment_id = sa.id AND ss.student_id = ?
+      WHERE (sa.class_name IS NULL OR sa.class_name = '' OR sa.class_name = ?)
+      ORDER BY sa.created_at DESC
+    `;
+    const [rows] = await pool.execute(query, [req.user.userId, studentClass || ""]);
+    return res.json({ success: true, assignments: rows });
+  } catch (error) {
+    console.error("Lỗi lấy bài speaking:", error);
+    return res.status(500).json({ success: false, message: "Không thể tải danh sách bài tập Speaking." });
+  }
+});
+
+// 3. Giáo viên xóa bài tập Speaking
+app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    let query = "DELETE FROM speaking_assignments WHERE id = ?";
+    const params = [req.params.id];
+    if (req.user.role === "teacher") {
+      query += " AND teacher_id = ?";
+      params.push(req.user.userId);
+    }
+    const [result] = await pool.execute(query, params);
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy bài tập hoặc không có quyền xóa." });
+    }
+    return res.json({ success: true, message: "Đã xóa bài tập Speaking." });
+  } catch (error) {
+    console.error("Lỗi xóa bài speaking:", error);
+    return res.status(500).json({ success: false, message: "Không thể xóa bài tập Speaking." });
+  }
+});
+
+// 4. Học sinh nộp kết quả phát âm Speaking cho giáo viên
+app.post("/api/student/speaking-submissions", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    const { assignmentId, accuracyPercent, spokenTranscript } = req.body;
+    if (!assignmentId) {
+      return res.status(400).json({ success: false, message: "Thiếu ID bài tập Speaking." });
+    }
+    const accuracy = Math.max(0, Math.min(100, Number(accuracyPercent) || 0));
+    await pool.execute(
+      `INSERT INTO speaking_submissions (assignment_id, student_id, accuracy_percent, spoken_transcript, submitted_at)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE
+         accuracy_percent = VALUES(accuracy_percent),
+         spoken_transcript = VALUES(spoken_transcript),
+         submitted_at = CURRENT_TIMESTAMP`,
+      [assignmentId, req.user.userId, accuracy, String(spokenTranscript || "").trim()]
+    );
+    return res.json({
+      success: true,
+      message: `Đã nộp bài Speaking thành công cho giáo viên! Độ chuẩn: ${accuracy}%`
+    });
+  } catch (error) {
+    console.error("Lỗi nộp bài speaking:", error);
+    return res.status(500).json({ success: false, message: "Không thể nộp bài Speaking." });
+  }
+});
+
+// 5. Giáo viên xem danh sách học sinh đã nộp bài Speaking
+app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { assignmentId, className } = req.query;
+    let query = `
+      SELECT ss.id, ss.assignment_id, ss.accuracy_percent, ss.spoken_transcript, ss.submitted_at,
+             sa.title AS task_title, sa.sentence AS target_sentence, sa.ipa AS target_ipa,
+             u.full_name AS student_name, u.email AS student_email, u.class_name AS student_class
+      FROM speaking_submissions ss
+      JOIN speaking_assignments sa ON sa.id = ss.assignment_id
+      JOIN users u ON u.id = ss.student_id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (req.user.role === "teacher") {
+      query += " AND sa.teacher_id = ?";
+      params.push(req.user.userId);
+    }
+    if (assignmentId) {
+      query += " AND ss.assignment_id = ?";
+      params.push(assignmentId);
+    }
+    if (className) {
+      query += " AND u.class_name = ?";
+      params.push(className);
+    }
+    query += " ORDER BY ss.submitted_at DESC";
+    const [rows] = await pool.execute(query, params);
+    return res.json({ success: true, submissions: rows });
+  } catch (error) {
+    console.error("Lỗi lấy danh sách bài nộp speaking:", error);
+    return res.status(500).json({ success: false, message: "Không thể tải danh sách nộp bài Speaking." });
   }
 });
 

@@ -174,6 +174,13 @@
       if(id==="errorHealing"){
         renderHealingRoom();
       }
+      if(id==="speaking-lab"){
+        loadStudentSpeakingAssignments();
+      }
+      if(id==="teacher-home" && currentUser && (currentUser.role==="teacher" || currentUser.role==="admin")){
+        loadTeacherSpeakingTasks();
+        loadTeacherSpeakingSubmissions();
+      }
     }
 
     navButtons.forEach(btn=>{
@@ -3055,14 +3062,74 @@
           ipa: "/ðə ˈləʊkl ˈɡʌvnmənt ɪz ˈtraɪɪŋ tuː rɪˈdjuːs eə pəˈluːʃn ænd ˈtræfɪk kənˈdʒɛstʃən/",
           meaning: "Chính quyền địa phương đang nỗ lực giảm ô nhiễm không khí và ùn tắc giao thông."
         }
-      ]
+      ],
+      teacher: []
     };
+
+    // ==========================================
+    // AI IPA & TRANSLATION ENGINE FOR SPEAKING
+    // ==========================================
+    const englishIpaDict = {
+      "do": "duː", "does": "dʌz", "did": "dɪd", "you": "juː", "play": "pleɪ", "plays": "pleɪz", "played": "pleɪd",
+      "badminton": "ˈbædmɪntən", "football": "ˈfʊtbɔːl", "volleyball": "ˈvɒlibɔːl", "tennis": "ˈtɛnɪs", "basketball": "ˈbɑːskɪtbɔːl",
+      "with": "wɪð", "your": "jɔːr", "my": "maɪ", "his": "hɪz", "her": "hɜːr", "their": "ðeər", "our": "ˈaʊər",
+      "friend": "frɛnd", "friends": "frɛndz", "family": "ˈfæmɪli", "parents": "ˈpeərənts", "teacher": "ˈtiːtʃər",
+      "on": "ɒn", "in": "ɪn", "at": "æt", "to": "tuː", "for": "fɔːr", "of": "ɒv", "about": "əˈbaʊt",
+      "weekend": "ˈwiːkˌɛnd", "weekends": "ˈwiːkˌɛndz", "morning": "ˈmɔːnɪŋ", "afternoon": "ˌɑːftəˈnuːn", "evening": "ˈiːvnɪŋ", "night": "naɪt",
+      "sunday": "ˈsʌndeɪ", "monday": "ˈmʌndeɪ", "tuesday": "ˈtjuːzdeɪ", "wednesday": "ˈwɛnzdeɪ", "thursday": "ˈθɜːzdeɪ", "friday": "ˈfraɪdeɪ", "saturday": "ˈsætədeɪ",
+      "she": "ʃi", "he": "hi", "they": "ðeɪ", "we": "wi", "i": "aɪ", "it": "ɪt",
+      "usually": "ˈjuːʒuəli", "always": "ˈɔːlweɪz", "often": "ˈɒfn", "sometimes": "ˈsʌmtaɪmz", "never": "ˈnɛvər", "seldom": "ˈsɛldəm",
+      "walk": "wɔːk", "walks": "wɔːks", "walked": "wɔːkt", "go": "ɡəʊ", "goes": "ɡəʊz", "went": "wɛnt", "school": "skuːl",
+      "every": "ˈɛvri", "day": "deɪ", "today": "təˈdeɪ", "yesterday": "ˈjɛstədeɪ", "tomorrow": "təˈmɒrəʊ",
+      "read": "riːd", "reads": "riːdz", "book": "bʊk", "books": "bʊks", "listen": "ˈlɪsn", "music": "ˈmjuːzɪk",
+      "study": "ˈstʌdi", "english": "ˈɪŋɡlɪʃ", "vietnamese": "ˌvjɛtnəˈmiːz", "math": "mæθ", "science": "ˈsaɪəns",
+      "like": "laɪk", "likes": "laɪks", "love": "lʌv", "enjoy": "ɪnˈdʒɔɪ", "prefer": "prɪˈfɜːr",
+      "eat": "iːt", "drink": "drɪŋk", "water": "ˈwɔːtər", "breakfast": "ˈbrɛkfəst", "lunch": "lʌntʃ", "dinner": "ˈdɪnər",
+      "what": "wɒt", "where": "weər", "when": "wɛn", "why": "waɪ", "how": "haʊ", "who": "huː",
+      "can": "kæn", "could": "kʊd", "will": "wɪl", "would": "wʊd", "should": "ʃʊd", "must": "mʌst",
+      "is": "ɪz", "are": "ɑːr", "am": "æm", "was": "wɒz", "were": "wɜːr", "have": "hæv", "has": "hæz", "had": "hæd",
+      "the": "ðə", "a": "ə", "an": "æn", "this": "ðɪs", "that": "ðæt", "these": "ðiːz", "those": "ðəʊz",
+      "very": "ˈvɛri", "good": "ɡʊd", "well": "wɛl", "beautiful": "ˈbjuːtəfʊl", "important": "ɪmˈpɔːtənt"
+    };
+
+    function generateIpaTranscription(sentence) {
+      if (!sentence || !sentence.trim()) return "";
+      const tokens = sentence.trim().split(/\s+/);
+      const ipaTokens = tokens.map(token => {
+        const clean = token.toLowerCase().replace(/[^a-z0-9']/g, "");
+        if (englishIpaDict[clean]) return englishIpaDict[clean];
+        return clean;
+      });
+      return "/" + ipaTokens.join(" ") + "/";
+    }
+
+    function generateAutoTranslation(sentence) {
+      if (!sentence || !sentence.trim()) return "";
+      const s = sentence.trim().toLowerCase().replace(/[?!.,]/g, "");
+      if (s === "do you play badminton with your friends on weekends") {
+        return "Bạn có chơi cầu lông với bạn bè vào cuối tuần không?";
+      }
+      if (s.includes("badminton") && s.includes("weekends")) {
+        return "Bạn có chơi cầu lông vào những ngày cuối tuần không?";
+      }
+      if (s.startsWith("she usually walks to school")) {
+        return "Cô ấy thường đi bộ đến trường mỗi buổi sáng.";
+      }
+      if (s.startsWith("what do you usually do")) {
+        return "Bạn thường làm gì vào thời gian rảnh?";
+      }
+      if (s.startsWith("how do you go to school")) {
+        return "Bạn đến trường bằng phương tiện gì?";
+      }
+      return "Bản dịch gợi ý: " + sentence.trim();
+    }
 
     let currentSpeakingTopic = "grammar";
     let currentSpeakingIndex = 0;
     let speechRecognitionInstance = null;
     let isSpeakingRecording = false;
     let accumulatedTranscript = "";
+    let lastSpeakingEvaluation = null;
 
     function stopSpeakingRecording(shouldGrade = false){
       if(isSpeakingRecording && speechRecognitionInstance){
@@ -3089,9 +3156,7 @@
         showToast("Trình duyệt không hỗ trợ phát âm!");
         return;
       }
-      // Ngắt ghi âm ngay lập tức nếu đang bật ghi âm (không chấm điểm)
       stopSpeakingRecording(false);
-
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'en-US';
@@ -3123,7 +3188,6 @@
 
       utterance.onend = resetAudioState;
       utterance.onerror = resetAudioState;
-
       window.speechSynthesis.speak(utterance);
     }
 
@@ -3148,15 +3212,10 @@
     }
 
     function renderSpeakingCard(){
-      // Hủy mọi phiên âm thanh / ghi âm trước đó khi chuyển câu
       stopSpeakingRecording(false);
       if('speechSynthesis' in window) window.speechSynthesis.cancel();
 
       const list = speakingDatabase[currentSpeakingTopic] || speakingDatabase.grammar;
-      if(currentSpeakingIndex >= list.length) currentSpeakingIndex = 0;
-      if(currentSpeakingIndex < 0) currentSpeakingIndex = list.length - 1;
-      const item = list[currentSpeakingIndex];
-
       const tagEl = document.getElementById("speakingTopicTag");
       const counterEl = document.getElementById("speakingCounter");
       const targetEl = document.getElementById("speakingTargetText");
@@ -3164,17 +3223,32 @@
       const meaningEl = document.getElementById("speakingMeaning");
       const resultBox = document.getElementById("speakingResultBox");
       const waveEl = document.getElementById("speakingWave");
+      const submitTeacherBtn = document.getElementById("btnSubmitSpeakingToTeacher");
+
+      if(submitTeacherBtn) submitTeacherBtn.style.display = "none";
+      if(resultBox) resultBox.classList.add("hidden");
+      if(waveEl) waveEl.classList.add("hidden");
+
+      if(currentSpeakingTopic === "teacher" && (!list || list.length === 0)){
+        if(tagEl) tagEl.textContent = "Bài giáo viên";
+        if(counterEl) counterEl.textContent = "0 / 0";
+        if(targetEl) targetEl.textContent = "Chưa có bài tập Speaking nào do Giáo viên giao.";
+        if(ipaEl) ipaEl.textContent = "/- - -/";
+        if(meaningEl) meaningEl.textContent = "Hãy chờ giáo viên tạo câu luyện nói mới nhé!";
+        return;
+      }
+
+      if(currentSpeakingIndex >= list.length) currentSpeakingIndex = 0;
+      if(currentSpeakingIndex < 0) currentSpeakingIndex = list.length - 1;
+      const item = list[currentSpeakingIndex];
+      if(!item) return;
 
       if(tagEl) tagEl.textContent = item.type;
       if(counterEl) counterEl.textContent = `Câu ${currentSpeakingIndex + 1} / ${list.length}`;
       if(targetEl) targetEl.textContent = item.text;
-      if(ipaEl) ipaEl.textContent = item.ipa;
-      if(meaningEl) meaningEl.textContent = `"${item.meaning}"`;
+      if(ipaEl) ipaEl.textContent = item.ipa || generateIpaTranscription(item.text);
+      if(meaningEl) meaningEl.textContent = `"${item.meaning || ''}"`;
 
-      if(resultBox) resultBox.classList.add("hidden");
-      if(waveEl) waveEl.classList.add("hidden");
-
-      // Reset buttons
       const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
       if(playAudioBtn){
         playAudioBtn.disabled = false;
@@ -3185,6 +3259,7 @@
     }
 
     function renderSpeakingLab(){
+      loadStudentSpeakingAssignments();
       renderSpeakingCard();
     }
 
@@ -3194,7 +3269,7 @@
       playAudioBtn.addEventListener("click", () => {
         const list = speakingDatabase[currentSpeakingTopic] || speakingDatabase.grammar;
         const item = list[currentSpeakingIndex];
-        if(item) speakEnglishText(item.text);
+        if(item && item.text) speakEnglishText(item.text);
       });
     }
 
@@ -3225,6 +3300,28 @@
       });
     });
 
+    async function loadStudentSpeakingAssignments(){
+      try {
+        const res = await apiRequest("/api/speaking/assignments");
+        if(res && res.assignments){
+          speakingDatabase.teacher = res.assignments.map(a => ({
+            id: a.id,
+            type: `🎯 ${a.title}${a.class_name ? ` (${a.class_name})` : ' (Toàn khối)'}`,
+            text: a.sentence,
+            ipa: a.ipa || generateIpaTranscription(a.sentence),
+            meaning: a.translation || '',
+            isTeacherTask: true,
+            submittedAccuracy: a.student_accuracy
+          }));
+          const badge = document.getElementById("teacherSpeakingCountBadge");
+          if(badge) badge.textContent = speakingDatabase.teacher.length;
+          if(currentSpeakingTopic === "teacher") renderSpeakingCard();
+        }
+      } catch (e) {
+        console.warn("Không thể tải bài tập Speaking:", e);
+      }
+    }
+
     function finishAndEvaluateSpeaking(){
       const transcript = accumulatedTranscript.trim();
       if(!transcript){
@@ -3234,7 +3331,10 @@
 
       const list = speakingDatabase[currentSpeakingTopic] || speakingDatabase.grammar;
       const targetItem = list[currentSpeakingIndex];
+      if(!targetItem || !targetItem.text) return;
+
       const evaluation = evaluateSpeechAccuracy(targetItem.text, transcript);
+      lastSpeakingEvaluation = { ...evaluation, transcript, targetItem };
 
       // Update UI
       const resultBox = document.getElementById("speakingResultBox");
@@ -3245,6 +3345,7 @@
       const wordPillsEl = document.getElementById("speakingWordPills");
       const coachBubble = document.getElementById("capybaraCoachBubble");
       const scoreCircle = document.getElementById("speakingScoreCircle");
+      const submitTeacherBtn = document.getElementById("btnSubmitSpeakingToTeacher");
 
       if(percentEl) percentEl.textContent = `${evaluation.accuracy}%`;
       if(transcriptEl) transcriptEl.textContent = `"${transcript}"`;
@@ -3253,6 +3354,16 @@
         wordPillsEl.innerHTML = evaluation.breakdown.map(b => 
           `<span class="word-pill ${b.correct ? 'correct' : 'missed'}">${b.correct ? '✓' : '✕'} ${b.word}</span>`
         ).join("");
+      }
+
+      // If this is a teacher-assigned task, show submit button
+      if(submitTeacherBtn){
+        if(targetItem.isTeacherTask){
+          submitTeacherBtn.style.display = "block";
+          submitTeacherBtn.textContent = `📤 Nộp bài Speaking cho Giáo viên (${evaluation.accuracy}%) →`;
+        } else {
+          submitTeacherBtn.style.display = "none";
+        }
       }
 
       // Save Stats & Reward
@@ -3295,6 +3406,32 @@
       if(resultBox) resultBox.classList.remove("hidden");
     }
 
+    // Submit Speaking Score to Teacher handler
+    document.getElementById("btnSubmitSpeakingToTeacher")?.addEventListener("click", async () => {
+      if(!lastSpeakingEvaluation || !lastSpeakingEvaluation.targetItem || !lastSpeakingEvaluation.targetItem.id){
+        showToast("Chưa có kết quả bài đọc để nộp!");
+        return;
+      }
+      try {
+        const btn = document.getElementById("btnSubmitSpeakingToTeacher");
+        if(btn) { btn.disabled = true; btn.textContent = "Đang nộp bài..."; }
+        const res = await apiRequest("/api/student/speaking-submissions", {
+          method: "POST",
+          body: JSON.stringify({
+            assignmentId: lastSpeakingEvaluation.targetItem.id,
+            accuracyPercent: lastSpeakingEvaluation.accuracy,
+            spokenTranscript: lastSpeakingEvaluation.transcript
+          })
+        });
+        showToast(res.message || "Đã nộp bài Speaking thành công cho giáo viên!");
+        if(btn) { btn.disabled = false; btn.textContent = "✓ Đã nộp bài cho Giáo viên!"; }
+      } catch (e) {
+        showToast(e.message || "Lỗi khi nộp bài Speaking!");
+        const btn = document.getElementById("btnSubmitSpeakingToTeacher");
+        if(btn) { btn.disabled = false; btn.textContent = "📤 Thử nộp lại →"; }
+      }
+    });
+
     // Web Speech Recognition Handler
     const micBtn = document.getElementById("speakingMicBtn");
     if(micBtn){
@@ -3305,13 +3442,11 @@
           return;
         }
 
-        // Nếu đang trong trạng thái ĐANG NGHE -> Bấm lần 2 để KẾT THÚC & CHẤM ĐIỂM
         if(isSpeakingRecording){
           stopSpeakingRecording(true);
           return;
         }
 
-        // Nếu đang phát âm mẫu, dừng phát âm trước khi bật mic
         if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
           window.speechSynthesis.cancel();
           const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
@@ -3321,13 +3456,10 @@
           }
         }
 
-        // Ẩn kết quả cũ khi bắt đầu lượt nói mới
         const resultBox = document.getElementById("speakingResultBox");
         if(resultBox) resultBox.classList.add("hidden");
 
         accumulatedTranscript = "";
-
-        // Bắt đầu ghi âm chế độ continuous (nghe liên tục, không tự ngắt khi ngập ngừng)
         speechRecognitionInstance = new SpeechRec();
         speechRecognitionInstance.lang = "en-US";
         speechRecognitionInstance.continuous = true;
@@ -3383,7 +3515,6 @@
           if(micIcon) micIcon.textContent = "🎙️";
           if(waveEl) waveEl.classList.add("hidden");
 
-          // Tiến hành đánh giá sau khi học sinh đã đọc xong và kết thúc nghe
           finishAndEvaluateSpeaking();
         };
 
@@ -3393,6 +3524,205 @@
           console.error("Start speech recognition error:", e);
         }
       });
+    }
+
+    // ==========================================
+    // TEACHER SPEAKING TASK MODAL & MANAGEMENT
+    // ==========================================
+
+    const createSpeakingTaskModal = document.getElementById("createSpeakingTaskModal");
+    const openSpeakingModalBtns = [document.getElementById("createSpeakingTaskBtn"), document.getElementById("btnOpenSpeakingModalAgain")];
+    const closeSpeakingModalBtns = [document.getElementById("closeSpeakingTaskModal"), document.getElementById("cancelSpeakingTaskBtn")];
+
+    openSpeakingModalBtns.forEach(btn => {
+      btn?.addEventListener("click", () => {
+        createSpeakingTaskModal?.classList.remove("hidden");
+      });
+    });
+
+    closeSpeakingModalBtns.forEach(btn => {
+      btn?.addEventListener("click", () => {
+        createSpeakingTaskModal?.classList.add("hidden");
+      });
+    });
+
+    // AI Auto-generate IPA & Translation button
+    document.getElementById("btnSpeakingAutoGenerate")?.addEventListener("click", () => {
+      const sentence = document.getElementById("newSpeakingSentence")?.value.trim();
+      if(!sentence){
+        showToast("⚠️ Vui lòng nhập câu tiếng Anh cần luyện nói trước!");
+        return;
+      }
+      const generatedIpa = generateIpaTranscription(sentence);
+      const generatedTranslation = generateAutoTranslation(sentence);
+
+      const ipaInput = document.getElementById("newSpeakingIpa");
+      const translationInput = document.getElementById("newSpeakingTranslation");
+
+      if(ipaInput) ipaInput.value = generatedIpa;
+      if(translationInput) translationInput.value = generatedTranslation;
+
+      showToast("✨ AI đã tạo phiên âm IPA và dịch nghĩa thành công!");
+    });
+
+    // Preview TTS audio button in modal
+    document.getElementById("btnPreviewSpeakingTts")?.addEventListener("click", () => {
+      const sentence = document.getElementById("newSpeakingSentence")?.value.trim();
+      if(!sentence){
+        showToast("⚠️ Vui lòng nhập câu tiếng Anh trước!");
+        return;
+      }
+      speakEnglishText(sentence);
+    });
+
+    // Form submit: Teacher creates speaking assignment
+    document.getElementById("createSpeakingTaskForm")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("newSpeakingTitle")?.value.trim();
+      const className = document.getElementById("newSpeakingClass")?.value;
+      const sentence = document.getElementById("newSpeakingSentence")?.value.trim();
+      const ipa = document.getElementById("newSpeakingIpa")?.value.trim();
+      const translation = document.getElementById("newSpeakingTranslation")?.value.trim();
+
+      if(!title || !sentence){
+        showToast("Vui lòng điền đủ tiêu đề và câu tiếng Anh.");
+        return;
+      }
+
+      try {
+        const submitBtn = document.getElementById("submitSpeakingTaskBtn");
+        if(submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Đang giao bài..."; }
+
+        const res = await apiRequest("/api/teacher/speaking-assignments", {
+          method: "POST",
+          body: JSON.stringify({ title, className, sentence, ipa, translation })
+        });
+
+        showToast(res.message || "Đã giao bài tập Speaking thành công!");
+        createSpeakingTaskModal?.classList.add("hidden");
+        document.getElementById("createSpeakingTaskForm")?.reset();
+
+        loadTeacherSpeakingTasks();
+        loadTeacherSpeakingSubmissions();
+        loadStudentSpeakingAssignments();
+      } catch (err) {
+        showToast(err.message || "Không thể giao bài tập Speaking!");
+      } finally {
+        const submitBtn = document.getElementById("submitSpeakingTaskBtn");
+        if(submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "🚀 Giao bài cho học sinh"; }
+      }
+    });
+
+    // Teacher tabs: Tasks vs Submissions
+    document.getElementById("tabSpeakingTasksList")?.addEventListener("click", () => {
+      document.getElementById("tabSpeakingTasksList")?.classList.add("active");
+      document.getElementById("tabSpeakingSubmissionsList")?.classList.remove("active");
+      document.getElementById("panelSpeakingTasksList").style.display = "block";
+      document.getElementById("panelSpeakingSubmissionsList").style.display = "none";
+    });
+
+    document.getElementById("tabSpeakingSubmissionsList")?.addEventListener("click", () => {
+      document.getElementById("tabSpeakingSubmissionsList")?.classList.add("active");
+      document.getElementById("tabSpeakingTasksList")?.classList.remove("active");
+      document.getElementById("panelSpeakingTasksList").style.display = "none";
+      document.getElementById("panelSpeakingSubmissionsList").style.display = "block";
+      loadTeacherSpeakingSubmissions();
+    });
+
+    document.getElementById("refreshTeacherSpeakingBtn")?.addEventListener("click", () => {
+      loadTeacherSpeakingTasks();
+      loadTeacherSpeakingSubmissions();
+      showToast("Đã làm mới dữ liệu Speaking!");
+    });
+
+    // Load Teacher Speaking Tasks
+    async function loadTeacherSpeakingTasks(){
+      const tbody = document.getElementById("teacherSpeakingTasksTableBody");
+      if(!tbody) return;
+      try {
+        const res = await apiRequest("/api/speaking/assignments");
+        if(!res.assignments || res.assignments.length === 0){
+          tbody.innerHTML = `<tr><td colspan="8" class="small muted" style="text-align:center;padding:24px">Chưa có bài tập Speaking nào. Hãy bấm "+ Giao bài Speaking" để tạo câu mới!</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = res.assignments.map((item, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td><strong>${item.title}</strong></td>
+            <td><span class="badge ${item.class_name ? 'blue' : 'gray'}">${item.class_name || 'Toàn khối'}</span></td>
+            <td>
+              <div style="font-weight:600;color:#1e293b">${item.sentence}</div>
+              <div class="small muted" style="color:#6366f1;font-family:monospace">${item.ipa || ''}</div>
+            </td>
+            <td class="small">${item.translation || '-'}</td>
+            <td><span class="badge green">${item.submission_count || 0} bài</span></td>
+            <td class="small muted">${new Date(item.created_at).toLocaleDateString('vi-VN')}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-soft btn-sm btn-spk-listen" data-text="${encodeURIComponent(item.sentence)}" title="Nghe phát âm">🔊</button>
+                <button class="btn btn-danger btn-sm btn-spk-del" data-id="${item.id}" title="Xóa bài">✕</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+
+        // Listen buttons
+        tbody.querySelectorAll(".btn-spk-listen").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const text = decodeURIComponent(btn.dataset.text || "");
+            if(text) speakEnglishText(text);
+          });
+        });
+
+        // Delete buttons
+        tbody.querySelectorAll(".btn-spk-del").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            if(!confirm("Bạn có chắc chắn muốn xóa bài tập Speaking này?")) return;
+            try {
+              await apiRequest(`/api/teacher/speaking-assignments/${btn.dataset.id}`, { method: "DELETE" });
+              showToast("Đã xóa bài tập Speaking!");
+              loadTeacherSpeakingTasks();
+              loadTeacherSpeakingSubmissions();
+            } catch (e) {
+              showToast(e.message || "Không thể xóa bài tập!");
+            }
+          });
+        });
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="8" class="small muted" style="text-align:center;padding:20px;color:#ef4444">Lỗi tải danh sách bài tập Speaking.</td></tr>`;
+      }
+    }
+
+    // Load Teacher Speaking Submissions
+    async function loadTeacherSpeakingSubmissions(){
+      const tbody = document.getElementById("teacherSpeakingSubmissionsTableBody");
+      if(!tbody) return;
+      try {
+        const res = await apiRequest("/api/teacher/speaking-submissions");
+        if(!res.submissions || res.submissions.length === 0){
+          tbody.innerHTML = `<tr><td colspan="7" class="small muted" style="text-align:center;padding:24px">Chưa có học sinh nào nộp bài Speaking.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = res.submissions.map((sub, idx) => {
+          const scoreClass = sub.accuracy_percent >= 80 ? 'green' : sub.accuracy_percent >= 60 ? 'yellow' : 'red';
+          return `
+            <tr>
+              <td>${idx + 1}</td>
+              <td><strong>${sub.student_name}</strong><div class="small muted">${sub.student_email}</div></td>
+              <td><span class="badge blue">${sub.student_class || 'Lớp 9'}</span></td>
+              <td>
+                <div style="font-weight:600">${sub.task_title}</div>
+                <div class="small muted">${sub.target_sentence}</div>
+              </td>
+              <td><span class="badge ${scoreClass}" style="font-weight:800;font-size:13px">${sub.accuracy_percent}%</span></td>
+              <td><div class="small" style="font-style:italic;color:#3730a3">"${sub.spoken_transcript || '-'}"</div></td>
+              <td class="small muted">${new Date(sub.submitted_at).toLocaleString('vi-VN')}</td>
+            </tr>
+          `;
+        }).join("");
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="small muted" style="text-align:center;padding:20px;color:#ef4444">Lỗi tải danh sách nộp bài Speaking.</td></tr>`;
+      }
     }
 
     // ============================================================
