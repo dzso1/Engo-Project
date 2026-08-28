@@ -6,6 +6,7 @@
   <title>ENGO</title>
   <link rel="icon" type="image/png" href="./images/engologo.png">
   <link rel="stylesheet" href="./styles.css" />
+  <script src="https://js.puter.com/v2/"></script>
 </head>
 <body>
 
@@ -110,6 +111,9 @@
         </button>
         <button class="nav-btn" data-view="speaking-lab">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span> Luyện nói AI
+        </button>
+        <button class="nav-btn" data-view="writing-lab">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span> Luyện viết AI
         </button>
         <button class="nav-btn" data-view="errorHealing">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Chữa lỗi
@@ -325,6 +329,8 @@
               <div class="goal-ring" id="dailyGoalRing"><strong id="dailyGoalPercent">0%</strong></div>
               <p class="small muted" style="text-align:center;margin:0" id="dailyGoalMessage">Bắt đầu một nhiệm vụ nhỏ để tạo đà học tập.</p>
               <div class="quick-actions">
+                <button class="quick-action" data-view="writing-lab"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Luyện viết AI</button>
+                <button class="quick-action" id="openAiTestGenDashboardBtn" type="button" style="background:#ecfdf5;border-color:#a7f3d0;color:#047857"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Tạo đề AI</button>
                 <button class="quick-action" data-view="smart-review"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>Ôn thông minh</button>
                 <button class="quick-action" data-view="focus-room"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Tập trung</button>
                 <button class="quick-action" data-view="achievements"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:middle;margin-right:4px"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Thành tích</button>
@@ -631,6 +637,7 @@
           <div class="page-heading">
             <div><h2>Không gian giáo viên</h2><p>Quản lý ngân hàng câu hỏi, tạo đề, giao bài Speaking và theo dõi kết quả học tập của học sinh.</p></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-primary" id="openTeacherAiGenBtn" style="background:linear-gradient(135deg,#059669,#10b981);font-weight:700">✨ AI Tạo đề tự động</button>
               <button class="btn btn-soft" id="createSpeakingTaskBtn" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-weight:700">Giao bài Speaking</button>
               <button class="btn btn-primary" id="createTestBtn">+ Tạo bài kiểm tra</button>
             </div>
@@ -1099,6 +1106,103 @@
           </div>
         </section>
 
+        <!-- AI WRITING LAB -->
+        <section class="view" id="writing-lab" style="display:none">
+          <div class="page-heading">
+            <div>
+              <h2>Phòng Luyện Viết & Chấm Điểm AI (AI Writing Studio)</h2>
+              <p>Trợ lý AI chấm điểm theo chuẩn 4 tiêu chí, phân tích ngữ pháp, chỉ ra từng lỗi sai và gợi ý đoạn văn mẫu nâng cao.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:700" id="writingCarrotBadge">🥕 15 Cà rốt</span>
+              <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700" id="writingBandBadge">Band: B1</span>
+            </div>
+          </div>
+
+          <div class="grid writing-layout">
+            <div class="card writing-editor-panel">
+              <div class="writing-prompt-bar">
+                <label style="font-weight:700;display:block;margin-bottom:6px">Chọn chủ đề bài viết:</label>
+                <select id="writingPromptSelect" class="field" style="width:100%;margin-bottom:10px">
+                  <option value="community">Chủ đề 1: Write a paragraph (80-100 words) about a community activity you like.</option>
+                  <option value="environment">Chủ đề 2: Write about ways secondary students can help protect the local environment.</option>
+                  <option value="smartphone">Chủ đề 3: Advantages and disadvantages of using smartphones for studying.</option>
+                  <option value="custom">-- Nhập chủ đề bài viết tự do của bạn --</option>
+                </select>
+                <input type="text" id="writingCustomPromptInput" class="field" placeholder="Nhập đề bài hoặc yêu cầu của bạn..." style="display:none;width:100%;margin-bottom:10px" />
+              </div>
+
+              <div class="writing-textarea-wrap">
+                <textarea id="writingTextInput" placeholder="Bắt đầu viết đoạn văn tiếng Anh của bạn tại đây (tối thiểu 50-100 từ để AI chấm chi tiết)..." rows="9" style="width:100%;border:1.5px solid var(--line);border-radius:14px;padding:16px;font-size:15px;line-height:1.65;resize:vertical;font-family:inherit;background:var(--surface);color:var(--ink)"></textarea>
+                <div class="writing-editor-footer" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+                  <div class="small muted">
+                    Số từ: <strong id="writingWordCount" style="color:var(--primary);font-size:15px">0</strong> từ
+                  </div>
+                  <button class="btn btn-primary" id="btnGradeWriting" type="button" style="font-weight:700;display:flex;align-items:center;gap:6px">
+                    <span>✨</span> Chấm điểm & Sửa lỗi bằng AI
+                  </button>
+                </div>
+              </div>
+
+              <!-- AI Evaluation Result -->
+              <div id="writingResultSection" class="hidden" style="margin-top:24px;border-top:1px solid var(--line);padding-top:20px">
+                <div class="writing-score-banner" style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1.5px solid #a7f3d0;border-radius:18px;padding:18px 22px;margin-bottom:20px">
+                  <div>
+                    <h3 style="margin:0 0 4px;font-size:20px;color:#065f46">Kết Quả Đánh Giá Bài Viết</h3>
+                    <span class="small muted" id="writingBandText">Trình độ: B1 - Đạt chuẩn THCS</span>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:32px;font-weight:950;color:#059669;line-height:1" id="writingScoreValue">8.5</div>
+                    <span class="small muted">/ 10 điểm</span>
+                  </div>
+                </div>
+
+                <!-- 4 Criteria Breakdown -->
+                <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px" id="writingCriteriaGrid">
+                  <!-- Rendered dynamically -->
+                </div>
+
+                <!-- Mistakes & Corrections Table -->
+                <div class="card panel" style="margin-bottom:20px">
+                  <div class="section-head"><h4 style="margin:0">🔍 Phân tích chi tiết các lỗi cần sửa</h4></div>
+                  <div id="writingMistakesList">
+                    <!-- Rendered dynamically -->
+                  </div>
+                </div>
+
+                <!-- Upgraded Model Paragraph -->
+                <div class="card panel" style="background:linear-gradient(145deg,#f8fafc,#f1f5f9);border:1px solid #cbd5e1">
+                  <div class="section-head"><h4 style="margin:0">🌟 Phiên bản nâng cấp gợi ý (Model Upgrade)</h4></div>
+                  <p id="writingImprovedText" style="line-height:1.7;color:#1e293b;font-size:14px;background:white;padding:14px;border-radius:12px;border:1px solid #e2e8f0;margin:0"></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Side Card for Writing Guidance -->
+            <aside class="card writing-side-panel">
+              <div class="capybara-coach-card">
+                <div class="capybara-coach-avatar">
+                  <img src="./images/engologo.png" alt="Capybara AI Writing Coach" />
+                  <div class="capybara-coach-status">● Giám khảo AI</div>
+                </div>
+                <h4 style="margin:8px 0 4px">Gia sư Capybara Writing</h4>
+                <div class="capybara-coach-bubble">
+                  "Viết từ 80 - 120 từ để rèn luyện kỹ năng viết đoạn văn nhé! Mình sẽ giúp bạn sửa lỗi chính tả, chia thì và gợi ý từ vựng xịn hơn 🦫🥕"
+                </div>
+              </div>
+
+              <div class="card panel" style="margin-top:16px">
+                <h4 style="margin:0 0 10px;font-size:14px">💡 4 Tiêu chí chấm điểm</h4>
+                <ul class="small muted" style="padding-left:18px;margin:0;line-height:1.7">
+                  <li><strong>Task Response:</strong> Đúng và đủ ý yêu cầu của đề bài.</li>
+                  <li><strong>Coherence:</strong> Mạch văn liên kết, có từ nối (However, Therefore).</li>
+                  <li><strong>Lexical Resource:</strong> Sử dụng từ vựng đa dạng, phong phú.</li>
+                  <li><strong>Grammar:</strong> Đúng thì, cấu trúc câu và không sai chính tả.</li>
+                </ul>
+              </div>
+            </aside>
+          </div>
+        </section>
 
         <!-- QUIZ -->
         <section class="view" id="quiz">
@@ -1397,6 +1501,125 @@
             Giao bài cho học sinh
           </button>
         </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- FLOATING CAPYBARA AI CHATBOT WIDGET -->
+  <!-- ========================================== -->
+  <div class="capybara-chat-widget" id="capybaraChatWidget">
+    <button class="capybara-chat-trigger" id="capybaraChatTrigger" type="button" aria-label="Mở Trợ lý Capybara AI" title="Trò chuyện & Hỏi bài Capybara AI">
+      <img src="./images/engologo.png" alt="Capybara AI" class="capybara-chat-btn-img" />
+      <span class="capybara-chat-badge">AI 24/7</span>
+      <span class="capybara-chat-pulse"></span>
+    </button>
+
+    <div class="capybara-chat-window hidden" id="capybaraChatWindow">
+      <div class="capybara-chat-header">
+        <div class="capybara-chat-header-left">
+          <img src="./images/engologo.png" alt="Capybara Avatar" class="capybara-chat-avatar" />
+          <div>
+            <h4>Gia sư Capybara AI</h4>
+            <span class="capybara-chat-online"><span class="green-dot"></span> Luôn trực tuyến (Miễn phí)</span>
+          </div>
+        </div>
+        <div class="capybara-chat-header-actions">
+          <button class="icon-btn btn-sm" id="btnMinimizeChat" title="Thu nhỏ" style="width:28px;height:28px">✕</button>
+        </div>
+      </div>
+
+      <!-- Quick Suggestion Chips -->
+      <div class="capybara-chat-chips" id="capybaraChatChips">
+        <button class="chat-chip" data-prompt="Giải thích thì Quá khứ đơn và dấu hiệu nhận biết">💡 Quá khứ đơn</button>
+        <button class="chat-chip" data-prompt="Phân biệt thì Hiện tại hoàn thành và Quá khứ đơn">⚡ HT hoàn thành vs QK đơn</button>
+        <button class="chat-chip" data-prompt="Hướng dẫn cấu trúc câu điều kiện loại 1 và loại 2">🎯 Câu điều kiện If</button>
+        <button class="chat-chip" data-prompt="Sửa lỗi ngữ pháp cho câu: She don't like eating apples">✍️ Sửa lỗi câu</button>
+      </div>
+
+      <!-- Messages Stream -->
+      <div class="capybara-chat-messages" id="capybaraChatMessages">
+        <div class="chat-msg capybara-msg">
+          <img src="./images/engologo.png" class="chat-avatar" alt="Capybara" />
+          <div class="chat-bubble">
+            <p>Xin chào bạn! Mình là <strong>Capybara AI Tutor</strong> 🦫✨. Bạn cần giải đáp ngữ pháp, tra từ vựng, sửa bài viết hay luyện nói tiếng Anh? Cứ hỏi mình nhé!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="capybara-chat-input-bar">
+        <input type="text" id="capybaraChatInput" placeholder="Hỏi ngữ pháp, từ vựng hoặc dịch câu..." autocomplete="off" />
+        <button class="btn btn-primary capybara-chat-send-btn" id="capybaraChatSendBtn" type="button" title="Gửi tin nhắn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- AI TEST GENERATOR ON-DEMAND MODAL -->
+  <!-- ========================================== -->
+  <div class="modal" id="aiGenerateTestModal" style="display:none">
+    <div class="modal-card" style="max-width:580px;width:100%">
+      <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:40px;height:40px;border-radius:12px;background:#ecfdf5;display:grid;place-items:center;font-size:20px">🎯</div>
+          <div>
+            <h3 style="margin:0;font-size:18px">Tạo Đề Kiểm Tra AI Theo Yêu Cầu</h3>
+            <span class="small muted">Sinh câu hỏi trắc nghiệm tự động kèm lời giải chi tiết (AI Miễn phí)</span>
+          </div>
+        </div>
+        <button class="close-btn" id="btnCloseAiTestGenModal" type="button">✕</button>
+      </div>
+
+      <form id="aiTestGenForm" style="display:grid;gap:14px">
+        <div class="field">
+          <label>Chuyên đề / Chủ đề ôn tập</label>
+          <select id="aiGenTopicSelect" class="field" style="width:100%">
+            <option value="tenses">1. Tổng hợp các thì (Hiện tại đơn, Quá khứ đơn, HT hoàn thành)</option>
+            <option value="conditionals">2. Câu điều kiện (Conditional Sentences Type 1 & 2)</option>
+            <option value="passive">3. Câu bị động (Passive Voice)</option>
+            <option value="relative">4. Mệnh đề quan hệ (Relative Clauses - Who, Whom, Which, Whose)</option>
+            <option value="environment_vocab">5. Từ vựng chuyên đề Môi trường & Năng lượng tái tạo</option>
+            <option value="custom">-- Nhập chủ đề tùy chọn theo yêu cầu --</option>
+          </select>
+          <input type="text" id="aiGenCustomTopic" class="field" placeholder="Ví dụ: Ôn thi vào 10 chuyên đề Giới từ và Cụm động từ..." style="display:none;width:100%;margin-top:8px" />
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field">
+            <label>Khối lớp</label>
+            <select id="aiGenGrade" class="field" style="width:100%">
+              <option value="9">Khối 9 (Global Success)</option>
+              <option value="8">Khối 8</option>
+              <option value="7">Khối 7</option>
+              <option value="6">Khối 6</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Số lượng câu hỏi</label>
+            <select id="aiGenCount" class="field" style="width:100%">
+              <option value="5">5 câu (Nhanh - 5 phút)</option>
+              <option value="10" selected>10 câu (Chuẩn - 15 phút)</option>
+              <option value="15">15 câu (Đầy đủ - 20 phút)</option>
+              <option value="20">20 câu (Thi thử - 30 phút)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Độ khó</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px">
+            <label style="border:1.5px solid var(--line);border-radius:10px;padding:8px;text-align:center;cursor:pointer;font-size:13px"><input type="radio" name="aiGenDiff" value="easy" style="margin-right:4px"> Cơ bản</label>
+            <label style="border:1.5px solid var(--primary);background:var(--primary-soft);border-radius:10px;padding:8px;text-align:center;cursor:pointer;font-size:13px"><input type="radio" name="aiGenDiff" value="medium" checked style="margin-right:4px"> Trung bình</label>
+            <label style="border:1.5px solid var(--line);border-radius:10px;padding:8px;text-align:center;cursor:pointer;font-size:13px"><input type="radio" name="aiGenDiff" value="hard" style="margin-right:4px"> Nâng cao</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" type="submit" id="btnSubmitAiTestGen" style="width:100%;margin-top:10px;font-weight:700;padding:12px">
+          ✨ Bắt đầu Tạo Đề AI Tức Thì
+        </button>
       </form>
     </div>
   </div>

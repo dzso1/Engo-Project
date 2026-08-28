@@ -12,6 +12,7 @@ const mammoth = require("mammoth");
 
 const pool = require("./database/db");
 const { parseDocxAssessment } = require("./services/docx-assessment-parser");
+const aiService = require("./services/ai-service");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -1465,6 +1466,52 @@ app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher"
   } catch (error) {
     console.error("Lỗi lấy danh sách bài nộp speaking:", error);
     return res.status(500).json({ success: false, message: "Không thể tải danh sách nộp bài Speaking." });
+  }
+});
+
+// ==========================================
+// AI SUITE API ENDPOINTS (CHAT, WRITING, TEST GEN)
+// ==========================================
+
+// 1. AI Chatbot Endpoint
+app.post("/api/ai/chat", async (req, res) => {
+  try {
+    const { message, history } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập nội dung tin nhắn." });
+    }
+    const reply = await aiService.chatWithCapybara(message, history || []);
+    return res.json({ success: true, reply });
+  } catch (error) {
+    console.error("Lỗi AI Chat:", error);
+    return res.status(500).json({ success: false, message: "AI tạm thời bận, vui lòng thử lại." });
+  }
+});
+
+// 2. AI Writing Grader Endpoint
+app.post("/api/ai/grade-writing", async (req, res) => {
+  try {
+    const { prompt, content, level } = req.body;
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập bài viết cần chấm." });
+    }
+    const evaluation = aiService.gradeWritingEssay({ prompt, content, level });
+    return res.json({ success: true, evaluation });
+  } catch (error) {
+    console.error("Lỗi AI chấm Writing:", error);
+    return res.status(500).json({ success: false, message: "Không thể chấm bài viết lúc này." });
+  }
+});
+
+// 3. AI On-demand Test Generator Endpoint
+app.post("/api/ai/generate-test", async (req, res) => {
+  try {
+    const { topic, gradeLevel, count, difficulty } = req.body;
+    const generatedTest = aiService.generateTestOnDemand({ topic, gradeLevel, count, difficulty });
+    return res.json({ success: true, test: generatedTest });
+  } catch (error) {
+    console.error("Lỗi AI tạo đề:", error);
+    return res.status(500).json({ success: false, message: "Không thể tạo đề lúc này." });
   }
 });
 
