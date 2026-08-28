@@ -566,38 +566,8 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-
-    // 1. Kiểm tra mã OTP nếu hệ thống yêu cầu
-    if (!otp) {
-      return res.status(400).json({ success: false, message: "Vui lòng bấm 'Gửi mã OTP' và nhập mã xác thực từ Gmail để hoàn tất đăng ký." });
-    }
-
-    const storedOtp = emailOtpStore.get(normalizedEmail);
-    if (!storedOtp) {
-      return res.status(400).json({ success: false, message: "Chưa có mã OTP nào được gửi đến email này hoặc mã đã hết hạn. Vui lòng bấm gửi lại mã." });
-    }
-
-    if (Date.now() > storedOtp.expiresAt) {
-      emailOtpStore.delete(normalizedEmail);
-      return res.status(400).json({ success: false, message: "Mã OTP đã hết hiệu lực (quá 5 phút). Vui lòng yêu cầu mã mới." });
-    }
-
-    if (storedOtp.otp !== String(otp).trim()) {
-      storedOtp.attempts = (storedOtp.attempts || 0) + 1;
-      if (storedOtp.attempts >= 5) {
-        emailOtpStore.delete(normalizedEmail);
-        return res.status(400).json({ success: false, message: "Bạn đã nhập sai mã quá 5 lần. Vui lòng yêu cầu mã mới." });
-      }
-      return res.status(400).json({ success: false, message: `Mã OTP không chính xác. Bạn còn ${5 - storedOtp.attempts} lần thử.` });
-    }
-
-    // Xóa OTP sau khi xác thực thành công
-    emailOtpStore.delete(normalizedEmail);
-
-    // 2. Kiểm tra tính xác thực của email
-    const emailCheck = await verifyEmailAddress(normalizedEmail);
-    if (!emailCheck.valid) {
-      return res.status(400).json({ success: false, message: emailCheck.reason });
+    if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập địa chỉ email hợp lệ." });
     }
 
     const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);

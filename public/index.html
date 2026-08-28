@@ -62,27 +62,11 @@
             <div class="form-grid">
               <div class="field full"><label>Họ và tên</label><input id="registerName" required placeholder="Nguyễn Minh Anh" /></div>
               <div class="field full">
-                <label>Email (Gmail / Email trường)</label>
-                <div style="display:flex;gap:8px">
-                  <input id="registerEmail" type="email" required placeholder="vidu@gmail.com" autocomplete="email" style="flex:1" />
-                  <button type="button" class="btn btn-light btn-sm" id="sendOtpBtn" style="white-space:nowrap;padding:0 14px;font-weight:700">Gửi mã OTP</button>
-                </div>
-                <div id="emailVerifyStatus" class="small" style="display:none;margin-top:5px;font-weight:600;transition:all .2s ease"></div>
+                <label>Email</label>
+                <input id="registerEmail" type="email" required placeholder="vidu@gmail.com" autocomplete="email" />
               </div>
-              <div class="field full" id="otpFieldWrap" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px">
-                <div id="devOtpBanner" style="display:none;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s ease" title="Bấm vào để tự động điền mã"></div>
-                <label style="color:#166534;font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                  <span>Nhập mã xác thực 6 số từ Gmail:</span>
-                  <span id="otpCountdown" style="color:#dc2626;font-size:12px;font-weight:800">05:00</span>
-                </label>
-                <input id="registerOtp" type="text" maxlength="6" placeholder="• • • • • •" style="letter-spacing:8px;font-size:20px;font-weight:800;text-align:center;background:#fff;border:2px solid #86efac;color:#15803d;height:46px" />
-                <div class="small muted" style="margin-top:5px;display:flex;justify-content:space-between;align-items:center">
-                  <span>Mã đã gửi đến hộp thư đến / Spam.</span>
-                  <a href="#" id="resendOtpLink" style="color:#4f46e5;font-weight:700;text-decoration:none">Gửi lại mã</a>
-                </div>
-              </div>
-              <div class="field"><label>Mật khẩu</label><input id="registerPassword" type="password" minlength="6" required /></div>
-              <div class="field"><label>Nhập lại mật khẩu</label><input id="registerConfirm" type="password" minlength="6" required /></div>
+              <div class="field"><label>Mật khẩu</label><input id="registerPassword" type="password" minlength="6" required placeholder="Tối thiểu 6 ký tự" /></div>
+              <div class="field"><label>Nhập lại mật khẩu</label><input id="registerConfirm" type="password" minlength="6" required placeholder="Nhập lại mật khẩu" /></div>
               <div class="field full"><label>Vai trò</label><select id="registerRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option></select></div>
               <div class="field full" id="registerClassGroup"><label>Lớp học</label><select id="registerClass"><option value="">-- Chọn lớp học --</option><option value="9A1">Lớp 9A1</option><option value="9A2">Lớp 9A2</option><option value="9A3">Lớp 9A3</option><option value="9A4">Lớp 9A4</option></select></div>
             </div>
