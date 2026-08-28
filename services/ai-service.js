@@ -190,32 +190,152 @@ async function callLocalOllama(messages) {
   return null;
 }
 
+// In-Memory Cache for fast responses & 0-token cost for repeated queries
+const aiResponseCache = new Map();
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+function getCachedResponse(prompt) {
+  const key = prompt.trim().toLowerCase();
+  const cached = aiResponseCache.get(key);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.content;
+  }
+  return null;
+}
+
+function setCachedResponse(prompt, content) {
+  if (!prompt || !content || content.length < 5) return;
+  const key = prompt.trim().toLowerCase();
+  aiResponseCache.set(key, { content, timestamp: Date.now() });
+  if (aiResponseCache.size > 3000) {
+    const firstKey = aiResponseCache.keys().next().value;
+    aiResponseCache.delete(firstKey);
+  }
+}
+
+// Multi-Key Rotating Pools (Supports comma-separated keys for entire school scale)
+let geminiKeyIndex = 0;
+let groqKeyIndex = 0;
+let openAiKeyIndex = 0;
+
+function getGeminiKeys() {
+  const raw = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+  return raw.split(",").map(k => k.trim()).filter(Boolean);
+}
+
+function getGroqKeys() {
+  const raw = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+  return raw.split(",").map(k => k.trim()).filter(Boolean);
+}
+
+function getOpenAiKeys() {
+  const raw = process.env.OPENAI_API_KEYS || process.env.OPENAI_API_KEY || "";
+  return raw.split(",").map(k => k.trim()).filter(Boolean);
+}
+
 async function callCloudLlm(messages) {
-  // 1. Groq API
-  if (process.env.GROQ_API_KEY) {
-    try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + process.env.GROQ_API_KEY
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages,
-          temperature: 0.7
-        }),
-        signal: AbortSignal.timeout(10000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (content) return content;
+  // 1. Google Gemini Multi-Key Pool (Free at https://aistudio.google.com/apikey)
+  const geminiKeys = getGeminiKeys();
+  if (geminiKeys.length > 0) {
+    const contents = messages.filter(m => m.role !== 'system').map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+    const systemInstruction = messages.find(m => m.role === 'system')?.content || "You are Capybara, a friendly, witty, smart AI tutor & companion on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, humorously and concisely in Vietnamese or English with emojis and carrots 🥕.";
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+
+    // Try rotating keys in pool on rate limit
+    for (let attempt = 0; attempt < Math.min(geminiKeys.length, 3); attempt++) {
+      const activeKey = geminiKeys[geminiKeyIndex % geminiKeys.length];
+      geminiKeyIndex++;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+          }),
+          signal: AbortSignal.timeout(20000)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text && text.trim()) return text.trim();
+        }
+      } catch (e) {
+        console.log(`Gemini Key attempt ${attempt + 1} failed:`, e.message);
       }
-    } catch (e) {}
+    }
   }
 
-  // 2. OpenRouter API
+  // 2. Groq Multi-Key Pool (Free at https://console.groq.com/keys)
+  const groqKeys = getGroqKeys();
+  if (groqKeys.length > 0) {
+    for (let attempt = 0; attempt < Math.min(groqKeys.length, 3); attempt++) {
+      const activeKey = groqKeys[groqKeyIndex % groqKeys.length];
+      groqKeyIndex++;
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + activeKey
+          },
+          body: JSON.stringify({
+            model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+            messages,
+            temperature: 0.7
+          }),
+          signal: AbortSignal.timeout(10000)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content && content.trim()) return content.trim();
+        }
+      } catch (e) {
+        console.log(`Groq Key attempt ${attempt + 1} failed:`, e.message);
+      }
+    }
+  }
+
+  // 3. OpenAI Multi-Key Pool (https://platform.openai.com/api-keys)
+  const openAiKeys = getOpenAiKeys();
+  if (openAiKeys.length > 0) {
+    for (let attempt = 0; attempt < Math.min(openAiKeys.length, 3); attempt++) {
+      const activeKey = openAiKeys[openAiKeyIndex % openAiKeys.length];
+      openAiKeyIndex++;
+      try {
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + activeKey
+          },
+          body: JSON.stringify({
+            model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+            messages,
+            temperature: 0.7
+          }),
+          signal: AbortSignal.timeout(10000)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content && content.trim()) return content.trim();
+        }
+      } catch (e) {
+        console.log(`OpenAI Key attempt ${attempt + 1} failed:`, e.message);
+      }
+    }
+  }
+
+  // 4. OpenRouter API (https://openrouter.ai/keys)
   if (process.env.OPENROUTER_API_KEY) {
     try {
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -234,7 +354,7 @@ async function callCloudLlm(messages) {
       if (res.ok) {
         const data = await res.json();
         const content = data.choices?.[0]?.message?.content;
-        if (content) return content;
+        if (content && content.trim()) return content.trim();
       }
     } catch (e) {}
   }
@@ -257,13 +377,23 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
     { role: "user", content: text }
   ];
 
+  // 0. Fast Cache Check for High-Concurrency School Scale
+  const cached = getCachedResponse(text);
+  if (cached) return cached;
+
   // 1. First, try Local / Remote Ollama
   const ollamaReply = await callLocalOllama(formattedMessages);
-  if (ollamaReply) return ollamaReply;
+  if (ollamaReply) {
+    setCachedResponse(text, ollamaReply);
+    return ollamaReply;
+  }
 
-  // 2. Second, try Cloud LLM (Groq / OpenRouter)
+  // 2. Second, try Cloud LLM Pool (Gemini / Groq / OpenAI / OpenRouter)
   const cloudReply = await callCloudLlm(formattedMessages);
-  if (cloudReply) return cloudReply;
+  if (cloudReply) {
+    setCachedResponse(text, cloudReply);
+    return cloudReply;
+  }
 
   // 3. Third: Ultra-natural Direct Response & Translation Resolver
   const lower = text.toLowerCase().replace(/['"?!,.]/g, "").trim();
@@ -466,6 +596,30 @@ Chào bạn! Đừng quá lo lắng khi làm sai câu này nhé, mình sẽ giú
 * **Động viên:** Bạn đang tiến bộ rất nhanh đó, cứ tự tin gửi câu hỏi cho mình nhé! 🦫🥕`;
   }
 
+  // Coding & Technology Support
+  if (lower.includes("coding") || lower.includes("code") || lower.includes("lập trình") || lower.includes("viết code") || lower.includes("javascript") || lower.includes("python") || lower.includes("html") || lower.includes("css") || lower.includes("c++") || lower.includes("java")) {
+    return `Có chứ bạn ơi! 🦫💻 Mình là trợ lý AI nên rất thành thạo lập trình (**JavaScript, Python, HTML/CSS, C++, Node.js, SQL...**).
+
+Bạn cần mình:
+1. **Viết code mẫu** cho một thuật toán hoặc tính năng nào?
+2. **Debug / sửa lỗi code** đang bị bug?
+3. **Giải thích khái niệm lập trình** hay từ vựng tiếng Anh chuyên ngành CNTT (IT)?
+
+Cứ gửi đoạn code hoặc yêu cầu cụ thể qua đây, mình hỗ trợ bạn ngay nhé! ✨`;
+  }
+
+  // Capability Inquiries
+  if (lower.includes("biết làm gì") || lower.includes("làm được") || lower.includes("có thể làm") || lower.includes("giúp được") || lower.includes("tính năng") || lower.includes("chức năng")) {
+    return `Mình là **Capybara AI Multi-talented** 🦫✨, mình có thể giúp bạn:
+
+1. **Gia sư Tiếng Anh toàn diện:** Dịch thuật, tra từ vựng, giải thích mọi thì ngữ pháp, sửa lỗi câu, chấm bài Writing.
+2. **Lập trình & Công nghệ (Coding):** Viết code, fix bug, giải thích thuật toán JavaScript, Python, C++, HTML/CSS...
+3. **Luyện đàm thoại & Giao tiếp:** Chat tiếng Anh/tiếng Việt tự nhiên, kể chuyện cười, tâm sự xả stress.
+4. **Hỗ trợ học tập:** Tạo đề trắc nghiệm AI, mẹo ghi nhớ Flashcard.
+
+Bạn muốn thử sức mình ở phần nào trước nè? 🥕🚀`;
+  }
+
   // General Direct Translation or Inquiry fallback
   const isEnText = /^[a-zA-Z\s.,?!'"]+$/.test(text);
   if (isEnText && text.split(/\s+/).length >= 2) {
@@ -479,9 +633,18 @@ Chào bạn! Đừng quá lo lắng khi làm sai câu này nhé, mình sẽ giú
     } catch (e) {}
   }
 
-  return `Bé Capybara đã ghi nhận câu hỏi của bạn: **"${text}"** 🦫✨
+  // General Open-ended Questions
+  if (lower.includes("tại sao") || lower.includes("vì sao") || lower.includes("như thế nào") || lower.includes("là gì") || lower.includes("ai là") || lower.includes("ở đâu")) {
+    return `Về câu hỏi **"${text}"** của bạn nè: 🦫✨
 
-Nếu bạn muốn dịch nghĩa, giải thích ngữ pháp hay luyện nói câu này, cứ nhắn chi tiết thêm một chút nhé! 🥕`;
+Đây là một câu hỏi rất thú vị! Với vai trò là trợ lý AI, mình luôn sẵn sàng phân tích và giải đáp từ kiến thức khoa học, đời sống, lập trình đến ngoại ngữ. 
+
+Bạn có muốn mình đi sâu vào chi tiết khía cạnh nào cụ thể của vấn đề này không? Cứ chia sẻ thêm với mình nhé! 🥕🌱`;
+  }
+
+  return `Chào bạn! 🦫✨ Mình đã nhận được tin nhắn: **"${text}"** của bạn.
+
+Mình luôn sẵn sàng trò chuyện, giải đáp câu hỏi về tiếng Anh, lập trình hay chia sẻ mọi chủ đề thú vị cùng bạn. Bạn muốn chúng mình cùng bàn luận tiếp về điều gì nào? 🥕💬`;
 }
 
 function gradeWritingEssay({ prompt, content, level = "grade9" }) {
