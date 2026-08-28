@@ -131,6 +131,7 @@
       border:1px solid var(--line);
       font-size:15px;
     }
+    .nav-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
 
     .sidebar-card{
       margin-top:22px;
@@ -313,6 +314,8 @@
       width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
       font-size:22px;background:#eef2ff;
     }
+    .stat-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
+    .skill-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
     .stat-card strong{font-size:25px;display:block}
     .stat-card span{color:var(--muted);font-size:13px}
 

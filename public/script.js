@@ -3170,7 +3170,7 @@
 
       if(playAudioBtn){
         playAudioBtn.disabled = true;
-        playAudioBtn.innerHTML = "🔊 Đang phát mẫu...";
+        playAudioBtn.innerHTML = "Đang phát mẫu...";
       }
       if(micBtn){
         micBtn.disabled = true;
@@ -3179,7 +3179,7 @@
       const resetAudioState = () => {
         if(playAudioBtn){
           playAudioBtn.disabled = false;
-          playAudioBtn.innerHTML = "🔊 Nghe phát âm mẫu";
+          playAudioBtn.innerHTML = "Nghe phát âm mẫu";
         }
         if(micBtn){
           micBtn.disabled = false;
@@ -3252,7 +3252,7 @@
       const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
       if(playAudioBtn){
         playAudioBtn.disabled = false;
-        playAudioBtn.innerHTML = "🔊 Nghe phát âm mẫu";
+        playAudioBtn.innerHTML = "Nghe phát âm mẫu";
       }
       const micBtn = document.getElementById("speakingMicBtn");
       if(micBtn) micBtn.disabled = false;
@@ -3306,7 +3306,7 @@
         if(res && res.assignments){
           speakingDatabase.teacher = res.assignments.map(a => ({
             id: a.id,
-            type: `🎯 ${a.title}${a.class_name ? ` (${a.class_name})` : ' (Toàn khối)'}`,
+            type: `${a.title}${a.class_name ? ` (${a.class_name})` : ' (Toàn khối)'}`,
             text: a.sentence,
             ipa: a.ipa || generateIpaTranscription(a.sentence),
             meaning: a.translation || '',
@@ -3360,7 +3360,7 @@
       if(submitTeacherBtn){
         if(targetItem.isTeacherTask){
           submitTeacherBtn.style.display = "block";
-          submitTeacherBtn.textContent = `📤 Nộp bài Speaking cho Giáo viên (${evaluation.accuracy}%) →`;
+          submitTeacherBtn.textContent = `Nộp bài Speaking cho Giáo viên (${evaluation.accuracy}%) →`;
         } else {
           submitTeacherBtn.style.display = "none";
         }
@@ -3373,30 +3373,30 @@
 
       if(evaluation.accuracy >= 90){
         playSuccessSound();
-        if(verdictEl) verdictEl.textContent = "🌟 Xuất sắc! Phát âm rất chuẩn";
+        if(verdictEl) verdictEl.textContent = "Xuất sắc! Phát âm rất chuẩn";
         if(feedbackEl) feedbackEl.textContent = "Tuyệt vời! Bạn phát âm trôi chảy như người bản xứ. Thưởng +15 XP & +2 Cà rốt 🥕";
         if(scoreCircle) scoreCircle.style.borderColor = "#22c55e";
         if(coachBubble) coachBubble.textContent = "Quá đỉnh luôn bạn ơi! Phát âm chuẩn 100%. Nhận 2 củ cà rốt nhé! 🦫🎉";
         stats.points = (stats.points || 0) + 15;
         stats.carrots = (stats.carrots || 0) + 2;
-        showToast("🌟 Phát âm xuất sắc: +15 XP, +2 Cà rốt 🥕!");
+        showToast("Phát âm xuất sắc: +15 XP, +2 Cà rốt 🥕!");
       } else if(evaluation.accuracy >= 70){
         playSuccessSound();
-        if(verdictEl) verdictEl.textContent = "👍 Khá tốt! Đạt yêu cầu";
+        if(verdictEl) verdictEl.textContent = "Khá tốt! Đạt yêu cầu";
         if(feedbackEl) feedbackEl.textContent = "Bạn đã đọc đúng hầu hết các từ. Chú ý các từ màu đỏ để cải thiện thêm nhé. Thưởng +10 XP & +1 Cà rốt 🥕";
         if(scoreCircle) scoreCircle.style.borderColor = "#f59e0b";
         if(coachBubble) coachBubble.textContent = "Khá lắm! Cố gắng luyện thêm âm đuôi là chuẩn không cần chỉnh nè! 🦫💪";
         stats.points = (stats.points || 0) + 10;
         stats.carrots = (stats.carrots || 0) + 1;
-        showToast("👍 Phát âm khá tốt: +10 XP, +1 Cà rốt 🥕!");
+        showToast("Phát âm khá tốt: +10 XP, +1 Cà rốt 🥕!");
       } else {
         playWrongSound();
-        if(verdictEl) verdictEl.textContent = "💪 Cần cố gắng thêm!";
+        if(verdictEl) verdictEl.textContent = "Cần cố gắng thêm!";
         if(feedbackEl) feedbackEl.textContent = "Hãy bấm 'Nghe phát âm mẫu' vài lần rồi đọc lại to và rõ ràng hơn nhé. Thưởng +5 XP khích lệ.";
         if(scoreCircle) scoreCircle.style.borderColor = "#ef4444";
         if(coachBubble) coachBubble.textContent = "Đừng nản lòng nha! Bấm nghe lại câu mẫu rồi thử đọc lại cùng mình nào! 🦫✨";
         stats.points = (stats.points || 0) + 5;
-        showToast("💪 Đã ghi nhận lượt đọc: +5 XP!");
+        showToast("Đã ghi nhận lượt đọc: +5 XP!");
       }
 
       updateStudyStreak(stats);
@@ -3424,11 +3424,11 @@
           })
         });
         showToast(res.message || "Đã nộp bài Speaking thành công cho giáo viên!");
-        if(btn) { btn.disabled = false; btn.textContent = "✓ Đã nộp bài cho Giáo viên!"; }
+        if(btn) { btn.disabled = false; btn.textContent = "Đã nộp bài cho Giáo viên!"; }
       } catch (e) {
         showToast(e.message || "Lỗi khi nộp bài Speaking!");
         const btn = document.getElementById("btnSubmitSpeakingToTeacher");
-        if(btn) { btn.disabled = false; btn.textContent = "📤 Thử nộp lại →"; }
+        if(btn) { btn.disabled = false; btn.textContent = "Thử nộp lại →"; }
       }
     });
 
@@ -3438,7 +3438,7 @@
       micBtn.addEventListener("click", () => {
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if(!SpeechRec){
-          showToast("⚠️ Trình duyệt của bạn không hỗ trợ Web Speech Recognition! Vui lòng dùng Chrome hoặc Edge.");
+          showToast("Trình duyệt của bạn không hỗ trợ Web Speech Recognition! Vui lòng dùng Chrome hoặc Edge.");
           return;
         }
 
@@ -3452,7 +3452,7 @@
           const playAudioBtn = document.getElementById("speakingPlayAudioBtn");
           if(playAudioBtn){
             playAudioBtn.disabled = false;
-            playAudioBtn.innerHTML = "🔊 Nghe phát âm mẫu";
+            playAudioBtn.innerHTML = "Nghe phát âm mẫu";
           }
         }
 
@@ -3475,7 +3475,7 @@
 
           micBtn.classList.add("recording");
           if(micLabel) micLabel.textContent = "Hoàn thành & Chấm điểm";
-          if(micIcon) micIcon.textContent = "⏹️";
+          if(micIcon) micIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>`;
           if(waveEl) waveEl.classList.remove("hidden");
           if(liveText) liveText.textContent = "Đang lắng nghe... Hãy đọc toàn bộ câu mẫu trên!";
         };
@@ -3512,7 +3512,7 @@
 
           micBtn.classList.remove("recording");
           if(micLabel) micLabel.textContent = "Bắt đầu nói";
-          if(micIcon) micIcon.textContent = "🎙️";
+          if(micIcon) micIcon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>`;
           if(waveEl) waveEl.classList.add("hidden");
 
           finishAndEvaluateSpeaking();
@@ -3550,7 +3550,7 @@
     document.getElementById("btnSpeakingAutoGenerate")?.addEventListener("click", () => {
       const sentence = document.getElementById("newSpeakingSentence")?.value.trim();
       if(!sentence){
-        showToast("⚠️ Vui lòng nhập câu tiếng Anh cần luyện nói trước!");
+        showToast("Vui lòng nhập câu tiếng Anh cần luyện nói trước!");
         return;
       }
       const generatedIpa = generateIpaTranscription(sentence);
@@ -3562,14 +3562,14 @@
       if(ipaInput) ipaInput.value = generatedIpa;
       if(translationInput) translationInput.value = generatedTranslation;
 
-      showToast("✨ AI đã tạo phiên âm IPA và dịch nghĩa thành công!");
+      showToast("AI đã tạo phiên âm IPA và dịch nghĩa thành công!");
     });
 
     // Preview TTS audio button in modal
     document.getElementById("btnPreviewSpeakingTts")?.addEventListener("click", () => {
       const sentence = document.getElementById("newSpeakingSentence")?.value.trim();
       if(!sentence){
-        showToast("⚠️ Vui lòng nhập câu tiếng Anh trước!");
+        showToast("Vui lòng nhập câu tiếng Anh trước!");
         return;
       }
       speakEnglishText(sentence);
@@ -3609,7 +3609,7 @@
         showToast(err.message || "Không thể giao bài tập Speaking!");
       } finally {
         const submitBtn = document.getElementById("submitSpeakingTaskBtn");
-        if(submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "🚀 Giao bài cho học sinh"; }
+        if(submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Giao bài cho học sinh"; }
       }
     });
 
@@ -3659,7 +3659,7 @@
             <td class="small muted">${new Date(item.created_at).toLocaleDateString('vi-VN')}</td>
             <td>
               <div style="display:flex;gap:6px">
-                <button class="btn btn-soft btn-sm btn-spk-listen" data-text="${encodeURIComponent(item.sentence)}" title="Nghe phát âm">🔊</button>
+                <button class="btn btn-soft btn-sm btn-spk-listen" data-text="${encodeURIComponent(item.sentence)}" title="Nghe phát âm">Nghe</button>
                 <button class="btn btn-danger btn-sm btn-spk-del" data-id="${item.id}" title="Xóa bài">✕</button>
               </div>
             </td>
@@ -3760,10 +3760,10 @@
 
     // Trung tâm thông báo
     const notificationItems=[
-      {id:"speaking",icon:"🎙️",title:"Luyện nói AI",detail:"Phòng luyện nói & nhận diện giọng nói AI đã sẵn sàng.",time:"Mới"},
+      {id:"speaking",icon:"<svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z'/><path d='M19 10v2a7 7 0 0 1-14 0v-2'/></svg>",title:"Luyện nói AI",detail:"Phòng luyện nói & nhận diện giọng nói AI đã sẵn sàng.",time:"Mới"},
       {id:"capybara",icon:"🦫",title:"Bạn đồng hành Capybara",detail:"Tương tác cùng Capybara và tích lũy cà rốt để thăng cấp.",time:"Mới"},
-      {id:"assignment",icon:"▤",title:"Bài luyện mới",detail:"Mid-term Practice 01 với chế độ thi an toàn đang chờ bạn.",time:"Hôm nay"},
-      {id:"streak",icon:"🔥",title:"Duy trì chuỗi học",detail:"Hoàn thành một nhiệm vụ để giữ chuỗi học tập.",time:"Hôm nay"}
+      {id:"assignment",icon:"<svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/></svg>",title:"Bài luyện mới",detail:"Mid-term Practice 01 với chế độ thi an toàn đang chờ bạn.",time:"Hôm nay"},
+      {id:"streak",icon:"<svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>",title:"Duy trì chuỗi học",detail:"Hoàn thành một nhiệm vụ để giữ chuỗi học tập.",time:"Hôm nay"}
     ];
     function getReadNotifications(){
       const key = getUserStorageKey("engoNotificationsReadV3");
@@ -3885,7 +3885,6 @@
         if (!profile.pendingErrors.length) {
           pendingList.innerHTML = `
             <div class="empty-state" style="text-align:center;padding:36px">
-              <span style="font-size:40px;display:block;margin-bottom:12px">🎉</span>
               <strong style="font-size:16px;color:#16a34a;display:block;margin-bottom:6px">Tuyệt vời! Bạn không có lỗi ngữ pháp nào đang chờ chữa.</strong>
               <p class="small muted">Hãy tiếp tục làm bài kiểm tra và luyện tập. Nếu có câu sai, hệ thống sẽ tự động chẩn đoán và đưa vào đây.</p>
             </div>
@@ -3896,7 +3895,7 @@
             return `
               <div class="healing-error-card">
                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-                  <span class="error-badge red">🔴 Cần chữa: ${escapeHTML(bankData.label)}</span>
+                  <span class="error-badge red">Cần chữa: ${escapeHTML(bankData.label)}</span>
                   <span class="small muted">${new Date(err.createdAt).toLocaleDateString("vi-VN")}</span>
                 </div>
                 <div style="font-size:14px;color:#1e293b;margin-bottom:8px">
@@ -3907,12 +3906,12 @@
                   <div>Đáp án chuẩn: <span style="color:#16a34a;font-weight:700">${escapeHTML(String(err.correct || "Xem giải thích"))}</span></div>
                 </div>
                 <div style="background:#f8fafc;border-left:3px solid #6366f1;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px;font-size:13px">
-                  <div style="font-weight:700;color:#4338ca;margin-bottom:2px">📖 Quy tắc cốt lõi:</div>
+                  <div style="font-weight:700;color:#4338ca;margin-bottom:2px">Quy tắc cốt lõi:</div>
                   <div style="color:#334155;line-height:1.5">${escapeHTML(bankData.rule)}</div>
-                  <div style="margin-top:6px;color:#059669;font-weight:600">💡 Mẹo nhớ: ${escapeHTML(bankData.mnemonic)}</div>
+                  <div style="margin-top:6px;color:#059669;font-weight:600">Mẹo nhớ: ${escapeHTML(bankData.mnemonic)}</div>
                 </div>
                 <button class="btn btn-primary start-healing-btn" data-error-code="${err.code}" data-error-id="${err.id}" style="width:100%;font-weight:700">
-                  💉 Bắt đầu chữa lỗi (Luyện 3 câu cùng dạng) →
+                  Bắt đầu chữa lỗi (Luyện 3 câu cùng dạng) →
                 </button>
               </div>
             `;
@@ -3932,22 +3931,22 @@
         const getDotClass = (code) => profile.heatmapStatus[code] || "unknown";
         const getStatusLabel = (code) => {
           const st = profile.heatmapStatus[code];
-          if (st === "mastered") return `<span style="color:#16a34a;font-weight:700">🟢 Thành thạo</span>`;
-          if (st === "shaky") return `<span style="color:#d97706;font-weight:700">🟡 Đang củng cố</span>`;
-          if (st === "weak") return `<span style="color:#dc2626;font-weight:700">🔴 Yếu (Cần chữa)</span>`;
-          return `<span style="color:#94a3b8">⚪ Chưa kiểm tra</span>`;
+          if (st === "mastered") return `<span style="color:#16a34a;font-weight:700">Thành thạo</span>`;
+          if (st === "shaky") return `<span style="color:#d97706;font-weight:700">Đang củng cố</span>`;
+          if (st === "weak") return `<span style="color:#dc2626;font-weight:700">Yếu (Cần chữa)</span>`;
+          return `<span style="color:#94a3b8">Chưa kiểm tra</span>`;
         };
 
         heatmapContainer.innerHTML = `
           <div class="healing-heatmap-group">
-            <h4>📘 Thì Hiện tại đơn (Present Simple)</h4>
+            <h4>Thì Hiện tại đơn (Present Simple)</h4>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_AFF')}"></div></div><div style="flex:1">Khẳng định (+s/es)</div><div>${getStatusLabel('PS_AFF')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_NEG')}"></div></div><div style="flex:1">Phủ định (don't/doesn't)</div><div>${getStatusLabel('PS_NEG')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_QUE')}"></div></div><div style="flex:1">Nghi vấn (Do/Does)</div><div>${getStatusLabel('PS_QUE')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PS_ADV')}"></div></div><div style="flex:1">Trạng từ tần suất</div><div>${getStatusLabel('PS_ADV')}</div></div>
           </div>
           <div class="healing-heatmap-group">
-            <h4>📙 Thì Quá khứ đơn (Past Simple)</h4>
+            <h4>Thì Quá khứ đơn (Past Simple)</h4>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_REG')}"></div></div><div style="flex:1">V-ed có quy tắc</div><div>${getStatusLabel('PAST_REG')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_IRR')}"></div></div><div style="flex:1">V2 Bất quy tắc</div><div>${getStatusLabel('PAST_IRR')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_NEG')}"></div></div><div style="flex:1">Phủ định (didn't + V)</div><div>${getStatusLabel('PAST_NEG')}</div></div>
@@ -3955,7 +3954,7 @@
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('PAST_BE')}"></div></div><div style="flex:1">Was / Were</div><div>${getStatusLabel('PAST_BE')}</div></div>
           </div>
           <div class="healing-heatmap-group">
-            <h4>📐 Cấu trúc So sánh (Comparatives)</h4>
+            <h4>Cấu trúc So sánh (Comparatives)</h4>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('CMP_SHORT')}"></div></div><div style="flex:1">Tính từ ngắn (-er/-est)</div><div>${getStatusLabel('CMP_SHORT')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('CMP_LONG')}"></div></div><div style="flex:1">Tính từ dài (more/most)</div><div>${getStatusLabel('CMP_LONG')}</div></div>
             <div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${getDotClass('CMP_IRR')}"></div></div><div style="flex:1">So sánh bất quy tắc</div><div>${getStatusLabel('CMP_IRR')}</div></div>
@@ -3972,7 +3971,7 @@
           historyList.innerHTML = profile.healedHistory.map(item => `
             <div class="card panel" style="padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
               <div>
-                <span class="badge green" style="margin-bottom:4px">✅ Đã chữa khỏi</span>
+                <span class="badge green" style="margin-bottom:4px">Đã chữa khỏi</span>
                 <div style="font-weight:700;color:#1e293b;margin-top:2px">${escapeHTML(item.title || item.code)}</div>
                 <div class="small muted">Hoàn thành lúc: ${new Date(item.healedAt).toLocaleString("vi-VN")}</div>
               </div>
@@ -4012,7 +4011,7 @@
 
       const modal = document.getElementById("healingExerciseModal");
       const title = document.getElementById("healingModalTitle");
-      if (title) title.textContent = `💉 Chữa lỗi: ${bank.label}`;
+      if (title) title.textContent = `Chữa lỗi: ${bank.label}`;
       renderHealingModalStep();
       if (modal) modal.classList.remove("hidden");
     }
@@ -4052,11 +4051,10 @@
 
         modalBody.innerHTML = `
           <div style="text-align:center;padding:20px 0">
-            <span style="font-size:52px;display:block;margin-bottom:12px">🎉✨</span>
             <h3 style="color:#16a34a;margin:0 0 8px">CHỮA LỖI THÀNH CÔNG!</h3>
             <p style="color:#334155;line-height:1.5;margin-bottom:16px">
               Bạn đã hoàn thành chính xác <strong>3/3 câu luyện tập</strong> dạng <strong>${escapeHTML(s.label)}</strong>.<br>
-              Lỗi này đã được đánh dấu <strong style="color:#16a34a">🟢 THÀNH THẠO</strong> trên Bản đồ Ngữ pháp!
+              Lỗi này đã được đánh dấu <strong style="color:#16a34a">THÀNH THẠO</strong> trên Bản đồ Ngữ pháp!
             </p>
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:inline-block;margin-bottom:20px">
               <strong style="color:#15803d;font-size:16px">🎁 Thưởng: +15 XP & +1 Cà rốt 🥕</strong>
