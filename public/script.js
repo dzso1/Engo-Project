@@ -173,6 +173,7 @@
       "errorHealing": "/healing",
       "results": "/results",
       "speaking-lab": "/speaking",
+      "writing-lab": "/writing",
       "focus-room": "/focus",
       "smart-review": "/smart-review",
       "teacher-home": "/teacher",
@@ -194,6 +195,8 @@
       "/results": "results",
       "/speaking": "speaking-lab",
       "/speaking-lab": "speaking-lab",
+      "/writing": "writing-lab",
+      "/writing-lab": "writing-lab",
       "/focus": "focus-room",
       "/focus-room": "focus-room",
       "/smart-review": "smart-review",
@@ -4070,6 +4073,335 @@
     document.getElementById("healingModalClose")?.addEventListener("click", () => {
       document.getElementById("healingExerciseModal")?.classList.add("hidden");
     });
+
+    // ==========================================
+    // 1. CAPYBARA AI CHATBOT CONTROLLER
+    // ==========================================
+    const capybaraChatWidget = document.getElementById("capybaraChatWidget");
+    const capybaraChatTrigger = document.getElementById("capybaraChatTrigger");
+    const capybaraChatWindow = document.getElementById("capybaraChatWindow");
+    const btnMinimizeChat = document.getElementById("btnMinimizeChat");
+    const capybaraChatInput = document.getElementById("capybaraChatInput");
+    const capybaraChatSendBtn = document.getElementById("capybaraChatSendBtn");
+    const capybaraChatMessages = document.getElementById("capybaraChatMessages");
+    const capybaraChatChips = document.getElementById("capybaraChatChips");
+
+    let chatHistory = [];
+
+    function toggleCapybaraChat() {
+      if (!capybaraChatWindow) return;
+      const isHidden = capybaraChatWindow.classList.contains("hidden");
+      capybaraChatWindow.classList.toggle("hidden", !isHidden);
+      if (isHidden && capybaraChatInput) {
+        setTimeout(() => capybaraChatInput.focus(), 150);
+      }
+    }
+
+    if (capybaraChatTrigger) capybaraChatTrigger.addEventListener("click", toggleCapybaraChat);
+    if (btnMinimizeChat) btnMinimizeChat.addEventListener("click", toggleCapybaraChat);
+
+    function appendChatMessage(sender, text) {
+      if (!capybaraChatMessages) return;
+      const msgEl = document.createElement("div");
+      msgEl.className = sender === "user" ? "chat-msg user-msg" : "chat-msg capybara-msg";
+      
+      const avatarSrc = "./images/engologo.png";
+      
+      let formattedText = (text || "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/### (.*)/g, '<strong style="display:block;font-size:14px;color:#047857;margin-bottom:6px">$1</strong>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n\* (.*)/g, '<div style="margin-left:8px">• $1</div>')
+        .replace(/\n/g, '<br/>');
+
+      msgEl.innerHTML = `
+        <img src="${avatarSrc}" class="chat-avatar" alt="${sender}" />
+        <div class="chat-bubble">
+          <div>${formattedText}</div>
+        </div>
+      `;
+      capybaraChatMessages.appendChild(msgEl);
+      capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
+    }
+
+    async function sendCapybaraMessage(textToSend) {
+      const text = (textToSend || (capybaraChatInput ? capybaraChatInput.value : "")).trim();
+      if (!text) return;
+
+      appendChatMessage("user", text);
+      if (capybaraChatInput) capybaraChatInput.value = "";
+
+      chatHistory.push({ role: "user", content: text });
+
+      // Typing indicator
+      const typingEl = document.createElement("div");
+      typingEl.className = "chat-msg capybara-msg typing-msg";
+      typingEl.innerHTML = `
+        <img src="./images/engologo.png" class="chat-avatar" alt="Capybara" />
+        <div class="chat-bubble"><em class="small muted">Capybara đang suy nghĩ... 🦫💭</em></div>
+      `;
+      capybaraChatMessages.appendChild(typingEl);
+      capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
+
+      try {
+        let reply = "";
+        // 1. Try free browser Puter.js AI first if available
+        if (window.puter && window.puter.ai && typeof window.puter.ai.chat === "function") {
+          try {
+            const puterResp = await window.puter.ai.chat(
+              "You are Capybara, a friendly and smart English tutor for Vietnamese students. Explain clearly in Vietnamese with examples and carrots. Student asks: " + text,
+              { model: "gpt-4o-mini" }
+            );
+            if (puterResp && typeof puterResp.toString === "function") {
+              reply = puterResp.toString().trim();
+            }
+          } catch (e) {
+            console.log("Puter fallback to backend:", e.message);
+          }
+        }
+
+        // 2. If no reply from Puter, call backend AI API
+        if (!reply) {
+          const res = await apiRequest("/api/ai/chat", {
+            method: "POST",
+            body: JSON.stringify({ message: text, history: chatHistory })
+          });
+          reply = res.reply || "Capybara đã nhận được câu hỏi của bạn!";
+        }
+
+        typingEl.remove();
+        appendChatMessage("capybara", reply);
+        chatHistory.push({ role: "assistant", content: reply });
+
+        if (Math.random() < 0.35) {
+          gainCarrots(1, "Hỏi bài cùng Capybara AI");
+          gainXP(5);
+        }
+      } catch (err) {
+        typingEl.remove();
+        appendChatMessage("capybara", "Chào bạn! " + err.message);
+      }
+    }
+
+    if (capybaraChatSendBtn) {
+      capybaraChatSendBtn.addEventListener("click", () => sendCapybaraMessage());
+    }
+    if (capybaraChatInput) {
+      capybaraChatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sendCapybaraMessage();
+        }
+      });
+    }
+    if (capybaraChatChips) {
+      capybaraChatChips.querySelectorAll(".chat-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          const prompt = chip.dataset.prompt;
+          if (prompt) sendCapybaraMessage(prompt);
+        });
+      });
+    }
+
+    // ==========================================
+    // 2. AI WRITING STUDIO CONTROLLER
+    // ==========================================
+    const writingTextInput = document.getElementById("writingTextInput");
+    const writingWordCount = document.getElementById("writingWordCount");
+    const writingPromptSelect = document.getElementById("writingPromptSelect");
+    const writingCustomPromptInput = document.getElementById("writingCustomPromptInput");
+    const btnGradeWriting = document.getElementById("btnGradeWriting");
+    const writingResultSection = document.getElementById("writingResultSection");
+
+    if (writingTextInput && writingWordCount) {
+      writingTextInput.addEventListener("input", () => {
+        const words = writingTextInput.value.trim().split(/\s+/).filter(Boolean);
+        writingWordCount.textContent = words.length;
+      });
+    }
+
+    if (writingPromptSelect && writingCustomPromptInput) {
+      writingPromptSelect.addEventListener("change", () => {
+        writingCustomPromptInput.style.display = writingPromptSelect.value === "custom" ? "block" : "none";
+      });
+    }
+
+    if (btnGradeWriting) {
+      btnGradeWriting.addEventListener("click", async () => {
+        const content = (writingTextInput ? writingTextInput.value : "").trim();
+        if (!content) {
+          showToast("Vui lòng nhập bài viết tiếng Anh của bạn trước khi chấm điểm.");
+          writingTextInput.focus();
+          return;
+        }
+
+        const prompt = writingPromptSelect.value === "custom" 
+          ? (writingCustomPromptInput?.value || "Custom prompt")
+          : writingPromptSelect.options[writingPromptSelect.selectedIndex].text;
+
+        btnGradeWriting.disabled = true;
+        btnGradeWriting.innerHTML = '<span>⏳</span> AI đang chấm bài & sửa lỗi...';
+
+        try {
+          const res = await apiRequest("/api/ai/grade-writing", {
+            method: "POST",
+            body: JSON.stringify({ prompt, content, level: "grade9" })
+          });
+
+          const ev = res.evaluation;
+          if (ev) {
+            document.getElementById("writingScoreValue").textContent = ev.score;
+            document.getElementById("writingBandText").textContent = "Trình độ: " + ev.band;
+            document.getElementById("writingBandBadge").textContent = "Band: " + ev.band.split("-")[0].trim();
+
+            // Render Criteria Grid
+            const criteriaGrid = document.getElementById("writingCriteriaGrid");
+            if (criteriaGrid && ev.criteria) {
+              const labels = {
+                taskAchievement: "Nội dung & Yêu cầu đề (Task)",
+                coherence: "Mạch lạc & Liên kết (Coherence)",
+                lexicalResource: "Từ vựng (Lexical Resource)",
+                grammaticalAccuracy: "Ngữ pháp & Chính tả (Grammar)"
+              };
+              criteriaGrid.innerHTML = Object.keys(ev.criteria).map(key => `
+                <div class="writing-criteria-card">
+                  <div class="writing-criteria-head">
+                    <span>${labels[key] || key}</span>
+                    <span style="color:var(--primary)">${ev.criteria[key].score} / 10</span>
+                  </div>
+                  <div class="small muted">${ev.criteria[key].comment}</div>
+                </div>
+              `).join("");
+            }
+
+            // Render Mistakes Breakdown
+            const mistakesList = document.getElementById("writingMistakesList");
+            if (mistakesList) {
+              if (!ev.mistakes || ev.mistakes.length === 0) {
+                mistakesList.innerHTML = '<div class="small muted" style="color:#059669;font-weight:700">✓ Tuyệt vời! Không phát hiện lỗi sai ngữ pháp đáng kể nào.</div>';
+              } else {
+                mistakesList.innerHTML = ev.mistakes.map((m, idx) => `
+                  <div class="writing-mistake-card">
+                    <div class="writing-mistake-badge">${m.type}</div>
+                    <div style="font-size:13px;margin-bottom:4px">
+                      <strong style="color:#dc2626;text-decoration:line-through">${m.original}</strong>
+                      <span style="margin:0 6px">➔</span>
+                      <strong style="color:#16a34a">${m.corrected}</strong>
+                    </div>
+                    <div class="small muted">${m.explanation}</div>
+                  </div>
+                `).join("");
+              }
+            }
+
+            // Render Improved Model Text
+            const improvedTextEl = document.getElementById("writingImprovedText");
+            if (improvedTextEl) {
+              improvedTextEl.textContent = ev.improvedVersion || content;
+            }
+
+            if (writingResultSection) {
+              writingResultSection.classList.remove("hidden");
+              writingResultSection.scrollIntoView({ behavior: "smooth" });
+            }
+
+            // Reward
+            if (ev.rewards) {
+              gainXP(ev.rewards.xp || 20);
+              gainCarrots(ev.rewards.carrots || 1, "Chấm điểm Writing AI");
+            }
+
+            showToast("✨ AI đã hoàn tất chấm điểm & sửa lỗi bài viết!");
+          }
+        } catch (err) {
+          showToast("Lỗi chấm bài: " + err.message);
+        } finally {
+          btnGradeWriting.disabled = false;
+          btnGradeWriting.innerHTML = '<span>✨</span> Chấm điểm & Sửa lỗi bằng AI';
+        }
+      });
+    }
+
+    // ==========================================
+    // 3. AI TEST GENERATOR CONTROLLER
+    // ==========================================
+    const aiGenerateTestModal = document.getElementById("aiGenerateTestModal");
+    const openAiTestGenDashboardBtn = document.getElementById("openAiTestGenDashboardBtn");
+    const openTeacherAiGenBtn = document.getElementById("openTeacherAiGenBtn");
+    const btnCloseAiTestGenModal = document.getElementById("btnCloseAiTestGenModal");
+    const aiTestGenForm = document.getElementById("aiTestGenForm");
+    const aiGenTopicSelect = document.getElementById("aiGenTopicSelect");
+    const aiGenCustomTopic = document.getElementById("aiGenCustomTopic");
+
+    function openAiTestGenModal() {
+      if (aiGenerateTestModal) aiGenerateTestModal.style.display = "flex";
+    }
+    function closeAiTestGenModal() {
+      if (aiGenerateTestModal) aiGenerateTestModal.style.display = "none";
+    }
+
+    if (openAiTestGenDashboardBtn) openAiTestGenDashboardBtn.addEventListener("click", openAiTestGenModal);
+    if (openTeacherAiGenBtn) openTeacherAiGenBtn.addEventListener("click", openAiTestGenModal);
+    if (btnCloseAiTestGenModal) btnCloseAiTestGenModal.addEventListener("click", closeAiTestGenModal);
+
+    if (aiGenTopicSelect && aiGenCustomTopic) {
+      aiGenTopicSelect.addEventListener("change", () => {
+        aiGenCustomTopic.style.display = aiGenTopicSelect.value === "custom" ? "block" : "none";
+      });
+    }
+
+    if (aiTestGenForm) {
+      aiTestGenForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const topic = aiGenTopicSelect.value === "custom"
+          ? (aiGenCustomTopic?.value || "Chủ đề tự chọn")
+          : aiGenTopicSelect.options[aiGenTopicSelect.selectedIndex].text;
+        const gradeLevel = document.getElementById("aiGenGrade")?.value || "9";
+        const count = document.getElementById("aiGenCount")?.value || "10";
+        const difficulty = document.querySelector('input[name="aiGenDiff"]:checked')?.value || "medium";
+
+        const submitBtn = document.getElementById("btnSubmitAiTestGen");
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = "⏳ Đang sinh đề thi bằng AI...";
+        }
+
+        try {
+          const res = await apiRequest("/api/ai/generate-test", {
+            method: "POST",
+            body: JSON.stringify({ topic, gradeLevel, count, difficulty })
+          });
+
+          if (res.test && res.test.questions && res.test.questions.length > 0) {
+            closeAiTestGenModal();
+            showToast("🎯 Đã tạo thành công đề thi AI với " + res.test.questions.length + " câu hỏi!");
+
+            const generatedDeck = {
+              title: res.test.testTitle,
+              durationMinutes: res.test.timeMinutes,
+              questions: res.test.questions.map(q => ({
+                id: q.id,
+                prompt: q.question,
+                options: q.options,
+                answer: q.answer,
+                explanation: q.explanation
+              }))
+            };
+
+            grammarTestDecks["ai-generated"] = generatedDeck;
+            startGrammarTest("ai-generated");
+          }
+        } catch (err) {
+          showToast("Lỗi tạo đề: " + err.message);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "✨ Bắt đầu Tạo Đề AI Tức Thì";
+          }
+        }
+      });
+    }
 
     renderDailyPlan();renderFocusTime();renderNotifications();renderLearningFeatures();
 
