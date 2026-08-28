@@ -265,17 +265,92 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
   const cloudReply = await callCloudLlm(formattedMessages);
   if (cloudReply) return cloudReply;
 
-  // 3. Third: Ultra-natural Conversational Dialogue Engine (No robotic lists!)
+  // 3. Third: Ultra-natural Direct Response & Translation Resolver
   const lower = text.toLowerCase().replace(/['"?!,.]/g, "").trim();
 
-  // Short punctuation / single dot / casual pings
-  if (!lower || lower === "." || lower === "alo" || lower === "ê" || lower === "oi" || lower === "ơi" || lower === "helo" || lower === "hi" || lower === "hello") {
+  // Translation command detector (dịch câu..., translate..., nghĩa là gì...)
+  const translateMatch = text.match(/dịch(?: giúp| hộ| cho)?(?: câu| từ| nghĩa)?[:\s]+(.+)/i) || 
+                         text.match(/translate[:\s]+(.+)/i) ||
+                         text.match(/(?:nghĩa là gì|có nghĩa là gì|nghĩa của từ)\s*(.+)/i) ||
+                         text.match(/(.+)\s+(?:nghĩa là gì|có nghĩa là gì)/i);
+                         
+  if (translateMatch) {
+    let toTranslate = (translateMatch[1] || '')
+      .replace(/^(từ|cụm từ|câu)\s+/i, '')
+      .replace(/sang tiếng (việt|anh)|to (vietnamese|english)/gi, '')
+      .replace(/^['":]+|['":]+$/g, '')
+      .trim();
+
+    if (toTranslate) {
+      const lowerT = toTranslate.toLowerCase().replace(/['"?!,.]/g, '').trim();
+      
+      const commonIdioms = {
+        "i love you": "Tôi yêu bạn / Anh yêu em / Em yêu anh",
+        "how are you": "Bạn có khỏe không?",
+        "how are you doing": "Dạo này bạn thế nào / Bạn có khỏe không?",
+        "how is it going": "Mọi chuyện dạo này thế nào rồi?",
+        "what are you doing": "Bạn đang làm gì thế?",
+        "nice to meet you": "Rất vui được gặp bạn",
+        "thank you": "Cảm ơn bạn",
+        "thank you very much": "Cảm ơn bạn rất nhiều",
+        "you are welcome": "Không có chi / Rất sẵn lòng",
+        "good morning": "Chào buổi sáng",
+        "good night": "Chúc ngủ ngon",
+        "have a nice day": "Chúc bạn một ngày tốt lành",
+        "piece of cake": "Dễ như ăn bánh (rất dễ dàng)"
+      };
+
+      if (commonIdioms[lowerT]) {
+        return `Bản dịch của "${toTranslate}":\n👉 **${commonIdioms[lowerT]}**\n\n*(Tiếng Anh ➔ Tiếng Việt)* 🦫✨`;
+      }
+
+      const isEnglish = /^[a-zA-Z\s.,?!'"]+$/.test(toTranslate);
+      const pair = isEnglish ? 'en|vi' : 'vi|en';
+      try {
+        const res = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(toTranslate) + '&langpair=' + pair);
+        const data = await res.json();
+        const trans = data.responseData?.translatedText;
+        if (trans && !trans.includes('MYMEMORY WARNING')) {
+          return `Bản dịch của "${toTranslate}":\n👉 **${trans}**\n\n*(${isEnglish ? "Tiếng Anh ➔ Tiếng Việt" : "Tiếng Việt ➔ Tiếng Anh"})* 🦫✨`;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Ollama setup guide request
+  if (lower.includes("ollama")) {
+    return `### 🦫 Hướng dẫn kết nối Ollama (AI Nguyên Bản 100%):
+
+Backend ENGO đã được tích hợp sẵn cổng kết nối tới **Ollama** (\`http://localhost:11434\`). 
+
+Để trò chuyện với mô hình Ollama chưa qua xử lý, bạn làm như sau:
+1. Tải và cài đặt Ollama từ trang chủ: **https://ollama.com** (nếu máy chưa có).
+2. Mở cửa sổ **CMD / Terminal** trên máy tính và chạy một mô hình nhẹ:
+   \`\`\`bash
+   ollama run llama3.2:1b
+   \`\`\`
+   *(hoặc \`ollama run llama3.2\`, \`ollama run gemma2:2b\`, \`ollama run qwen2.5:1.5b\`)*
+3. **Xong!** Ngay khi Ollama chạy, mọi câu bạn gõ ở đây sẽ được gửi trực tiếp tới Ollama để sinh câu trả lời gốc 100% siêu thông minh! 🦫🚀`;
+  }
+
+  // Greetings / Casual Chat
+  if (!lower || lower === "." || lower.startsWith("chào") || lower.startsWith("hello") || lower.startsWith("hi ") || lower === "hi" || lower.startsWith("hey") || lower.includes("hôm nay thế nào") || lower.includes("bạn thế nào")) {
     const pings = [
-      `Úi chao, Capybara nghe đây nè! 🦫✨ Bạn đang làm gì thế? Có câu tiếng Anh nào đang thắc mắc hay muốn tám chuyện chút xíu không? 🥕`,
-      `Chào bạn nha! 🦫 Mình đã có mặt đây rồi. Hôm nay bạn muốn luyện từ vựng, hỏi ngữ pháp hay nghe một câu chuyện cười tiếng Anh nào? ✨`,
-      `Hi there! Bé Capybara siêu thân thiện đã sẵn sàng đồng hành cùng bạn rồi nè. Bật mí cho mình biết bạn đang học bài gì đi! 🥕🌱`
+      `Chào bạn nha! 🦫✨ Hôm nay mình rất vui và tràn đầy năng lượng để cùng bạn học tiếng Anh nè! Bạn đang ôn phần nào, kể mình nghe với? 🥕`,
+      `Hi there! Bé Capybara siêu thân thiện đã sẵn sàng đồng hành cùng bạn rồi nè. Hôm nay bạn muốn dịch câu, hỏi ngữ pháp hay nghe chuyện cười tiếng Anh? ✨🌱`,
+      `Úi chao, Capybara nghe đây nè! 🦫✨ Bạn có câu tiếng Anh nào đang thắc mắc hay muốn tám chuyện chút xíu không? 🥕`
     ];
     return pings[Math.floor(Math.random() * pings.length)];
+  }
+
+  // Thanks
+  if (lower.includes("cảm ơn") || lower.includes("cam on") || lower.includes("thank") || lower.includes("thanks")) {
+    return `Không có chi nha bạn ơi! 🦫💖 Luôn sẵn sàng đồng hành và hỗ trợ bạn học tiếng Anh thật vui mỗi ngày. Có thắc mắc gì cứ hỏi mình tiếp nhé! 🥕✨`;
+  }
+
+  // Bye
+  if (lower.includes("tạm biệt") || lower.includes("tam biet") || lower.includes("bye") || lower.includes("goodbye")) {
+    return `Tạm biệt bạn nha! 🦫👋 Nghỉ ngơi thật tốt và hẹn gặp lại bạn trong buổi học tiếp theo cùng Capybara nhé! 🥕✨`;
   }
 
   // Feelings / Tired / Bored
@@ -391,10 +466,22 @@ Chào bạn! Đừng quá lo lắng khi làm sai câu này nhé, mình sẽ giú
 * **Động viên:** Bạn đang tiến bộ rất nhanh đó, cứ tự tin gửi câu hỏi cho mình nhé! 🦫🥕`;
   }
 
-  // General Friendly Response
-  return `Hi bạn! 🦫✨ Mình đã đọc tin nhắn: **"${text}"** của bạn rồi nè!
+  // General Direct Translation or Inquiry fallback
+  const isEnText = /^[a-zA-Z\s.,?!'"]+$/.test(text);
+  if (isEnText && text.split(/\s+/).length >= 2) {
+    try {
+      const res = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=en|vi');
+      const data = await res.json();
+      const trans = data.responseData?.translatedText;
+      if (trans && !trans.includes('MYMEMORY WARNING')) {
+        return `**Dịch nghĩa:** "${trans}"\n\n💡 Bạn có câu hỏi nào về từ vựng hay ngữ pháp trong câu này không? Cứ hỏi mình nhé! 🦫✨`;
+      }
+    } catch (e) {}
+  }
 
-Bạn muốn mình giải thích ngữ pháp, cùng bạn dịch câu, kể chuyện cười hay cùng bạn luyện đàm thoại tiếng Anh hôm nay? Hãy nói cụ thể để Capybara phục vụ bạn chu đáo nhất nhé! 🥕🌱`;
+  return `Bé Capybara đã ghi nhận câu hỏi của bạn: **"${text}"** 🦫✨
+
+Nếu bạn muốn dịch nghĩa, giải thích ngữ pháp hay luyện nói câu này, cứ nhắn chi tiết thêm một chút nhé! 🥕`;
 }
 
 function gradeWritingEssay({ prompt, content, level = "grade9" }) {
