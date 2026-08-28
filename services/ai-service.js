@@ -151,21 +151,49 @@ async function translateAndGenerateIpa(sentence) {
   };
 }
 
-async function chatWithCapybara(userMessage, conversationHistory = []) {
-  const text = (userMessage || "").trim();
-  if (!text) return "Chào bạn! Mình là Capybara AI Tutor. Hãy gửi câu hỏi hoặc chủ đề bạn muốn trò chuyện nhé! 🦫✨";
+async function callLocalOllama(messages) {
+  const host = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+  try {
+    // 1. Get model name from Ollama tags if not explicitly set
+    let model = process.env.OLLAMA_MODEL;
+    if (!model) {
+      const tagsRes = await fetch(host + "/api/tags", { signal: AbortSignal.timeout(1200) });
+      if (tagsRes.ok) {
+        const tagsData = await tagsRes.json();
+        if (tagsData.models && tagsData.models.length > 0) {
+          model = tagsData.models[0].name;
+        }
+      }
+    }
+    model = model || "llama3.2:1b";
 
-  // Check external API key if configured
+    const chatRes = await fetch(host + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: false,
+        options: { temperature: 0.7, top_p: 0.9 }
+      }),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (chatRes.ok) {
+      const data = await chatRes.json();
+      const content = data.message?.content;
+      if (content && content.trim()) return content.trim();
+    }
+  } catch (e) {
+    // Ollama not reachable or timed out
+  }
+  return null;
+}
+
+async function callCloudLlm(messages) {
+  // 1. Groq API
   if (process.env.GROQ_API_KEY) {
     try {
-      const messages = [
-        {
-          role: "system",
-          content: "You are Capybara, an extraordinarily friendly, witty, empathetic, and knowledgeable AI companion & English Tutor on ENGO for Vietnamese students and teachers. You can chat naturally about ANY topic in Vietnamese or English, roleplay conversations, explain grammar, translate, tell funny jokes, and encourage students with capybara charm and carrots 🥕. Keep formatting clear with markdown, bolding, and emojis."
-        },
-        ...conversationHistory.slice(-8),
-        { role: "user", content: text }
-      ];
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -176,7 +204,8 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
           model: "llama-3.1-8b-instant",
           messages,
           temperature: 0.7
-        })
+        }),
+        signal: AbortSignal.timeout(10000)
       });
       if (res.ok) {
         const data = await res.json();
@@ -186,88 +215,145 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
     } catch (e) {}
   }
 
-  // Conversational response engine for rich natural dialogue
-  const lower = text.toLowerCase();
-
-  // Greetings & casual chat
-  if (lower.match(/^(chào|hello|hi|hey|xin chào|halo|chào bạn|chào capybara)/i)) {
-    return `Chào bạn nha! 🦫✨ Mình là **Capybara AI** siêu thân thiện đây!
-
-Hôm nay bạn thế nào rồi? Đang học bài, ôn thi hay muốn trò chuyện/luyện tiếng Anh cùng mình? Hãy nói cho mình nghe nhé! 🥕🌱`;
+  // 2. OpenRouter API
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + process.env.OPENROUTER_API_KEY
+        },
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.2-3b-instruct:free",
+          messages,
+          temperature: 0.7
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) return content;
+      }
+    } catch (e) {}
   }
 
-  if (lower.includes("bạn là ai") || lower.includes("who are you") || lower.includes("tên là gì")) {
-    return `Mình là **Capybara AI** 🦫 — Trợ lý học tập và gia sư tiếng Anh thông minh của bạn trên ENGO Learning Hub!
+  return null;
+}
 
-Mình thích ăn cỏ tươi, gặm cà rốt 🥕 và đặc biệt là cực kỳ đam mê giúp bạn học giỏi tiếng Anh mỗi ngày! Bạn cần mình giúp gì hôm nay nè? ✨`;
+async function chatWithCapybara(userMessage, conversationHistory = []) {
+  const text = (userMessage || "").trim();
+  if (!text) return "Chào bạn! Mình là Capybara AI Tutor. Hãy nhắn bất cứ điều gì bạn muốn trò chuyện hoặc hỏi bài nhé! 🦫✨";
+
+  const systemMessage = {
+    role: "system",
+    content: "You are Capybara (Bé Capybara), a charming, witty, super friendly, and enthusiastic AI tutor & companion on ENGO Learning Hub. You chat naturally about EVERYTHING in Vietnamese or English, tell funny jokes, explain English grammar with memorable examples, translate, and cheer up students with capybara love and carrots 🥕. Never sound robotic. Always be conversational, friendly, and lively."
+  };
+
+  const formattedMessages = [
+    systemMessage,
+    ...conversationHistory.slice(-6),
+    { role: "user", content: text }
+  ];
+
+  // 1. First, try Local / Remote Ollama
+  const ollamaReply = await callLocalOllama(formattedMessages);
+  if (ollamaReply) return ollamaReply;
+
+  // 2. Second, try Cloud LLM (Groq / OpenRouter)
+  const cloudReply = await callCloudLlm(formattedMessages);
+  if (cloudReply) return cloudReply;
+
+  // 3. Third: Ultra-natural Conversational Dialogue Engine (No robotic lists!)
+  const lower = text.toLowerCase().replace(/['"?!,.]/g, "").trim();
+
+  // Short punctuation / single dot / casual pings
+  if (!lower || lower === "." || lower === "alo" || lower === "ê" || lower === "oi" || lower === "ơi" || lower === "helo" || lower === "hi" || lower === "hello") {
+    const pings = [
+      `Úi chao, Capybara nghe đây nè! 🦫✨ Bạn đang làm gì thế? Có câu tiếng Anh nào đang thắc mắc hay muốn tám chuyện chút xíu không? 🥕`,
+      `Chào bạn nha! 🦫 Mình đã có mặt đây rồi. Hôm nay bạn muốn luyện từ vựng, hỏi ngữ pháp hay nghe một câu chuyện cười tiếng Anh nào? ✨`,
+      `Hi there! Bé Capybara siêu thân thiện đã sẵn sàng đồng hành cùng bạn rồi nè. Bật mí cho mình biết bạn đang học bài gì đi! 🥕🌱`
+    ];
+    return pings[Math.floor(Math.random() * pings.length)];
   }
 
-  if (lower.includes("kể chuyện cười") || lower.includes("joke") || lower.includes("hài hước")) {
-    return `Đây là một câu đùa tiếng Anh vui dành cho bạn nè 🦫😄:
+  // Feelings / Tired / Bored
+  if (lower.includes("chán") || lower.includes("mệt") || lower.includes("lười") || lower.includes("nản") || lower.includes("khó quá")) {
+    return `Thương bạn ghê á! 🦫💖 Học tiếng Anh đôi lúc cũng mệt mỏi và hack não thật.
 
-**Q:** Why did the teacher wear sunglasses in the classroom?
-**A:** Because her students were too bright! 🕶️✨
-*(Giải thích: **Bright** vừa có nghĩa là 'sáng chói', vừa có nghĩa là 'thông minh sáng dạ' đó!)*
-
-Thế nào, bạn đã thấy vui hơn để bắt đầu học tiếp chưa? 🥕`;
+Bạn cứ thả lỏng một xíu, uống miếng nước hay vươn vai nhé. Muốn nghe mình kể một mẩu chuyện đùa vui hay luyện nói 1 câu tiếng Anh thật ngầu để lấy lại năng lượng không nè? Capybara luôn ở đây cổ vũ bạn! 🥕✨`;
   }
 
+  // Identity / Name
+  if (lower.includes("bạn là ai") || lower.includes("who are you") || lower.includes("tên là gì") || lower.includes("tên gì")) {
+    return `Mình là **Bé Capybara AI** 🦫✨ — Trợ lý học tập kiêm bạn đồng hành tiếng Anh siêu cute của bạn trên ENGO!
+
+Sở thích của mình là ăn cỏ non, gặm cà rốt 🥕 và giải cứu các bạn học sinh khỏi ma trận thì ngữ pháp tiếng Anh. Rất vui được làm bạn với bạn nha!`;
+  }
+
+  // Jokes
+  if (lower.includes("chuyện cười") || lower.includes("joke") || lower.includes("hài") || lower.includes("kể chuyện")) {
+    const jokes = [
+      `Đây là một câu đùa tiếng Anh cực vui nè 🦫😄:\n\n**Q:** Why did the boy eat his English homework?\n**A:** Because his teacher told him that it was a piece of cake! 🍰✨\n*(Giải thích: **A piece of cake** là thành ngữ nghĩa là 'Dễ như ăn bánh' đó!)*`,
+      `Nghe câu này nè bạn ơi 🦫✨:\n\n**Q:** What is a snake's favorite subject in school?\n**A:** **Hisssss-tory!** 🐍📚\n*(Giải thích: Tiếng rắn kêu là 'Hiss', phát âm giống môn Lịch sử - History)*`
+    ];
+    return jokes[Math.floor(Math.random() * jokes.length)];
+  }
+
+  // English greetings & dialogues
+  if (lower.startsWith("how are you") || lower.startsWith("how do you do")) {
+    return `I'm doing fantastic, thank you so much! 🦫🥕 What about you? How has your day been going so far? Tell me in English or Vietnamese! ✨`;
+  }
+  if (lower.startsWith("what are you doing") || lower.startsWith("what do you do")) {
+    return `I'm currently munching on some delicious carrots 🥕 and waiting to chat or practice English with awesome students like you! What are you studying right now? 🦫✨`;
+  }
+
+  // Grammar: Past Simple
   if (lower.includes("quá khứ") || lower.includes("past simple") || lower.includes("past tense")) {
-    return `### 🦫 Gia sư Capybara: Thì Quá khứ đơn (Past Simple)
+    return `### 🦫 Gia sư Capybara: Bí kíp Thì Quá khứ đơn (Past Simple)
 
-**1. Công thức:**
-* **Khẳng định:** $S + V2/V-ed + (O)$
-  * *Ví dụ:* She **visited** Hanoi yesterday. / They **went** to school by bus.
-* **Phủ định:** $S + \\text{didn't} + V\\text{-nguyên thể}$
-  * *Ví dụ:* I **didn't see** him this morning. *(Động từ giữ nguyên mẫu!)*
-* **Nghi vấn:** $\\text{Did} + S + V\\text{-nguyên thể}?$
-  * *Ví dụ:* **Did** you **finish** your homework?
+* **Khẳng định:** $S + V2/V-ed$ *(Ví dụ: We **watched** a movie yesterday.)*
+* **Phủ định:** $S + \\text{didn't} + V\\text{-nguyên thể}$ *(Ví dụ: She **didn't go** out.)*
+* **Nghi vấn:** $\\text{Did} + S + V\\text{-nguyên thể}?$ *(Ví dụ: **Did** you see Nam?)*
 
-**2. Dấu hiệu:** *yesterday, last week/month/year, ago, in 2020...*
-
-💡 **Mẹo Capybara:** Cứ thấy **DID / DIDN'T** là động từ chính đưa ngay về **nguyên mẫu không chia** nhé! 🥕`;
+💡 **Mẹo Capybara:** Cứ có **DID / DIDN'T** là động từ chính lập tức trở về **nguyên mẫu không chia** nha bạn! 🥕`;
   }
 
+  // Grammar: Present Simple
   if (lower.includes("hiện tại đơn") || lower.includes("present simple")) {
     return `### 🦫 Gia sư Capybara: Thì Hiện tại đơn (Present Simple)
 
-**1. Công thức:**
-* **Số nhiều (I/You/We/They):** $S + V\\text{-nguyên thể}$
-* **Số ít (He/She/It):** $S + V\\text{-s/es}$
-* **Phủ định:** $S + \\text{don't / doesn't} + V\\text{-nguyên thể}$
-* **Nghi vấn:** $\\text{Do / Does} + S + V\\text{-nguyên thể}?$
+* **Số nhiều (I/You/We/They):** Giữ nguyên động từ *(They **play** football).*
+* **Số ít (He/She/It):** Động từ thêm **-s** hoặc **-es** *(He **watches** TV).*
+* **Phủ định:** Dùng **don't** (số nhiều) hoặc **doesn't** (số ít) $+ V\\text{-nguyên thể}$.
 
-**2. Quy tắc thêm -es:** Tận cùng là **O, S, X, Z, CH, SH** *(Mẹo nhớ: **Ô**ng **S**áu **X**em **Z**ô **CH**ạy **SH**)*.
-
-**3. Dấu hiệu:** *always, usually, often, sometimes, rarely, never, every day...* 🥕`;
+💡 **Mẹo thêm -es:** Tận cùng là **O, S, X, Z, CH, SH** *(Câu thần chú: **Ô**ng **S**áu **X**em **Z**ô **CH**ạy **SH**)*. 🥕`;
   }
 
+  // Grammar: Comparatives
   if (lower.includes("so sánh") || lower.includes("comparative") || lower.includes("superlative")) {
     return `### 🦫 Gia sư Capybara: Cấu trúc So Sánh
 
-**1. So sánh hơn:**
-* **Tính từ ngắn (1 âm tiết):** $S_1 + \\text{be} + \\text{Adj-er} + \\text{than} + S_2$ *(An is **taller than** Nam)*
-* **Tính từ dài ($\\ge 2$ âm tiết):** $S_1 + \\text{be} + \\text{more} + \\text{Adj} + \\text{than} + S_2$ *(This book is **more interesting than** that one)*
-
-**2. Bất quy tắc quan trọng:**
-* good $\\rightarrow$ **better** $\\rightarrow$ the best
-* bad $\\rightarrow$ **worse** $\\rightarrow$ the worst
-* far $\\rightarrow$ **farther / further** $\\rightarrow$ the farthest
-* many/much $\\rightarrow$ **more** $\\rightarrow$ the most 🥕`;
+* **Tính từ ngắn (1 âm tiết):** $Adj\\text{-er} + \\text{than}$ *(taller than, faster than)*
+* **Tính từ dài ($\\ge 2$ âm tiết):** $\\text{more} + Adj + \\text{than}$ *(more beautiful than)*
+* **Bất quy tắc siêu quan trọng:**
+  * good $\\rightarrow$ **better**
+  * bad $\\rightarrow$ **worse**
+  * far $\\rightarrow$ **farther / further** 🥕`;
   }
 
-  if (lower.includes("điều kiện") || lower.includes("conditional") || lower.includes("if")) {
-    return `### 🦫 Gia sư Capybara: Câu Điều Kiện (If Sentences)
+  // Grammar: Conditionals
+  if (lower.includes("điều kiện") || lower.includes("conditional") || lower.includes("câu if") || lower === "if") {
+    return `### 🦫 Gia sư Capybara: Câu Điều Kiện (If)
 
-**1. Loại 1 (Có thể xảy ra ở hiện tại/tương lai):**
-* $\\text{If} + S + V\\text{ (Hiện tại đơn)}, S + \\text{will/can} + V\\text{-nguyên thể}$
-* *Ví dụ:* If it **rains** tomorrow, we **will stay** home.
-
-**2. Loại 2 (Giả định trái thực tế ở hiện tại):**
-* $\\text{If} + S + V2/V-ed\\text{ (To be dùng WERE)}, S + \\text{would/could} + V\\text{-nguyên thể}$
-* *Ví dụ:* If I **were** you, I **would study** harder. 🥕`;
+* **Loại 1 (Có thể xảy ra):** $\\text{If} + S + V\\text{(Hiện tại đơn)}, S + \\text{will} + V\\text{-nguyên thể}$
+  * *Ví dụ:* If it **rains**, we **will stay** home.
+* **Loại 2 (Trái thực tế hiện tại):** $\\text{If} + S + V2/V-ed\\text{ (To be dùng WERE)}, S + \\text{would} + V\\text{-nguyên thể}$
+  * *Ví dụ:* If I **were** a bird, I **would fly**. 🥕`;
   }
 
+  // Flashcard Mnemonic
   if (lower.includes("mẹo ghi nhớ") || lower.includes("mẹo nhớ") || lower.includes("tạo một câu ví dụ") || lower.includes("flashcard")) {
     const wordMatch = text.match(/"([^"]+)"|'([^']+)'/);
     const targetWord = wordMatch ? (wordMatch[1] || wordMatch[2]) : "từ vựng";
@@ -278,6 +364,7 @@ Thế nào, bạn đã thấy vui hơn để bắt đầu học tiếp chưa? �
 💡 **Mẹo nhớ (Mnemonic):** Hãy đặt 1 câu liên quan đến sở thích của chính bạn với từ **${targetWord}**, lặp lại 3 lần to rõ ràng để não bộ ghi nhớ siêu nhanh! 🦫🥕`;
   }
 
+  // Error Healing Explainer
   if (lower.includes("giải thích chi tiết cho mình quy tắc ngữ pháp") || lower.includes("quy tắc ngữ pháp")) {
     const topicMatch = text.match(/'([^']+)'|"([^"]+)"/);
     const ruleName = topicMatch ? (topicMatch[1] || topicMatch[2]) : "ngữ pháp";
@@ -285,31 +372,29 @@ Thế nào, bạn đã thấy vui hơn để bắt đầu học tiếp chưa? �
 
 Chào bạn! Đừng quá lo lắng khi làm sai câu này nhé, mình sẽ giúp bạn nắm vững ngay:
 
-1. **Bản chất quy tắc:** Khi làm các câu thuộc dạng **${ruleName}**, điều quan trọng nhất là xác định đúng **chủ ngữ** (ngôi thứ 3 số ít hay số nhiều) và **dấu hiệu thời gian** (yesterday, always, if...).
-2. **Ví dụ phân tích:**
+1. **Bản chất quy tắc:** Khi làm các câu thuộc dạng **${ruleName}**, hãy chú ý xác định đúng **chủ ngữ** (ngôi thứ mấy, số ít hay số nhiều) và **dấu hiệu thời gian** (yesterday, always, if...).
+2. **Ví dụ thực tế:**
    * ❌ *She **go** to school.* $\\rightarrow$ ✅ *She **goes** to school.* (Chủ ngữ "She" số ít $\\rightarrow$ thêm -es)
    * ❌ *He **didn't went**.* $\\rightarrow$ ✅ *He **didn't go**.* (Sau didn't dùng động từ nguyên mẫu)
 3. **Mẹo ghi nhớ:** Nắm chắc công thức cốt lõi và bấm nút "Bắt đầu chữa lỗi" để luyện 3 câu cùng dạng ngay nhé! 🥕✨`;
   }
 
+  // Sentence Checking
   if (lower.startsWith("sửa lỗi") || lower.startsWith("check")) {
     return `### 🦫 Capybara AI kiểm tra câu:
 
 * **Câu của bạn:** "${text.replace(/sửa lỗi( cho)? câu:?/i, '').trim()}"
-* **Nhận xét:** Khi viết câu tiếng Anh, bạn luôn cần chú ý 3 yếu tố:
-  1. Chủ ngữ và động từ phải hòa hợp (Subject-Verb Agreement).
-  2. Thì của động từ phải đúng với ngữ cảnh thời gian.
-  3. Sử dụng đúng giới từ đi kèm (in, on, at, with, for...).
-* **Động viên:** Bạn đang làm rất tốt, hãy tiếp tục luyện tập viết mỗi ngày cùng mình nhé! 🦫🥕`;
+* **Gợi ý kiểm tra:**
+  1. Chủ ngữ và động từ đã chia hòa hợp chưa?
+  2. Thì của câu đã phù hợp với trạng từ thời gian chưa?
+  3. Có bị nhầm lẫn tính từ ngắn/dài hay giới từ không?
+* **Động viên:** Bạn đang tiến bộ rất nhanh đó, cứ tự tin gửi câu hỏi cho mình nhé! 🦫🥕`;
   }
 
-  return `Mình hiểu câu hỏi của bạn rồi nè! 🦫✨
+  // General Friendly Response
+  return `Hi bạn! 🦫✨ Mình đã đọc tin nhắn: **"${text}"** của bạn rồi nè!
 
-Về chủ đề **"${text.length > 50 ? text.slice(0, 50) + "..." : text}"**:
-1. Hãy cho mình biết bạn muốn mình **giải thích ngữ pháp**, **sửa lỗi câu**, **dịch sang tiếng Anh/Việt** hay **luyện hội thoại** nhé!
-2. Bạn cũng có thể gửi một câu tiếng Anh bất kỳ để mình kiểm tra và giải thích chi tiết từng từ cho bạn.
-
-Cứ thoải mái trò chuyện cùng mình nhé! 🥕💬`;
+Bạn muốn mình giải thích ngữ pháp, cùng bạn dịch câu, kể chuyện cười hay cùng bạn luyện đàm thoại tiếng Anh hôm nay? Hãy nói cụ thể để Capybara phục vụ bạn chu đáo nhất nhé! 🥕🌱`;
 }
 
 function gradeWritingEssay({ prompt, content, level = "grade9" }) {
