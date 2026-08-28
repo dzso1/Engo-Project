@@ -432,102 +432,6 @@
       }
     });
 
-    // Xử lý gửi mã OTP và xác thực đăng ký
-    const sendOtpBtn = document.getElementById("sendOtpBtn");
-    const resendOtpLink = document.getElementById("resendOtpLink");
-    const otpFieldWrap = document.getElementById("otpFieldWrap");
-    const registerOtpInput = document.getElementById("registerOtp");
-    const otpCountdownEl = document.getElementById("otpCountdown");
-    let otpTimerInterval = null;
-    let otpCooldown = 0;
-
-    function startOtpCountdown(seconds = 300) {
-      if(otpTimerInterval) clearInterval(otpTimerInterval);
-      let left = seconds;
-      otpTimerInterval = setInterval(() => {
-        left = Math.max(0, left - 1);
-        const m = String(Math.floor(left / 60)).padStart(2, "0");
-        const s = String(left % 60).padStart(2, "0");
-        if(otpCountdownEl) otpCountdownEl.textContent = `${m}:${s}`;
-        if(left === 0) {
-          clearInterval(otpTimerInterval);
-          otpTimerInterval = null;
-          if(otpCountdownEl) otpCountdownEl.textContent = "Hết hạn";
-        }
-      }, 1000);
-    }
-
-    async function handleSendOtp() {
-      const email = document.getElementById("registerEmail").value.trim();
-      const fullName = document.getElementById("registerName").value.trim();
-      const error = document.getElementById("registerError");
-      setAuthError(error);
-
-      if(!email || !email.includes("@")) {
-        setAuthError(error, "Vui lòng nhập địa chỉ email hợp lệ trước khi lấy mã OTP.");
-        document.getElementById("registerEmail").focus();
-        return false;
-      }
-
-      if(otpCooldown > 0) {
-        showToast(`Vui lòng đợi ${otpCooldown}s trước khi yêu cầu gửi lại mã.`);
-        return false;
-      }
-
-      if(sendOtpBtn) {
-        sendOtpBtn.disabled = true;
-        sendOtpBtn.textContent = "Đang gửi...";
-      }
-
-      try {
-        const res = await apiRequest("/api/auth/send-otp", {
-          method: "POST",
-          body: JSON.stringify({ email, fullName })
-        });
-
-        showToast(res.message || "Đã gửi mã OTP về Gmail của bạn!");
-        if(otpFieldWrap) otpFieldWrap.style.display = "block";
-        if(registerOtpInput) registerOtpInput.focus();
-
-        if(res.devOtp) {
-          if(registerOtpInput) registerOtpInput.value = res.devOtp;
-          const devBanner = document.getElementById("devOtpBanner");
-          if(devBanner) {
-            devBanner.style.display = "block";
-            devBanner.innerHTML = `🔑 <span>Mã OTP của bạn: <strong style="font-size:17px;color:#4f46e5;letter-spacing:3px">${res.devOtp}</strong></span> <span style="font-size:11px;color:#16a34a;display:block;margin-top:2px">✓ Đã tự động điền vào ô bên dưới</span>`;
-          }
-        }
-
-        startOtpCountdown(res.expiresInSeconds || 300);
-
-        // Đếm ngược nút gửi lại 60s
-        otpCooldown = 60;
-        const cooldownTimer = setInterval(() => {
-          otpCooldown--;
-          if(sendOtpBtn) sendOtpBtn.textContent = otpCooldown > 0 ? `Gửi lại (${otpCooldown}s)` : "Gửi lại OTP";
-          if(otpCooldown <= 0) {
-            clearInterval(cooldownTimer);
-            if(sendOtpBtn) sendOtpBtn.disabled = false;
-          }
-        }, 1000);
-
-        return true;
-      } catch(err) {
-        setAuthError(error, err.message);
-        if(sendOtpBtn) {
-          sendOtpBtn.disabled = false;
-          sendOtpBtn.textContent = "Gửi mã OTP";
-        }
-        return false;
-      }
-    }
-
-    if(sendOtpBtn) sendOtpBtn.addEventListener("click", handleSendOtp);
-    if(resendOtpLink) resendOtpLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      handleSendOtp();
-    });
-
     document.getElementById("registerForm").addEventListener("submit",async e=>{
       e.preventDefault();
       const error=document.getElementById("registerError");
@@ -538,10 +442,13 @@
       const confirm=document.getElementById("registerConfirm").value;
       const role=document.getElementById("registerRole").value;
       const className=document.getElementById("registerClass")?.value || "";
-      const otp=document.getElementById("registerOtp")?.value.trim() || "";
 
       if(!fullName || !email || !password){
         setAuthError(error,"Vui lòng điền đầy đủ các trường thông tin.");
+        return;
+      }
+      if(password.length < 6){
+        setAuthError(error,"Mật khẩu phải có tối thiểu 6 ký tự.");
         return;
       }
       if(password!==confirm){
@@ -553,34 +460,15 @@
         return;
       }
 
-      // Nếu chưa nhập mã OTP, tự động kích hoạt gửi OTP và báo học sinh
-      if(!otp){
-        if(otpFieldWrap && otpFieldWrap.style.display === "none"){
-          const sent = await handleSendOtp();
-          if(sent){
-            setAuthError(error, "Hệ thống đã gửi mã 6 số về Gmail của bạn. Vui lòng mở Gmail, lấy mã và nhập vào ô bên dưới.");
-          }
-        } else {
-          setAuthError(error, "Vui lòng nhập mã xác thực 6 số được gửi về Gmail của bạn.");
-          if(registerOtpInput) registerOtpInput.focus();
-        }
-        return;
-      }
-
       const submit=e.submitter || document.getElementById("registerSubmitBtn");
       if(submit) submit.disabled=true;
       try{
         const data=await apiRequest("/api/auth/register",{
           method:"POST",
-          body:JSON.stringify({fullName,email,password,role,className,otp})
+          body:JSON.stringify({fullName,email,password,role,className})
         });
         showToast(data.message||"Đăng ký thành công!");
         e.target.reset();
-        if(otpFieldWrap) otpFieldWrap.style.display = "none";
-        if(otpTimerInterval) clearInterval(otpTimerInterval);
-        const emailStatusEl = document.getElementById("emailVerifyStatus");
-        if(emailStatusEl) emailStatusEl.style.display = "none";
-        if(registerClassGroup) registerClassGroup.style.display="block";
         document.getElementById("loginEmail").value=email;
         document.querySelector('[data-auth-tab="login"]').click();
       }catch(err){
@@ -589,54 +477,6 @@
         if(submit) submit.disabled=false;
       }
     });
-
-    // Real-time Email Verification on Registration Form
-    const regEmailInput = document.getElementById("registerEmail");
-    const emailStatusEl = document.getElementById("emailVerifyStatus");
-    let emailCheckTimeout = null;
-
-    if (regEmailInput && emailStatusEl) {
-      const checkEmailValidity = async (emailVal) => {
-        const val = (emailVal || "").trim();
-        if (!val) {
-          emailStatusEl.style.display = "none";
-          return;
-        }
-        if (!val.includes("@") || !val.includes(".")) {
-          emailStatusEl.style.display = "block";
-          emailStatusEl.style.color = "#dc2626";
-          emailStatusEl.textContent = "⚠️ Vui lòng nhập đúng định dạng email (ví dụ: ten@gmail.com)";
-          return;
-        }
-        emailStatusEl.style.display = "block";
-        emailStatusEl.style.color = "#4f46e5";
-        emailStatusEl.textContent = "🔍 Đang kiểm tra máy chủ email...";
-
-        try {
-          const res = await fetch(`/api/auth/verify-email?email=${encodeURIComponent(val)}`);
-          const data = await res.json();
-          if (data.valid) {
-            emailStatusEl.style.color = "#16a34a";
-            const isGm = data.details?.isGmail;
-            emailStatusEl.textContent = isGm ? "✓ Email Gmail hợp lệ và có thật." : "✓ Email hợp lệ và có máy chủ nhận thư (MX Verified).";
-          } else {
-            emailStatusEl.style.color = "#dc2626";
-            emailStatusEl.textContent = `✕ ${data.message || "Email không hợp lệ hoặc không tồn tại."}`;
-          }
-        } catch (e) {
-          emailStatusEl.style.display = "none";
-        }
-      };
-
-      regEmailInput.addEventListener("input", (e) => {
-        clearTimeout(emailCheckTimeout);
-        emailCheckTimeout = setTimeout(() => checkEmailValidity(e.target.value), 450);
-      });
-
-      regEmailInput.addEventListener("blur", (e) => {
-        checkEmailValidity(e.target.value);
-      });
-    }
 
     document.getElementById("logoutBtn").addEventListener("click",async()=>{
       try{await apiRequest("/api/auth/logout",{method:"POST",body:"{}"})}catch{}
