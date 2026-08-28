@@ -4182,32 +4182,11 @@
       capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
 
       try {
-        let reply = "";
-        // 1. Try free browser Puter.js AI first if available (supports rich multi-turn conversation)
-        if (window.puter && window.puter.ai && typeof window.puter.ai.chat === "function") {
-          try {
-            const systemPrompt = "You are Capybara (Bé Capybara), an extraordinarily friendly, witty, smart, and enthusiastic AI companion & English Tutor on ENGO Learning Hub for Vietnamese students and teachers. You can chat about ANYTHING in Vietnamese or English naturally, carry on engaging conversations, tell jokes, roleplay English dialogues, explain English grammar with easy examples, help with homework, translate, and encourage students with capybara charm and carrots 🥕. Always respond warmly, conversationally, and keep formatting clean with emojis, bold text, and bullet points.";
-            const messagesForPuter = [
-              { role: "system", content: systemPrompt },
-              ...chatHistory.slice(-8)
-            ];
-            const puterResp = await window.puter.ai.chat(messagesForPuter, { model: "gpt-4o-mini" });
-            if (puterResp) {
-              reply = (typeof puterResp === "string") ? puterResp.trim() : (puterResp.toString ? puterResp.toString().trim() : (puterResp.message?.content || "").trim());
-            }
-          } catch (e) {
-            console.log("Puter chat fallback to backend:", e.message);
-          }
-        }
-
-        // 2. If no reply from Puter, call backend AI API
-        if (!reply) {
-          const res = await apiRequest("/api/ai/chat", {
-            method: "POST",
-            body: JSON.stringify({ message: text, history: chatHistory })
-          });
-          reply = res.reply || "Capybara đã nhận được câu hỏi của bạn!";
-        }
+        const res = await apiRequest("/api/ai/chat", {
+          method: "POST",
+          body: JSON.stringify({ message: text, history: chatHistory })
+        });
+        const reply = res.reply || "Capybara đã nhận được câu hỏi của bạn!";
 
         typingEl.remove();
         appendChatMessage("capybara", reply);
@@ -4461,20 +4440,11 @@
         const promptText = `Hãy tạo một câu ví dụ tiếng Anh đời thường cực hay (kèm dịch nghĩa) và một mẹo ghi nhớ thú vị (mnemonic) cho từ vựng tiếng Anh: "${word}" (nghĩa: ${meaning || "từ mới"}).`;
 
         try {
-          let aiOutput = "";
-          if (window.puter && window.puter.ai && typeof window.puter.ai.chat === "function") {
-            try {
-              const resp = await window.puter.ai.chat(promptText, { model: "gpt-4o-mini" });
-              if (resp) aiOutput = resp.toString().trim();
-            } catch (e) {}
-          }
-          if (!aiOutput) {
-            const res = await apiRequest("/api/ai/chat", {
-              method: "POST",
-              body: JSON.stringify({ message: promptText })
-            });
-            aiOutput = res.reply;
-          }
+          const res = await apiRequest("/api/ai/chat", {
+            method: "POST",
+            body: JSON.stringify({ message: promptText })
+          });
+          const aiOutput = res.reply;
 
           const exEl = document.getElementById("flashExample");
           if (exEl && aiOutput) {

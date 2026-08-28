@@ -1,4 +1,4 @@
-﻿const https = require('https');
+const https = require('https');
 
 // Extensive IPA Dictionary for secondary school English
 const EXTENSIVE_IPA_DICT = {
@@ -266,6 +266,41 @@ Thế nào, bạn đã thấy vui hơn để bắt đầu học tiếp chưa? �
 **2. Loại 2 (Giả định trái thực tế ở hiện tại):**
 * $\\text{If} + S + V2/V-ed\\text{ (To be dùng WERE)}, S + \\text{would/could} + V\\text{-nguyên thể}$
 * *Ví dụ:* If I **were** you, I **would study** harder. 🥕`;
+  }
+
+  if (lower.includes("mẹo ghi nhớ") || lower.includes("mẹo nhớ") || lower.includes("tạo một câu ví dụ") || lower.includes("flashcard")) {
+    const wordMatch = text.match(/"([^"]+)"|'([^']+)'/);
+    const targetWord = wordMatch ? (wordMatch[1] || wordMatch[2]) : "từ vựng";
+    return `**✨ Câu ví dụ thực tế:**
+"Every student should actively protect the environment to make our **${targetWord}** greener."
+*(Mọi học sinh nên tích cực bảo vệ môi trường để làm cho nơi ở của chúng ta xanh hơn.)*
+
+💡 **Mẹo nhớ (Mnemonic):** Hãy đặt 1 câu liên quan đến sở thích của chính bạn với từ **${targetWord}**, lặp lại 3 lần to rõ ràng để não bộ ghi nhớ siêu nhanh! 🦫🥕`;
+  }
+
+  if (lower.includes("giải thích chi tiết cho mình quy tắc ngữ pháp") || lower.includes("quy tắc ngữ pháp")) {
+    const topicMatch = text.match(/'([^']+)'|"([^"]+)"/);
+    const ruleName = topicMatch ? (topicMatch[1] || topicMatch[2]) : "ngữ pháp";
+    return `### 🦫 Gia sư Capybara: Chuyên đề ${ruleName}
+
+Chào bạn! Đừng quá lo lắng khi làm sai câu này nhé, mình sẽ giúp bạn nắm vững ngay:
+
+1. **Bản chất quy tắc:** Khi làm các câu thuộc dạng **${ruleName}**, điều quan trọng nhất là xác định đúng **chủ ngữ** (ngôi thứ 3 số ít hay số nhiều) và **dấu hiệu thời gian** (yesterday, always, if...).
+2. **Ví dụ phân tích:**
+   * ❌ *She **go** to school.* $\\rightarrow$ ✅ *She **goes** to school.* (Chủ ngữ "She" số ít $\\rightarrow$ thêm -es)
+   * ❌ *He **didn't went**.* $\\rightarrow$ ✅ *He **didn't go**.* (Sau didn't dùng động từ nguyên mẫu)
+3. **Mẹo ghi nhớ:** Nắm chắc công thức cốt lõi và bấm nút "Bắt đầu chữa lỗi" để luyện 3 câu cùng dạng ngay nhé! 🥕✨`;
+  }
+
+  if (lower.startsWith("sửa lỗi") || lower.startsWith("check")) {
+    return `### 🦫 Capybara AI kiểm tra câu:
+
+* **Câu của bạn:** "${text.replace(/sửa lỗi( cho)? câu:?/i, '').trim()}"
+* **Nhận xét:** Khi viết câu tiếng Anh, bạn luôn cần chú ý 3 yếu tố:
+  1. Chủ ngữ và động từ phải hòa hợp (Subject-Verb Agreement).
+  2. Thì của động từ phải đúng với ngữ cảnh thời gian.
+  3. Sử dụng đúng giới từ đi kèm (in, on, at, with, for...).
+* **Động viên:** Bạn đang làm rất tốt, hãy tiếp tục luyện tập viết mỗi ngày cùng mình nhé! 🦫🥕`;
   }
 
   return `Mình hiểu câu hỏi của bạn rồi nè! 🦫✨
