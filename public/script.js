@@ -161,13 +161,62 @@
       setTimeout(()=>toast.classList.remove("show"),1800);
     }
 
-    function switchView(id){
+    // ==========================================
+    // SPA ROUTER & SUB-PATH URL SYNCHRONIZATION
+    // ==========================================
+    const ROUTE_MAP = {
+      "student-home": "/dashboard",
+      "quiz": "/contest",
+      "achievements": "/rewards",
+      "assignments": "/assignments",
+      "flashcards": "/flashcards",
+      "errorHealing": "/healing",
+      "results": "/results",
+      "speaking-lab": "/speaking",
+      "focus-room": "/focus",
+      "smart-review": "/smart-review",
+      "teacher-home": "/teacher",
+      "parent-home": "/parent",
+      "data-admin": "/admin"
+    };
+
+    const REVERSE_ROUTE_MAP = {
+      "/": "student-home",
+      "/dashboard": "student-home",
+      "/contest": "quiz",
+      "/quiz": "quiz",
+      "/rewards": "achievements",
+      "/achievements": "achievements",
+      "/assignments": "assignments",
+      "/flashcards": "flashcards",
+      "/healing": "errorHealing",
+      "/healing-room": "errorHealing",
+      "/results": "results",
+      "/speaking": "speaking-lab",
+      "/speaking-lab": "speaking-lab",
+      "/focus": "focus-room",
+      "/focus-room": "focus-room",
+      "/smart-review": "smart-review",
+      "/teacher": "teacher-home",
+      "/parent": "parent-home",
+      "/admin": "data-admin"
+    };
+
+    function switchView(id, pushHistory = true){
+      if(!id) return;
       views.forEach(v=>v.classList.toggle("active",v.id===id));
       document.querySelectorAll(".nav-btn").forEach(btn=>{
         btn.classList.toggle("active",btn.dataset.view===id);
       });
       sidebar.classList.remove("open");
       window.scrollTo({top:0,behavior:"smooth"});
+
+      // Tự động cập nhật đường dẫn URL con (SPA Sub-path: /contest, /rewards, ...)
+      const targetPath = ROUTE_MAP[id] || ("/" + id);
+      if(pushHistory && window.location.pathname !== targetPath){
+        window.history.pushState({ viewId: id }, "", targetPath);
+      }
+
       if(id==="results" && currentUser && currentUser.role==="student"){
         renderStudentResults();
       }
@@ -181,7 +230,17 @@
         loadTeacherSpeakingTasks();
         loadTeacherSpeakingSubmissions();
       }
+      if(id==="achievements"){
+        renderLearningFeatures();
+      }
     }
+
+    // Xử lý nút Back / Forward trên trình duyệt
+    window.addEventListener("popstate", (e) => {
+      const path = (window.location.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
+      const viewId = (e.state && e.state.viewId) || REVERSE_ROUTE_MAP[path] || "student-home";
+      switchView(viewId, false);
+    });
 
     navButtons.forEach(btn=>{
       btn.addEventListener("click",e=>{
@@ -199,6 +258,15 @@
       document.querySelectorAll("#mainNav .nav-btn").forEach(el=>el.classList.toggle("hidden",role!=="student"));
       roleSelect.value=role;
       if(!switchPage) return;
+
+      // Ưu tiên chuyển trực tiếp tới view tương ứng nếu URL hiện tại có sub-path (/contest, /rewards, ...)
+      const currentPath = (window.location.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
+      const targetViewFromUrl = REVERSE_ROUTE_MAP[currentPath];
+      if(targetViewFromUrl) {
+        switchView(targetViewFromUrl, false);
+        return;
+      }
+
       if(role==="teacher") switchView("teacher-home");
       else if(role==="parent") { switchView("parent-home"); renderParentDashboard(); }
       else if(role==="admin"){switchView("data-admin");renderDataAdmin()}
