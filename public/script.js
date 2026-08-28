@@ -2249,6 +2249,27 @@
       localStorage.setItem(key, JSON.stringify(stats));
     }
 
+    function gainCarrots(amount = 1, reason = ""){
+      try {
+        const stats = getLearningStats();
+        stats.carrots = (stats.carrots || 0) + (Number(amount) || 1);
+        setLearningStats(stats);
+        if(typeof renderCapybaraCompanion === "function") renderCapybaraCompanion();
+        if(reason && typeof showToast === "function") {
+          showToast(`+${amount} Cà rốt 🥕 (${reason})`);
+        }
+      } catch(e) {}
+    }
+
+    function gainXP(amount = 5){
+      try {
+        const stats = getLearningStats();
+        stats.points = (stats.points || 0) + (Number(amount) || 5);
+        setLearningStats(stats);
+        if(typeof renderCapybaraCompanion === "function") renderCapybaraCompanion();
+      } catch(e) {}
+    }
+
     function dateKey(){return new Date().toISOString().slice(0,10)}
     function updateStudyStreak(stats){
       const today=dateKey();
