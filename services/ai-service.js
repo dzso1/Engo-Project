@@ -257,15 +257,15 @@ async function callCloudLlm(messages) {
           body: JSON.stringify({
             contents,
             systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: { temperature: 0.7, maxOutputTokens: 1000 }
+            generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
           }),
-          signal: AbortSignal.timeout(20000)
+          signal: AbortSignal.timeout(35000)
         });
 
         if (res.ok) {
           const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text && text.trim()) return text.trim();
+          const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
+          if (text) return text;
         }
       } catch (e) {
         console.log(`Gemini Key attempt ${attempt + 1} failed:`, e.message);
