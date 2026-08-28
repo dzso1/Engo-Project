@@ -220,6 +220,17 @@
         window.history.pushState({ viewId: id }, "", targetPath);
       }
 
+      // Tự động ẩn chatbot khi đang làm bài kiểm tra / thi đấu để chống gian lận
+      const isQuiz = (id === "quiz");
+      const chatWidget = document.getElementById("capybaraChatWidget");
+      const chatWindow = document.getElementById("capybaraChatWindow");
+      if (chatWidget) {
+        chatWidget.style.display = isQuiz ? "none" : "block";
+        if (isQuiz && chatWindow) {
+          chatWindow.classList.add("hidden");
+        }
+      }
+
       if(id==="results" && currentUser && currentUser.role==="student"){
         renderStudentResults();
       }
@@ -3458,22 +3469,33 @@
     });
 
     // AI Auto-generate IPA & Translation button
-    document.getElementById("btnSpeakingAutoGenerate")?.addEventListener("click", () => {
+    document.getElementById("btnSpeakingAutoGenerate")?.addEventListener("click", async () => {
       const sentence = document.getElementById("newSpeakingSentence")?.value.trim();
       if(!sentence){
         showToast("Vui lòng nhập câu tiếng Anh cần luyện nói trước!");
         return;
       }
-      const generatedIpa = generateIpaTranscription(sentence);
-      const generatedTranslation = generateAutoTranslation(sentence);
+      const btn = document.getElementById("btnSpeakingAutoGenerate");
+      if(btn) { btn.disabled = true; btn.textContent = "⏳ AI đang dịch & tạo IPA..."; }
 
-      const ipaInput = document.getElementById("newSpeakingIpa");
-      const translationInput = document.getElementById("newSpeakingTranslation");
+      try {
+        const res = await apiRequest("/api/ai/translate-and-ipa", {
+          method: "POST",
+          body: JSON.stringify({ sentence })
+        });
 
-      if(ipaInput) ipaInput.value = generatedIpa;
-      if(translationInput) translationInput.value = generatedTranslation;
+        const ipaInput = document.getElementById("newSpeakingIpa");
+        const translationInput = document.getElementById("newSpeakingTranslation");
 
-      showToast("AI đã tạo phiên âm IPA và dịch nghĩa thành công!");
+        if(ipaInput && res.ipa) ipaInput.value = res.ipa;
+        if(translationInput && res.translation) translationInput.value = res.translation;
+
+        showToast("AI đã dịch nghĩa và tạo phiên âm IPA chuẩn xác!");
+      } catch (err) {
+        showToast("Lỗi dịch: " + err.message);
+      } finally {
+        if(btn) { btn.disabled = false; btn.textContent = "AI Tạo IPA & Dịch tự động"; }
+      }
     });
 
     // Preview TTS audio button in modal
@@ -3821,9 +3843,14 @@
                   <div style="color:#334155;line-height:1.5">${escapeHTML(bankData.rule)}</div>
                   <div style="margin-top:6px;color:#059669;font-weight:600">Mẹo nhớ: ${escapeHTML(bankData.mnemonic)}</div>
                 </div>
-                <button class="btn btn-primary start-healing-btn" data-error-code="${err.code}" data-error-id="${err.id}" style="width:100%;font-weight:700">
-                  Bắt đầu chữa lỗi (Luyện 3 câu cùng dạng) →
-                </button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn btn-primary start-healing-btn" data-error-code="${err.code}" data-error-id="${err.id}" style="flex:2;font-weight:700">
+                    Bắt đầu chữa lỗi (3 câu) →
+                  </button>
+                  <button class="btn btn-soft ask-capybara-err-btn" data-error-label="${escapeHTML(bankData.label)}" type="button" style="flex:1;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-weight:700">
+                    💬 Hỏi AI giải thích
+                  </button>
+                </div>
               </div>
             `;
           }).join("");
@@ -3831,6 +3858,16 @@
           pendingList.querySelectorAll(".start-healing-btn").forEach(btn => {
             btn.addEventListener("click", () => {
               startHealingExercise(btn.dataset.errorCode, btn.dataset.errorId);
+            });
+          });
+
+          pendingList.querySelectorAll(".ask-capybara-err-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+              const label = btn.dataset.errorLabel || "ngữ pháp";
+              if (capybaraChatWindow && capybaraChatWindow.classList.contains("hidden")) {
+                toggleCapybaraChat();
+              }
+              sendCapybaraMessage(`Capybara ơi, hãy giải thích chi tiết cho mình quy tắc ngữ pháp '${label}' và cho 2 ví dụ minh họa dễ hiểu nhé!`);
             });
           });
         }
@@ -4146,18 +4183,20 @@
 
       try {
         let reply = "";
-        // 1. Try free browser Puter.js AI first if available
+        // 1. Try free browser Puter.js AI first if available (supports rich multi-turn conversation)
         if (window.puter && window.puter.ai && typeof window.puter.ai.chat === "function") {
           try {
-            const puterResp = await window.puter.ai.chat(
-              "You are Capybara, a friendly and smart English tutor for Vietnamese students. Explain clearly in Vietnamese with examples and carrots. Student asks: " + text,
-              { model: "gpt-4o-mini" }
-            );
-            if (puterResp && typeof puterResp.toString === "function") {
-              reply = puterResp.toString().trim();
+            const systemPrompt = "You are Capybara (Bé Capybara), an extraordinarily friendly, witty, smart, and enthusiastic AI companion & English Tutor on ENGO Learning Hub for Vietnamese students and teachers. You can chat about ANYTHING in Vietnamese or English naturally, carry on engaging conversations, tell jokes, roleplay English dialogues, explain English grammar with easy examples, help with homework, translate, and encourage students with capybara charm and carrots 🥕. Always respond warmly, conversationally, and keep formatting clean with emojis, bold text, and bullet points.";
+            const messagesForPuter = [
+              { role: "system", content: systemPrompt },
+              ...chatHistory.slice(-8)
+            ];
+            const puterResp = await window.puter.ai.chat(messagesForPuter, { model: "gpt-4o-mini" });
+            if (puterResp) {
+              reply = (typeof puterResp === "string") ? puterResp.trim() : (puterResp.toString ? puterResp.toString().trim() : (puterResp.message?.content || "").trim());
             }
           } catch (e) {
-            console.log("Puter fallback to backend:", e.message);
+            console.log("Puter chat fallback to backend:", e.message);
           }
         }
 
@@ -4399,6 +4438,56 @@
             submitBtn.disabled = false;
             submitBtn.textContent = "✨ Bắt đầu Tạo Đề AI Tức Thì";
           }
+        }
+      });
+    }
+
+    // ==========================================
+    // 4. FLASHCARD AI HELPER CONTROLLER
+    // ==========================================
+    const btnAiFlashcardHelper = document.getElementById("btnAiFlashcardHelper");
+    if (btnAiFlashcardHelper) {
+      btnAiFlashcardHelper.addEventListener("click", async () => {
+        const word = document.getElementById("flashWord")?.textContent?.trim();
+        const meaning = document.getElementById("flashMeaning")?.textContent?.trim();
+        if (!word) {
+          showToast("Không tìm thấy từ vựng trên thẻ flashcard.");
+          return;
+        }
+
+        btnAiFlashcardHelper.disabled = true;
+        btnAiFlashcardHelper.textContent = "⏳ AI đang suy nghĩ ví dụ & mẹo nhớ...";
+
+        const promptText = `Hãy tạo một câu ví dụ tiếng Anh đời thường cực hay (kèm dịch nghĩa) và một mẹo ghi nhớ thú vị (mnemonic) cho từ vựng tiếng Anh: "${word}" (nghĩa: ${meaning || "từ mới"}).`;
+
+        try {
+          let aiOutput = "";
+          if (window.puter && window.puter.ai && typeof window.puter.ai.chat === "function") {
+            try {
+              const resp = await window.puter.ai.chat(promptText, { model: "gpt-4o-mini" });
+              if (resp) aiOutput = resp.toString().trim();
+            } catch (e) {}
+          }
+          if (!aiOutput) {
+            const res = await apiRequest("/api/ai/chat", {
+              method: "POST",
+              body: JSON.stringify({ message: promptText })
+            });
+            aiOutput = res.reply;
+          }
+
+          const exEl = document.getElementById("flashExample");
+          if (exEl && aiOutput) {
+            exEl.innerHTML = `<div style="margin-bottom:6px">${exEl.textContent}</div><div style="background:#ecfdf5;border:1px solid #a7f3d0;padding:10px 12px;border-radius:10px;color:#065f46;font-size:13px;line-height:1.5"><strong style="display:block;margin-bottom:4px">✨ AI Gợi ý & Mẹo nhớ:</strong>${aiOutput.replace(/\n/g, "<br/>")}</div>`;
+            showToast("✨ AI đã tạo câu ví dụ và mẹo nhớ vào mặt sau thẻ!");
+            const inner = document.getElementById("flashcardInner");
+            if (inner && !inner.classList.contains("flipped")) inner.classList.add("flipped");
+          }
+        } catch (err) {
+          showToast("Lỗi: " + err.message);
+        } finally {
+          btnAiFlashcardHelper.disabled = false;
+          btnAiFlashcardHelper.textContent = "✨ AI Tạo ví dụ & Mẹo nhớ";
         }
       });
     }

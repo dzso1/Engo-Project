@@ -1515,6 +1515,21 @@ app.post("/api/ai/generate-test", async (req, res) => {
   }
 });
 
+// 4. AI Translation and IPA Endpoint (for Teacher Speaking assignments & study)
+app.post("/api/ai/translate-and-ipa", async (req, res) => {
+  try {
+    const { sentence } = req.body;
+    if (!sentence || !sentence.trim()) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập câu tiếng Anh." });
+    }
+    const result = await aiService.translateAndGenerateIpa(sentence);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("Lỗi AI dịch & IPA:", error);
+    return res.status(500).json({ success: false, message: "Không thể tạo phiên âm và bản dịch lúc này." });
+  }
+});
+
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
