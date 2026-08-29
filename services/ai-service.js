@@ -398,8 +398,55 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
     return cloudReply;
   }
 
-  // 3. Fallback only if offline / server disconnected
-  return "Bé Capybara đang bị nghẽn kết nối máy chủ một xíu nè! Bạn hãy thử bấm gửi lại câu hỏi sau vài giây nha! 🦫🥕";
+  // 3. Fallback: Intelligent Natural Dialogue Resolver (If Gemini Key is temporarily revoked or offline)
+  const lower = text.toLowerCase().replace(/['"?!,.]/g, "").trim();
+
+  // Greetings
+  if (!lower || lower === "chao" || lower === "chào" || lower === "hello" || lower === "hi" || lower === "hey" || lower === "alo" || lower.startsWith("chào") || lower.startsWith("hello") || lower.startsWith("hi ")) {
+    const greetings = [
+      "Chào bạn nha! 🦫✨ Bé Capybara đã sẵn sàng đồng hành cùng bạn rồi nè! Hôm nay bạn muốn luyện tiếng Anh, viết code hay trò chuyện gì với mình nào? 🥕",
+      "Hế-lô bạn! 🦫🥕 Rất vui được gặp lại bạn. Bạn đang học bài gì hay có câu hỏi nào cần Capybara giải đáp không nè?",
+      "Hi bạn yêu! 🦫✨ Hôm nay ngày của bạn thế nào? Cần Capybara phụ đạo tiếng Anh hay tám chuyện xả stress cứ nói mình nghe nha! 🥕🌱"
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  }
+
+  // Translation command detector
+  const translateMatch = text.match(/dịch(?: giúp| hộ| cho)?(?: câu| từ| nghĩa)?[:\s]+(.+)/i) || 
+                         text.match(/translate[:\s]+(.+)/i) ||
+                         text.match(/(?:nghĩa là gì|có nghĩa là gì|nghĩa của từ)\s*(.+)/i) ||
+                         text.match(/(.+)\s+(?:nghĩa là gì|có nghĩa là gì)/i);
+                         
+  if (translateMatch) {
+    let toTranslate = (translateMatch[1] || '')
+      .replace(/^(từ|cụm từ|câu)\s+/i, '')
+      .replace(/sang tiếng (việt|anh)|to (vietnamese|english)/gi, '')
+      .replace(/^['":]+|['":]+$/g, '')
+      .trim();
+
+    if (toTranslate) {
+      const isEnglish = /^[a-zA-Z\s.,?!'"]+$/.test(toTranslate);
+      const pair = isEnglish ? 'en|vi' : 'vi|en';
+      try {
+        const res = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(toTranslate) + '&langpair=' + pair);
+        const data = await res.json();
+        const trans = data.responseData?.translatedText;
+        if (trans && !trans.includes('MYMEMORY WARNING')) {
+          return `Bản dịch của "${toTranslate}":\n👉 **${trans}**\n\n*(${isEnglish ? "Tiếng Anh ➔ Tiếng Việt" : "Tiếng Việt ➔ Tiếng Anh"})* 🦫✨`;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Coding inquiries
+  if (lower.includes("coding") || lower.includes("code") || lower.includes("lập trình") || lower.includes("javascript") || lower.includes("python") || lower.includes("html") || lower.includes("css")) {
+    return "Có chứ bạn ơi! 🦫💻 Mình rất thành thạo lập trình (JavaScript, Python, C++, HTML/CSS...). Bạn cần mình viết code mẫu cho tính năng nào hay đang gặp lỗi ở đoạn nào, cứ gửi qua đây nha! ✨";
+  }
+
+  // General questions
+  return `Chào bạn! 🦫✨ Bé Capybara đã nhận được câu hỏi: **"${text}"** của bạn.
+
+*(Lưu ý: API Key Gemini hiện tại vừa bị Google tạm khóa do đăng tải công khai. Để mở khóa toàn bộ trí tuệ Gemini/ChatGPT không giới hạn, bạn chỉ cần vào **https://aistudio.google.com/apikey** tạo 1 key mới và dán vào file \`.env\` là xong ngay nha! 🥕)*`;
 }
 
 function gradeWritingEssay({ prompt, content, level = "grade9" }) {
