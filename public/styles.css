@@ -1755,3 +1755,236 @@
     @media (max-width:960px) {
       .writing-layout { grid-template-columns: 1fr; }
     }
+
+    /* DAILY STREAK CHECK-IN POPUP & TOPBAR BUTTON */
+    .streak-top-btn {
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+      border: 1.5px solid #fdba74;
+      color: #ea580c;
+      border-radius: 999px;
+      font-weight: 800;
+      padding: 6px 14px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .streak-top-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+    }
+    .streak-top-label {
+      font-size: 11px;
+      opacity: 0.85;
+      font-weight: 600;
+    }
+
+    .streak-modal-card {
+      max-width: 540px;
+      width: 92%;
+      border-radius: 24px;
+      padding: 24px 28px;
+      background: var(--surface);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+      border: 1px solid var(--line);
+      position: relative;
+      animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalPop {
+      0% { transform: scale(0.9) translateY(20px); opacity: 0; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .streak-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .streak-badge-flame {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+    }
+    .streak-hero-section {
+      margin: 8px 0 16px;
+    }
+    .streak-hero-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 38px;
+      margin-bottom: 6px;
+      animation: flamePulse 2s infinite ease-in-out;
+    }
+    @keyframes flamePulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(249,115,22,0)); }
+      50% { transform: scale(1.1); filter: drop-shadow(0 0 12px rgba(249,115,22,0.5)); }
+    }
+    .streak-hero-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 4px 0;
+      color: var(--ink);
+    }
+    .highlight-orange {
+      color: #ea580c;
+    }
+    .streak-hero-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 auto;
+      max-width: 400px;
+      line-height: 1.5;
+    }
+
+    .streak-track-container {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 16px;
+      margin: 16px 0;
+      text-align: left;
+    }
+    .streak-track-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .streak-track-status {
+      color: #ea580c;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .streak-days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .streak-day-item {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 2px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.2s;
+    }
+    .streak-day-item .day-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .streak-day-item .reward-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+    .streak-day-item .reward-amount {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .streak-day-item.claimed {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .streak-day-item.claimed .day-label { color: #16a34a; }
+    .streak-day-item.claimed .reward-amount { color: #16a34a; }
+
+    .streak-day-item.today {
+      background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+      border-color: #f97316;
+      box-shadow: 0 0 14px rgba(249, 115, 22, 0.4);
+      transform: translateY(-3px);
+    }
+    .streak-day-item.today .day-label { color: #ea580c; font-weight: 900; }
+    .streak-day-item.today .reward-icon { animation: bounceCarrot 1s infinite ease-in-out; }
+    .streak-day-item.today .reward-amount { color: #ea580c; font-weight: 900; }
+
+    .streak-day-item.locked {
+      opacity: 0.6;
+    }
+
+    @keyframes bounceCarrot {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    .streak-capy-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(5, 150, 105, 0.08);
+      border: 1px dashed rgba(5, 150, 105, 0.35);
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+    .streak-capy-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .streak-capy-text {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--ink);
+    }
+
+    .streak-claim-btn {
+      width: 100%;
+      border-radius: 14px;
+      padding: 13px 20px;
+      font-size: 15px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      border: none;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 8px 20px rgba(234, 88, 12, 0.35);
+      transition: all 0.2s ease;
+    }
+    .streak-claim-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 25px rgba(234, 88, 12, 0.45);
+    }
+    .streak-claim-btn:disabled {
+      background: #9ca3af;
+      box-shadow: none;
+      cursor: default;
+      transform: none;
+      opacity: 0.85;
+    }
+
+    @media (max-width: 600px) {
+      .streak-days-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+      }
+      .streak-top-label {
+        display: none;
+      }
+    }
+

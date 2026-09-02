@@ -372,6 +372,8 @@
         renderDashboardStats();
         renderCompetency();
         renderSmartReview();
+        updateStreakTopbarUI();
+        setTimeout(() => renderDailyStreakModal(false), 800);
       }
       if(user.role==="teacher"){
         renderTeacherResults();
@@ -2271,6 +2273,214 @@
     }
 
     function dateKey(){return new Date().toISOString().slice(0,10)}
+
+    // ==========================================
+    // HỆ THỐNG ĐIỂM DANH CHUỖI NGÀY (DAILY STREAK POPUP)
+    // ==========================================
+    const STREAK_CHECKIN_REWARDS = [
+      { day: 1, carrots: 2, xp: 20, icon: "🥕" },
+      { day: 2, carrots: 3, xp: 30, icon: "🥕" },
+      { day: 3, carrots: 4, xp: 40, icon: "🥕" },
+      { day: 4, carrots: 5, xp: 50, icon: "🥕" },
+      { day: 5, carrots: 6, xp: 60, icon: "🥕" },
+      { day: 6, carrots: 8, xp: 80, icon: "🥕" },
+      { day: 7, carrots: 10, xp: 100, icon: "👑" }
+    ];
+
+    function getStreakCheckinData() {
+      const key = getUserStorageKey("engoStreakCheckinV2");
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return { streak: 1, lastClaimDate: "", totalClaimed: 0 };
+        return JSON.parse(raw);
+      } catch {
+        return { streak: 1, lastClaimDate: "", totalClaimed: 0 };
+      }
+    }
+
+    function setStreakCheckinData(data) {
+      const key = getUserStorageKey("engoStreakCheckinV2");
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    function calculateStreakInfo() {
+      const today = dateKey();
+      const data = getStreakCheckinData();
+      const stats = getLearningStats();
+      
+      let streak = data.streak || stats.streak || 1;
+      let alreadyClaimed = data.lastClaimDate === today;
+
+      if (!data.lastClaimDate) {
+        streak = 1;
+      } else if (!alreadyClaimed) {
+        const previous = new Date(data.lastClaimDate + "T00:00:00");
+        const current = new Date(today + "T00:00:00");
+        const diffDays = Math.round((current - previous) / 86400000);
+        
+        if (diffDays === 1) {
+          streak = streak + 1;
+        } else if (diffDays > 1) {
+          streak = 1; // Bị gián đoạn chuỗi
+        }
+      }
+
+      const cycleDay = ((streak - 1) % 7) + 1; // 1 to 7
+      const reward = STREAK_CHECKIN_REWARDS[cycleDay - 1] || STREAK_CHECKIN_REWARDS[0];
+
+      return {
+        today,
+        streak,
+        cycleDay,
+        alreadyClaimed,
+        reward,
+        data,
+        stats
+      };
+    }
+
+    function updateStreakTopbarUI() {
+      const info = calculateStreakInfo();
+      const topStreakCount = document.getElementById("topStreakCount");
+      if (topStreakCount) {
+        topStreakCount.textContent = info.streak;
+      }
+      const capybaraStreakCount = document.getElementById("capybaraStreakCount");
+      if (capybaraStreakCount) {
+        capybaraStreakCount.innerHTML = `🔥 <strong>${info.streak}</strong> ngày streak`;
+      }
+    }
+
+    function renderDailyStreakModal(forceOpen = false) {
+      const modal = document.getElementById("dailyStreakModal");
+      if (!modal) return;
+
+      const info = calculateStreakInfo();
+      if (!forceOpen && info.alreadyClaimed) {
+        updateStreakTopbarUI();
+        return; // Đã nhận hôm nay, không tự động bật popup
+      }
+
+      // Render Hero Details
+      const streakHeroCount = document.getElementById("streakHeroCount");
+      if (streakHeroCount) streakHeroCount.textContent = info.streak;
+
+      const streakHeroDesc = document.getElementById("streakHeroDesc");
+      if (streakHeroDesc) {
+        streakHeroDesc.textContent = info.alreadyClaimed
+          ? `Bạn đã hoàn thành điểm danh ngày hôm nay (Chuỗi ${info.streak} ngày liên tiếp)! Hãy quay lại vào ngày mai nhé!`
+          : `Bạn đang có chuỗi ${info.streak} ngày học tập liên tiếp! Hãy nhận quà cà rốt hôm nay để giữ vững chuỗi nhé!`;
+      }
+
+      const streakTrackStatus = document.getElementById("streakTrackStatus");
+      if (streakTrackStatus) {
+        streakTrackStatus.textContent = info.alreadyClaimed ? "Đã nhận hôm nay ✅" : `Hôm nay: Ngày ${info.cycleDay}/7`;
+      }
+
+      // Render 7-day grid
+      const grid = document.getElementById("streakDaysGrid");
+      if (grid) {
+        grid.innerHTML = "";
+        STREAK_CHECKIN_REWARDS.forEach((r) => {
+          const item = document.createElement("div");
+          let statusClass = "";
+          let statusText = `+${r.carrots} 🥕`;
+
+          if (r.day < info.cycleDay || (r.day === info.cycleDay && info.alreadyClaimed)) {
+            statusClass = "claimed";
+            statusText = "✓ Đã nhận";
+          } else if (r.day === info.cycleDay && !info.alreadyClaimed) {
+            statusClass = "today";
+            statusText = `+${r.carrots} 🥕`;
+          } else {
+            statusClass = "locked";
+            statusText = `+${r.carrots} 🥕`;
+          }
+
+          item.className = `streak-day-item ${statusClass}`;
+          item.innerHTML = `
+            <span class="day-label">Ngày ${r.day}</span>
+            <span class="reward-icon">${r.icon}</span>
+            <span class="reward-amount">${statusText}</span>
+          `;
+          grid.appendChild(item);
+        });
+      }
+
+      // Render Capybara Speech
+      const speech = document.getElementById("streakCapySpeech");
+      if (speech) {
+        if (info.alreadyClaimed) {
+          speech.innerHTML = `"Hôm nay bạn đã nhận thưởng rồi nè! Cùng Bé Capybara học thật vui và quay lại điểm danh ngày mai nha! 🦫🥕✨"`;
+        } else if (info.streak >= 7) {
+          speech.innerHTML = `"ĐỈNH CAO! Bạn đã duy trì chuỗi ${info.streak} ngày liên tục! Bé Capybara tặng bạn vương miện Cà Rốt Hoàng Gia! 👑🥕✨"`;
+        } else {
+          speech.innerHTML = `"Oa, bạn chăm chỉ mở web quá nè! Nhận ngay +${info.reward.carrots} Cà rốt hôm nay để Bé Capybara nạp năng lượng đồng hành cùng bạn nha! 🦫🥕"`;
+        }
+      }
+
+      // Render Claim Button
+      const claimBtn = document.getElementById("streakClaimBtn");
+      const claimBtnText = document.getElementById("streakClaimBtnText");
+      if (claimBtn && claimBtnText) {
+        if (info.alreadyClaimed) {
+          claimBtn.disabled = true;
+          claimBtnText.textContent = "Đã Nhận Thưởng Hôm Nay ✅";
+        } else {
+          claimBtn.disabled = false;
+          claimBtnText.textContent = `Nhận Thưởng Hôm Nay (+${info.reward.carrots} 🥕, +${info.reward.xp} XP)`;
+        }
+      }
+
+      updateStreakTopbarUI();
+      modal.classList.remove("hidden");
+    }
+
+    function claimDailyStreakReward() {
+      const info = calculateStreakInfo();
+      if (info.alreadyClaimed) {
+        showToast("Hôm nay bạn đã nhận thưởng rồi nha! Hãy quay lại vào ngày mai 🥕");
+        return;
+      }
+
+      const { data, stats, reward, today, streak } = info;
+      
+      // Update checkin data
+      data.streak = streak;
+      data.lastClaimDate = today;
+      data.totalClaimed = (data.totalClaimed || 0) + 1;
+      setStreakCheckinData(data);
+
+      // Update learning stats
+      stats.streak = streak;
+      stats.lastStudyDate = today;
+      setLearningStats(stats);
+
+      // Award rewards
+      gainCarrots(reward.carrots, `Điểm danh chuỗi ${streak} ngày`);
+      gainXP(reward.xp);
+
+      // UI updates
+      showToast(`🔥 Chuỗi ${streak} ngày: +${reward.carrots} Cà rốt 🥕, +${reward.xp} XP!`);
+      
+      const claimBtn = document.getElementById("streakClaimBtn");
+      const claimBtnText = document.getElementById("streakClaimBtnText");
+      if (claimBtn && claimBtnText) {
+        claimBtn.disabled = true;
+        claimBtnText.textContent = "Đã Nhận Thành Công! 🎉";
+      }
+
+      renderDailyStreakModal(true);
+      renderLearningFeatures();
+      renderCapybaraCompanion();
+      updateStreakTopbarUI();
+
+      setTimeout(() => {
+        const modal = document.getElementById("dailyStreakModal");
+        if (modal) modal.classList.add("hidden");
+      }, 1500);
+    }
+
     function updateStudyStreak(stats){
       const today=dateKey();
       if(!stats.lastStudyDate){stats.streak=1;stats.lastStudyDate=today;return}
@@ -2804,7 +3014,11 @@
       if(badgeLvEl) badgeLvEl.textContent = `Lv.${progress.lv}`;
       if(subtitleEl) subtitleEl.textContent = `Cấp độ ${progress.lv}: ${progress.name}`;
       if(carrotEl) carrotEl.innerHTML = `🥕 <strong>${stats.carrots || 0}</strong> Cà rốt`;
-      if(streakEl) streakEl.innerHTML = `🔥 <strong>${stats.streak || 1}</strong> ngày streak`;
+      if(streakEl) {
+        streakEl.innerHTML = `🔥 <strong>${stats.streak || 1}</strong> ngày streak`;
+        streakEl.style.cursor = "pointer";
+        streakEl.title = "Bấm để mở bảng điểm danh chuỗi ngày nhận cà rốt";
+      }
 
       // Cập nhật Thanh Tiến Trình Cấp Độ
       const nextLabelEl = document.getElementById("capybaraLevelNextLabel");
@@ -4130,6 +4344,20 @@
 
     document.getElementById("healingModalClose")?.addEventListener("click", () => {
       document.getElementById("healingExerciseModal")?.classList.add("hidden");
+    });
+
+    // Daily Streak Checkin Event Listeners
+    document.getElementById("streakModalClose")?.addEventListener("click", () => {
+      document.getElementById("dailyStreakModal")?.classList.add("hidden");
+    });
+    document.getElementById("streakTopBtn")?.addEventListener("click", () => {
+      renderDailyStreakModal(true);
+    });
+    document.getElementById("streakClaimBtn")?.addEventListener("click", () => {
+      claimDailyStreakReward();
+    });
+    document.getElementById("capybaraStreakCount")?.addEventListener("click", () => {
+      renderDailyStreakModal(true);
     });
 
     // ==========================================

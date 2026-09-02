@@ -220,7 +220,7 @@ let openAiKeyIndex = 0;
 
 function getGeminiKeys() {
   try { require("dotenv").config(); } catch(e) {}
-  const raw = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "AIzaSyAqx2Jc572iF2rMrp8-2gBATgf2pikvCd4";
+  const raw = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
   return raw.split(",").map(k => k.trim()).filter(Boolean);
 }
 
