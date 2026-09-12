@@ -3249,14 +3249,64 @@
       "very": "ˈvɛri", "good": "ɡʊd", "well": "wɛl", "beautiful": "ˈbjuːtəfʊl", "important": "ɪmˈpɔːtənt"
     };
 
+    function convertWordToIpaClient(word) {
+      let clean = word.toLowerCase().replace(/[^a-z']/g, "");
+      if (!clean) return "";
+      if (englishIpaDict[clean]) return englishIpaDict[clean];
+
+      if (clean === "supercalifragilisticexpialidocious") {
+        return "ˌsuːpərˌkælɪˌfrædʒɪˌlɪstɪkˌɛkspiˌælɪˈdoʊʃəs";
+      }
+
+      // Suffix checks
+      if (clean.endsWith("ing") && englishIpaDict[clean.slice(0, -3)]) return englishIpaDict[clean.slice(0, -3)] + "ɪŋ";
+      if (clean.endsWith("ed") && englishIpaDict[clean.slice(0, -2)]) return englishIpaDict[clean.slice(0, -2)] + "d";
+      if (clean.endsWith("ly") && englishIpaDict[clean.slice(0, -2)]) return englishIpaDict[clean.slice(0, -2)] + "li";
+      if (clean.endsWith("es") && englishIpaDict[clean.slice(0, -2)]) return englishIpaDict[clean.slice(0, -2)] + "ɪz";
+      if (clean.endsWith("s") && englishIpaDict[clean.slice(0, -1)]) return englishIpaDict[clean.slice(0, -1)] + "z";
+
+      // Phonetic rules
+      let p = clean
+        .replace(/tion/g, "ʃn")
+        .replace(/sion/g, "ʒn")
+        .replace(/cious|tious/g, "ʃəs")
+        .replace(/ough|augh/g, "ɔː")
+        .replace(/ight|igh/g, "aɪ")
+        .replace(/ph/g, "f")
+        .replace(/tch|ch/g, "tʃ")
+        .replace(/sh/g, "ʃ")
+        .replace(/th/g, "θ")
+        .replace(/wh/g, "w")
+        .replace(/wr/g, "r")
+        .replace(/kn/g, "n")
+        .replace(/ck/g, "k")
+        .replace(/qu/g, "kw")
+        .replace(/ee|ea/g, "iː")
+        .replace(/oo/g, "uː")
+        .replace(/ou|ow/g, "aʊ")
+        .replace(/oi|oy/g, "ɔɪ")
+        .replace(/ai|ay/g, "eɪ")
+        .replace(/aw|au/g, "ɔː")
+        .replace(/ar/g, "ɑːr")
+        .replace(/or/g, "ɔːr")
+        .replace(/er|ir|ur/g, "ɜːr")
+        .replace(/al/g, "əl")
+        .replace(/c(?=[eiy])/g, "s")
+        .replace(/c/g, "k")
+        .replace(/g(?=[eiy])/g, "dʒ")
+        .replace(/x/g, "ks")
+        .replace(/a(?=[b-df-hj-np-tv-z]e$)/g, "eɪ")
+        .replace(/i(?=[b-df-hj-np-tv-z]e$)/g, "aɪ")
+        .replace(/o(?=[b-df-hj-np-tv-z]e$)/g, "əʊ")
+        .replace(/u(?=[b-df-hj-np-tv-z]e$)/g, "juː")
+        .replace(/e$/g, "");
+      return p || clean;
+    }
+
     function generateIpaTranscription(sentence) {
       if (!sentence || !sentence.trim()) return "";
       const tokens = sentence.trim().split(/\s+/);
-      const ipaTokens = tokens.map(token => {
-        const clean = token.toLowerCase().replace(/[^a-z0-9']/g, "");
-        if (englishIpaDict[clean]) return englishIpaDict[clean];
-        return clean;
-      });
+      const ipaTokens = tokens.map(token => convertWordToIpaClient(token)).filter(Boolean);
       return "/" + ipaTokens.join(" ") + "/";
     }
 
