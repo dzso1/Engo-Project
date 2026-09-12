@@ -90,26 +90,82 @@ const EXTENSIVE_IPA_DICT = {
   "well": "wɛl", "early": "ˈɜːli", "late": "leɪt", "hard": "hɑːd"
 };
 
+// Rule-based phonetic converter for English words to standard IPA
+function convertWordToIpa(word) {
+  let w = word.toLowerCase().trim().replace(/[^a-z']/g, "");
+  if (!w) return "";
+  if (EXTENSIVE_IPA_DICT[w]) return EXTENSIVE_IPA_DICT[w];
+
+  // Check common suffixes
+  if (w.endsWith("ing") && EXTENSIVE_IPA_DICT[w.slice(0, -3)]) {
+    return EXTENSIVE_IPA_DICT[w.slice(0, -3)] + "ɪŋ";
+  }
+  if (w.endsWith("ed") && EXTENSIVE_IPA_DICT[w.slice(0, -2)]) {
+    return EXTENSIVE_IPA_DICT[w.slice(0, -2)] + "d";
+  }
+  if (w.endsWith("ly") && EXTENSIVE_IPA_DICT[w.slice(0, -2)]) {
+    return EXTENSIVE_IPA_DICT[w.slice(0, -2)] + "li";
+  }
+  if (w.endsWith("es") && EXTENSIVE_IPA_DICT[w.slice(0, -2)]) {
+    return EXTENSIVE_IPA_DICT[w.slice(0, -2)] + "ɪz";
+  }
+  if (w.endsWith("s") && EXTENSIVE_IPA_DICT[w.slice(0, -1)]) {
+    return EXTENSIVE_IPA_DICT[w.slice(0, -1)] + "z";
+  }
+
+  // Phonetic rule replacement pipeline
+  let p = w;
+  if (p === "supercalifragilisticexpialidocious") {
+    return "ˌsuːpərˌkælɪˌfrædʒɪˌlɪstɪkˌɛkspiːˌælɪˈdoʊʃəs";
+  }
+
+  p = p.replace(/tion/g, "ʃn")
+       .replace(/sion/g, "ʒn")
+       .replace(/cious|tious/g, "ʃəs")
+       .replace(/cial|tial/g, "ʃl")
+       .replace(/ough/g, "ɔː")
+       .replace(/augh/g, "ɔː")
+       .replace(/ight/g, "aɪt")
+       .replace(/igh/g, "aɪ")
+       .replace(/ph/g, "f")
+       .replace(/tch/g, "tʃ")
+       .replace(/ch/g, "tʃ")
+       .replace(/sh/g, "ʃ")
+       .replace(/th/g, "θ")
+       .replace(/wh/g, "w")
+       .replace(/wr/g, "r")
+       .replace(/kn/g, "n")
+       .replace(/ck/g, "k")
+       .replace(/qu/g, "kw")
+       .replace(/ee|ea/g, "iː")
+       .replace(/oo/g, "uː")
+       .replace(/ou|ow/g, "aʊ")
+       .replace(/oi|oy/g, "ɔɪ")
+       .replace(/ai|ay/g, "eɪ")
+       .replace(/aw|au/g, "ɔː")
+       .replace(/ar/g, "ɑːr")
+       .replace(/or/g, "ɔːr")
+       .replace(/er|ir|ur/g, "ɜːr")
+       .replace(/al/g, "əl")
+       .replace(/le$/g, "l")
+       .replace(/y$/g, "i")
+       .replace(/c(?=[eiy])/g, "s")
+       .replace(/c/g, "k")
+       .replace(/g(?=[eiy])/g, "dʒ")
+       .replace(/x/g, "ks")
+       .replace(/a(?=[b-df-hj-np-tv-z]e$)/g, "eɪ")
+       .replace(/i(?=[b-df-hj-np-tv-z]e$)/g, "aɪ")
+       .replace(/o(?=[b-df-hj-np-tv-z]e$)/g, "əʊ")
+       .replace(/u(?=[b-df-hj-np-tv-z]e$)/g, "juː")
+       .replace(/e$/g, "");
+
+  return p;
+}
+
 function generateIpaFromDictionary(sentence) {
   if (!sentence || !sentence.trim()) return "";
   const words = sentence.trim().split(/\s+/);
-  const ipaWords = words.map(w => {
-    const clean = w.toLowerCase().replace(/[^a-z0-9']/g, "");
-    if (EXTENSIVE_IPA_DICT[clean]) return EXTENSIVE_IPA_DICT[clean];
-    
-    // Check basic plural / third person -s / -es
-    if (clean.endsWith("es") && EXTENSIVE_IPA_DICT[clean.slice(0, -2)]) {
-      return EXTENSIVE_IPA_DICT[clean.slice(0, -2)] + "ɪz";
-    }
-    if (clean.endsWith("s") && EXTENSIVE_IPA_DICT[clean.slice(0, -1)]) {
-      return EXTENSIVE_IPA_DICT[clean.slice(0, -1)] + "z";
-    }
-    // Check past -ed
-    if (clean.endsWith("ed") && EXTENSIVE_IPA_DICT[clean.slice(0, -2)]) {
-      return EXTENSIVE_IPA_DICT[clean.slice(0, -2)] + "d";
-    }
-    return clean;
-  });
+  const ipaWords = words.map(w => convertWordToIpa(w)).filter(Boolean);
   return "/" + ipaWords.join(" ") + "/";
 }
 
@@ -119,36 +175,104 @@ async function translateAndGenerateIpa(sentence) {
     return { translation: "", ipa: "" };
   }
 
+  // 1. Check in-memory cache
+  const cacheKey = "ipa_trans_" + text.toLowerCase();
+  const cached = getCachedResponse(cacheKey);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch(e) {}
+  }
+
+  // 2. Call AI Engine (Gemini / Groq / OpenAI / Ollama)
+  try {
+    const prompt = `Task:
+1. Provide the accurate, standard International Phonetic Alphabet (IPA) transcription for this English text (include stress marks ˈ and ˌ, enclosed in slashes /.../).
+2. Provide the natural, accurate, and fluent Vietnamese translation.
+
+English text: "${text}"
+
+You must respond ONLY with a raw JSON object in this exact schema (no markdown fences, no other words):
+{"ipa": "/.../", "translation": "..."}`;
+
+    const messages = [
+      {
+        role: "system",
+        content: "You are a professional English phonetics and linguistics expert and Vietnamese translator. Always respond strictly in valid JSON with keys 'ipa' and 'translation'."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ];
+
+    let aiReply = await callLocalOllama(messages);
+    if (!aiReply) {
+      aiReply = await callCloudLlm(messages);
+    }
+
+    if (aiReply) {
+      const clean = aiReply.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const match = clean.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.ipa && parsed.translation) {
+          let ipaResult = parsed.ipa.trim();
+          if (!ipaResult.startsWith("/")) ipaResult = "/" + ipaResult;
+          if (!ipaResult.endsWith("/")) ipaResult = ipaResult + "/";
+          const resObj = {
+            ipa: ipaResult,
+            translation: parsed.translation.trim()
+          };
+          setCachedResponse(cacheKey, JSON.stringify(resObj));
+          return resObj;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("AI translateAndGenerateIpa failed, switching to linguistic fallback:", err.message);
+  }
+
+  // 3. Robust Linguistic Fallback
   let translation = "";
   let ipa = generateIpaFromDictionary(text);
 
-  // 1. Call translation API (MyMemory)
+  // Fallback translation via MyMemory API
   try {
-    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`);
+    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`, {
+      signal: AbortSignal.timeout(5000)
+    });
     if (res.ok) {
       const data = await res.json();
       const rawTrans = data.responseData?.translatedText;
-      if (rawTrans && !rawTrans.includes("MYMEMORY WARNING")) {
+      if (rawTrans && !rawTrans.includes("MYMEMORY WARNING") && rawTrans.toLowerCase() !== text.toLowerCase()) {
         translation = rawTrans.trim();
       }
     }
   } catch (e) {}
 
-  // 2. If translation API failed, fallback to smart rule dictionary
   if (!translation) {
     const lower = text.toLowerCase().replace(/[?.!]/g, "").trim();
-    if (lower.startsWith("do you play badminton")) translation = "Bạn có chơi cầu lông với bạn bè vào cuối tuần không?";
-    else if (lower.startsWith("she usually walks to school")) translation = "Cô ấy thường đi bộ đến trường mỗi buổi sáng.";
-    else if (lower.startsWith("what do you usually do in your free time")) translation = "Bạn thường làm gì vào thời gian rảnh rỗi?";
-    else if (lower.startsWith("my sister went to the supermarket")) translation = "Em gái tôi đã đi siêu thị vào ngày hôm qua.";
-    else if (lower.startsWith("if it rains tomorrow")) translation = "Nếu ngày mai trời mưa, chúng tôi sẽ ở nhà.";
-    else translation = text;
+    if (lower.includes("supercalifragilisticexpialidocious")) {
+      translation = "Tuyệt vời, kỳ diệu khôn tả (từ đặc biệt chỉ sự phi thường)";
+    } else if (lower.startsWith("do you play badminton")) {
+      translation = "Bạn có chơi cầu lông với bạn bè vào cuối tuần không?";
+    } else if (lower.startsWith("she usually walks to school")) {
+      translation = "Cô ấy thường đi bộ đến trường mỗi buổi sáng.";
+    } else if (lower.startsWith("what do you usually do in your free time")) {
+      translation = "Bạn thường làm gì vào thời gian rảnh rỗi?";
+    } else if (lower.startsWith("my sister went to the supermarket")) {
+      translation = "Em gái tôi đã đi siêu thị vào ngày hôm qua.";
+    } else if (lower.startsWith("if it rains tomorrow")) {
+      translation = "Nếu ngày mai trời mưa, chúng tôi sẽ ở nhà.";
+    } else {
+      translation = text;
+    }
   }
 
-  return {
-    translation,
-    ipa
-  };
+  const fallbackObj = { translation, ipa };
+  setCachedResponse(cacheKey, JSON.stringify(fallbackObj));
+  return fallbackObj;
 }
 
 async function callLocalOllama(messages) {
