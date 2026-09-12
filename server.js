@@ -1495,7 +1495,7 @@ app.post("/api/ai/grade-writing", async (req, res) => {
     if (!content || !content.trim()) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập bài viết cần chấm." });
     }
-    const evaluation = aiService.gradeWritingEssay({ prompt, content, level });
+    const evaluation = await aiService.gradeWritingEssay({ prompt, content, level });
     return res.json({ success: true, evaluation });
   } catch (error) {
     console.error("Lỗi AI chấm Writing:", error);
