@@ -573,7 +573,7 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
 *(Lưu ý: API Key Gemini hiện tại vừa bị Google tạm khóa do đăng tải công khai. Để mở khóa toàn bộ trí tuệ Gemini/ChatGPT không giới hạn, bạn chỉ cần vào **https://aistudio.google.com/apikey** tạo 1 key mới và dán vào file \`.env\` là xong ngay nha! 🥕)*`;
 }
 
-function gradeWritingEssay({ prompt, content, level = "grade9" }) {
+async function gradeWritingEssay({ prompt, content, level = "grade9" }) {
   const text = (content || "").trim();
   const words = text.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
@@ -585,17 +585,114 @@ function gradeWritingEssay({ prompt, content, level = "grade9" }) {
       wordCount,
       criteria: {
         taskAchievement: { score: 3.0, comment: "Bài viết quá ngắn (dưới 10 từ)." },
-        coherence: { score: 3.0, comment: "Chưa đủ cấu trúc đoạn văn." },
-        lexicalResource: { score: 3.5, comment: "Cần bổ sung thêm từ vựng." },
+        coherence: { score: 3.0, comment: "Chưa đủ cấu trúc đoạn văn hoàn chỉnh." },
+        lexicalResource: { score: 3.5, comment: "Cần bổ sung thêm từ vựng liên quan đến chủ đề." },
         grammaticalAccuracy: { score: 3.0, comment: "Hãy viết từ 50 - 100 từ để nhận đánh giá chi tiết." }
       },
       mistakes: [],
-      improvedVersion: prompt ? `In response to the prompt "${prompt}", you should develop at least 4-5 clear sentences.` : "Please write a longer paragraph.",
+      improvedVersion: prompt ? `To respond effectively to the prompt "${prompt}", you should develop at least 4-5 complete sentences sharing your thoughts and specific details.` : "Please write a complete paragraph of at least 50 words.",
       generalFeedback: "Bài viết còn quá ngắn. Hãy cố gắng phát triển thêm ý tưởng với ít nhất 5-7 câu hoàn chỉnh nhé! 🦫💪",
       rewards: { xp: 5, carrots: 0 }
     };
   }
 
+  // 1. Call Generative AI Engine (Gemini Flash / Groq Llama 3.3 / Ollama)
+  try {
+    const cacheKey = "grade_writing_" + text.toLowerCase().slice(0, 100) + "_" + text.length;
+    const cached = getCachedResponse(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {}
+    }
+
+    const systemInstruction = `You are an encouraging, experienced English teacher and Cambridge/IELTS examiner specialized in Vietnamese secondary school students (Grade 9, CEFR A2-B1 level).
+Your task is to evaluate a student's writing paragraph and provide constructive pedagogical feedback.
+
+CRITICAL REQUIREMENT for "improvedVersion":
+- The "improvedVersion" MUST NOT be identical to the student's original text.
+- It MUST be an upgraded, natural, fluent, and polished version of the student's ACTUAL submission.
+- Preserve the student's original core ideas, personal voice, storyline, and secondary school student character.
+- Polish grammatical errors, replace repetitive basic words with natural collocations, and add cohesive transition words (e.g. "To begin with", "Furthermore", "In addition", "As a result", "All in all") to make the flow smooth and authentic.
+- Do NOT rewrite it into an overly complex academic PhD essay. Keep it accessible and inspiring for a high-achieving Grade 9 student (CEFR B1+ / B2).
+
+You must respond ONLY with a valid JSON object in this exact schema (no markdown fences, no text before or after):
+{
+  "score": 8.0,
+  "band": "B1+ - Khá giỏi",
+  "criteria": {
+    "taskAchievement": { "score": 8.5, "comment": "Nhận xét chi tiết về nội dung và mức độ đáp ứng đề bài" },
+    "coherence": { "score": 8.0, "comment": "Nhận xét về tính liên kết, mạch văn và các từ nối" },
+    "lexicalResource": { "score": 8.0, "comment": "Nhận xét về vốn từ vựng và sự đa dạng của từ" },
+    "grammaticalAccuracy": { "score": 7.5, "comment": "Nhận xét về độ chính xác ngữ pháp và cấu trúc câu" }
+  },
+  "mistakes": [
+    {
+      "original": "cụm từ hoặc từ học sinh viết sai",
+      "corrected": "cách viết sửa lại cho đúng",
+      "type": "Tên dạng lỗi (ví dụ: Thì Quá khứ đơn, Giới từ, Chia động từ)",
+      "explanation": "Giải thích ngắn gọn lý do vì sao sai và quy tắc ngữ pháp bằng tiếng Việt"
+    }
+  ],
+  "improvedVersion": "Đoạn văn được nâng cấp văn phong mượt mà, tự nhiên từ bài làm gốc của học sinh...",
+  "generalFeedback": "Lời nhận xét tổng quan ấm áp, khích lệ tinh thần học tập từ Bé Capybara 🦫✨"
+}`;
+
+    const userPrompt = `Topic / Prompt: "${prompt || 'General Writing'}"
+Student's Paragraph (${wordCount} words):
+"${text}"`;
+
+    const messages = [
+      { role: "system", content: systemInstruction },
+      { role: "user", content: userPrompt }
+    ];
+
+    let aiReply = await callLocalOllama(messages);
+    if (!aiReply) {
+      aiReply = await callCloudLlm(messages);
+    }
+
+    if (aiReply) {
+      const clean = aiReply.replace(/```json/gi, "").replace(/```/g, "").trim();
+      const match = clean.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.score && parsed.improvedVersion) {
+          // Double check improvedVersion is truly upgraded
+          if (parsed.improvedVersion.trim().toLowerCase() === text.toLowerCase()) {
+            parsed.improvedVersion = "From my perspective, " + text.charAt(0).toLowerCase() + text.slice(1);
+          }
+
+          const scoreNum = Math.max(3.0, Math.min(10.0, +Number(parsed.score).toFixed(1)));
+          const result = {
+            score: scoreNum,
+            band: parsed.band || (scoreNum >= 8.5 ? "B2 - Xuất sắc" : scoreNum >= 7.0 ? "B1 - Đạt chuẩn THCS" : "A2 - Cần củng cố"),
+            wordCount,
+            criteria: parsed.criteria || {
+              taskAchievement: { score: scoreNum, comment: "Nội dung bài viết phù hợp với yêu cầu đề bài." },
+              coherence: { score: scoreNum, comment: "Mạch văn tương đối liên kết và dễ theo dõi." },
+              lexicalResource: { score: scoreNum, comment: "Vốn từ vựng phù hợp với trình độ THCS." },
+              grammaticalAccuracy: { score: scoreNum, comment: "Độ chính xác ngữ pháp khá tốt." }
+            },
+            mistakes: Array.isArray(parsed.mistakes) ? parsed.mistakes : [],
+            improvedVersion: parsed.improvedVersion.trim(),
+            generalFeedback: parsed.generalFeedback || "Bài viết thể hiện sự nỗ lực rất đáng khen! Hãy tiếp tục luyện tập để nâng cao khả năng viết nhé! 🦫✨",
+            rewards: {
+              xp: scoreNum >= 8.0 ? 30 : 20,
+              carrots: scoreNum >= 8.0 ? 3 : 1
+            }
+          };
+
+          setCachedResponse(cacheKey, JSON.stringify(result));
+          return result;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("AI grading error, falling back to rule engine:", err.message);
+  }
+
+  // 2. Intelligent Rule-based Fallback (if AI is temporarily unreachable)
   const mistakes = [];
   const lowerText = text.toLowerCase();
 
@@ -639,11 +736,11 @@ function gradeWritingEssay({ prompt, content, level = "grade9" }) {
     });
   }
 
-  let baseScore = 7.0;
-  if (wordCount >= 50 && wordCount <= 150) baseScore += 1.0;
-  else if (wordCount > 150) baseScore += 1.5;
+  let baseScore = 7.5;
+  if (wordCount >= 60 && wordCount <= 150) baseScore += 0.8;
+  else if (wordCount > 150) baseScore += 1.2;
 
-  const penalty = Math.min(2.5, mistakes.length * 0.5);
+  const penalty = Math.min(2.5, mistakes.length * 0.6);
   const finalScore = Math.max(4.0, Math.min(9.5, +(baseScore - penalty).toFixed(1)));
 
   let band = "B1 - Đạt chuẩn THCS";
@@ -652,15 +749,33 @@ function gradeWritingEssay({ prompt, content, level = "grade9" }) {
   else if (finalScore >= 6.0) band = "B1 - Đạt yêu cầu";
   else band = "A2 - Cần củng cố";
 
-  let improvedVersion = text
+  // Naturally upgrade student's text while preserving ideas
+  let upgraded = text
     .replace(/\b(he|she|it)\s+don't\b/gi, (m, p1) => p1 + " doesn't")
     .replace(/\bin the weekend\b/gi, "at the weekend")
     .replace(/\bmore\s+(tall|fast|cheap)\b/gi, (m, p1) => p1 + "er")
-    .replace(/\bvery good\b/gi, "excellent")
-    .replace(/\bvery nice\b/gi, "wonderful")
-    .replace(/\ba lot of\b/gi, "numerous");
+    .replace(/\bvery good\b/gi, "truly wonderful")
+    .replace(/\bvery nice\b/gi, "pleasant and memorable")
+    .replace(/\ba lot of\b/gi, "numerous")
+    .replace(/\bvery fun\b/gi, "enjoyable and exciting")
+    .replace(/\bvery important\b/gi, "crucial and meaningful")
+    .replace(/\bI think that\b/gi, "From my perspective,")
+    .replace(/\bI think\b/gi, "In my view,");
 
-  if (!improvedVersion.endsWith(".")) improvedVersion += ".";
+  const sentences = upgraded.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length >= 3) {
+    if (!sentences[0].match(/^(First|To begin|Last|Nowadays|In my opinion|From my perspective)/i)) {
+      sentences[0] = "From my point of view, " + sentences[0].charAt(0).toLowerCase() + sentences[0].slice(1);
+    }
+    if (sentences.length > 2 && !sentences[sentences.length - 1].match(/^(In conclusion|To sum up|Overall|All in all)/i)) {
+      sentences[sentences.length - 1] = "All in all, " + sentences[sentences.length - 1].charAt(0).toLowerCase() + sentences[sentences.length - 1].slice(1);
+    }
+    upgraded = sentences.join(" ");
+  } else {
+    upgraded = "Overall, " + upgraded.charAt(0).toLowerCase() + upgraded.slice(1);
+  }
+
+  if (!upgraded.endsWith(".")) upgraded += ".";
 
   const taskScore = Math.min(10, +(finalScore + 0.3).toFixed(1));
   const cohScore = Math.min(10, +(finalScore - 0.2).toFixed(1));
@@ -682,7 +797,7 @@ function gradeWritingEssay({ prompt, content, level = "grade9" }) {
       },
       lexicalResource: {
         score: lexScore,
-        comment: "Sử dụng từ vựng phù hợp với trình độ THCS. Có thể nâng cấp một số từ cơ bản sang từ đồng nghĩa cao cấp hơn."
+        comment: "Sử dụng từ vựng phù hợp với trình độ THCS. Có thể nâng cấp một số từ cơ bản sang từ đồng nghĩa sinh động hơn."
       },
       grammaticalAccuracy: {
         score: graScore,
@@ -690,7 +805,7 @@ function gradeWritingEssay({ prompt, content, level = "grade9" }) {
       }
     },
     mistakes,
-    improvedVersion,
+    improvedVersion: upgraded,
     generalFeedback: finalScore >= 8.0
       ? "🌟 Bài viết rất xuất sắc! Văn phong lưu loát, bố cục rõ ràng và từ vựng phong phú. Tiếp tục phát huy nhé!"
       : "👍 Bài viết khá tốt và đúng trọng tâm. Hãy xem kỹ các lỗi được chỉ ra ở bảng bên dưới để hoàn thiện hơn nhé!",
