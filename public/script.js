@@ -4441,7 +4441,7 @@
       const msgEl = document.createElement("div");
       msgEl.className = sender === "user" ? "chat-msg user-msg" : "chat-msg capybara-msg";
       
-      const avatarSrc = "./images/engologo.png";
+      const avatarSrc = "./images/engocircle.png";
       
       let formattedText = (text || "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -4474,7 +4474,7 @@
       const typingEl = document.createElement("div");
       typingEl.className = "chat-msg capybara-msg typing-msg";
       typingEl.innerHTML = `
-        <img src="./images/engologo.png" class="chat-avatar" alt="Capybara" />
+        <img src="./images/engocircle.png" class="chat-avatar" alt="Capybara" />
         <div class="chat-bubble"><em class="small muted">Capybara đang suy nghĩ... 🦫💭</em></div>
       `;
       capybaraChatMessages.appendChild(typingEl);

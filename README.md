@@ -1,4 +1,4 @@
-# <p align="center"><img src="./public/images/engologo.png" width="130" alt="ENGO Logo"><br>🌟 ENGO LEARNING HUB - NỀN TẢNG HỌC & KIỂM TRA TIẾNG ANH THCS THÔNG MINH 🌟</p>
+# <p align="center"><img src="./public/images/engocircle.png" width="130" alt="ENGO Logo"><br>🌟 ENGO LEARNING HUB - NỀN TẢNG HỌC & KIỂM TRA TIẾNG ANH THCS THÔNG MINH 🌟</p>
 
 > **ENGO Learning Hub** là nền tảng giáo dục số thông minh toàn diện dành cho bậc THCS, kết hợp **Trí tuệ nhân tạo (Generative AI)**, **Cơ chế trò chơi hóa (Gamification)**, **Hệ thống điểm danh chuỗi ngày (Streak System)**, **Giám sát thi an toàn chống gian lận (Anti-Cheat Guard)** và **Phòng chữa lỗi thông minh độc quyền (Error Healing Room)**.
 
