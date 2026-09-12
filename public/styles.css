@@ -3,6 +3,7 @@
   height:58px;
   display:block;
   object-fit:cover;
+  object-position:center;
   border-radius:16px;
   background:white;
   box-shadow:0 10px 22px rgba(15,23,42,.14);
