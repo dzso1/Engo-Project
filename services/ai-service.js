@@ -900,9 +900,352 @@ function generateTestOnDemand({ topic = "tenses", gradeLevel = "9", count = 10, 
   };
 }
 
+// ==========================================================
+// TIỆN ÍCH GỌI AI TRẢ VỀ JSON (dùng chung cho các tính năng mới)
+// ==========================================================
+function extractJson(reply) {
+  if (!reply) return null;
+  const clean = String(reply).replace(/```json/gi, "").replace(/```/g, "").trim();
+  const firstObj = clean.indexOf("{");
+  const firstArr = clean.indexOf("[");
+  let start = -1;
+  if (firstObj >= 0 && firstArr >= 0) start = Math.min(firstObj, firstArr);
+  else start = Math.max(firstObj, firstArr);
+  if (start < 0) return null;
+  const opener = clean[start];
+  const closer = opener === "{" ? "}" : "]";
+  const end = clean.lastIndexOf(closer);
+  if (end <= start) return null;
+  try { return JSON.parse(clean.slice(start, end + 1)); } catch (e) { return null; }
+}
+
+async function callAiJson(systemInstruction, userPrompt, cacheKey) {
+  if (cacheKey) {
+    const cached = getCachedResponse(cacheKey);
+    if (cached) { try { return JSON.parse(cached); } catch (e) {} }
+  }
+  const messages = [
+    { role: "system", content: systemInstruction },
+    { role: "user", content: userPrompt }
+  ];
+  let reply = await callLocalOllama(messages);
+  let parsed = extractJson(reply);
+  if (!parsed) {
+    reply = await callCloudLlm(messages);
+    parsed = extractJson(reply);
+  }
+  if (parsed && cacheKey) setCachedResponse(cacheKey, JSON.stringify(parsed));
+  return parsed;
+}
+
+function trimSource(text, maxChars = 14000, focus = "") {
+  const t = String(text || "");
+  if (t.length <= maxChars) return t;
+  if (focus) {
+    const idx = t.toLowerCase().indexOf(String(focus).toLowerCase());
+    if (idx >= 0) {
+      const start = Math.max(0, idx - 500);
+      return t.slice(start, start + maxChars);
+    }
+  }
+  return t.slice(0, maxChars);
+}
+
+// Tách các câu tiếng Anh "sạch" từ văn bản SGK (dùng làm fallback khi AI offline)
+function extractEnglishSentences(text, { min = 5, max = 14 } = {}) {
+  const sentences = String(text || "")
+    .replace(/\n+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(s => /^[A-Z]/.test(s) && /[a-z]/.test(s) && !/[^\x00-\x7F‘’“”]/.test(s));
+  const seen = new Set();
+  const out = [];
+  for (const s of sentences) {
+    const words = s.split(/\s+/).length;
+    if (words < min || words > max) continue;
+    if (/\d{2,}|_{2,}|\.{3,}|www|http|\b(Unit|Lesson|Page|Exercise|Listen and|Read the|Look at)\b/i.test(s)) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+// ==========================================================
+// 1. SINH BÀI LUYỆN NÓI TỪ SGK (GIAI ĐOẠN 1: CÂU ĐƠN, GIAI ĐOẠN 2: HỘI THOẠI)
+// ==========================================================
+async function generateSpeakingItems({ sourceText = "", unitTitle = "", stage = 1, count = 8 }) {
+  const stageNum = Number(stage) === 2 ? 2 : 1;
+  const wanted = Math.min(12, Math.max(3, Number(count) || 8));
+  const source = trimSource(sourceText, 12000, unitTitle);
+
+  const system = `You are an experienced Vietnamese secondary-school English teacher (Grade 9, "Tiếng Anh 9 Global Success"). You create speaking-practice material for students with weak pronunciation. Always answer with valid JSON only, no markdown fences.`;
+
+  let user;
+  if (stageNum === 1) {
+    user = `Below is the textbook text of a unit (may be noisy OCR text). Unit/topic: "${unitTitle || "unknown"}".
+
+TASK: Write ${wanted} SIMPLE English sentences for pronunciation practice, ordered from easiest to hardest.
+Rules:
+- Use the vocabulary and grammar of this unit, but DO NOT copy sentences from the textbook. Create NEW, natural sentences a 14-year-old would say about the same topic.
+- Sentence 1-3: 5-7 words, very easy. Sentence 4-6: 7-9 words. Last ones: 9-12 words with the unit's key grammar.
+- Each sentence must be grammatically correct, natural, and contain at least one key word of the unit.
+- Provide an accurate IPA transcription (with stress marks, in slashes) and a natural Vietnamese translation.
+- "focus" = the pronunciation or grammar point to notice (short, in Vietnamese).
+
+Return JSON: {"items":[{"text":"...","ipa":"/.../","meaning":"...","focus":"...","level":"easy|medium|hard"}]}
+
+TEXTBOOK TEXT:
+"""
+${source}
+"""`;
+  } else {
+    user = `Below is the textbook text of a unit (may be noisy OCR text). Unit/topic: "${unitTitle || "unknown"}".
+
+TASK: Write ${Math.min(4, Math.max(1, Math.round(wanted / 3)))} SHORT English dialogues (2 speakers A and B, 4-6 turns each) in the style of the "Getting Started" conversations of this textbook unit, ordered from easier to harder.
+Rules:
+- Follow the topic, vocabulary and grammar structures of the unit. Do NOT copy the textbook dialogue word-for-word; write a new but similar conversation.
+- Each turn is one natural sentence of 5-12 words suitable for a Grade 9 student to read aloud.
+- Provide IPA (with stress marks, in slashes) and Vietnamese translation for every turn.
+
+Return JSON: {"dialogues":[{"title":"...","situation":"(Vietnamese, 1 sentence)","lines":[{"speaker":"A","text":"...","ipa":"/.../","meaning":"..."}]}]}
+
+TEXTBOOK TEXT:
+"""
+${source}
+"""`;
+  }
+
+  let parsed = null;
+  try {
+    parsed = await callAiJson(system, user, `spk_gen_${stageNum}_${wanted}_${(unitTitle || "").toLowerCase()}_${source.length}_${source.slice(0, 80).toLowerCase()}`);
+  } catch (e) {
+    console.warn("generateSpeakingItems AI error:", e.message);
+  }
+
+  if (stageNum === 1 && parsed && Array.isArray(parsed.items) && parsed.items.length) {
+    const items = parsed.items
+      .filter(it => it && it.text)
+      .slice(0, wanted)
+      .map((it, idx) => ({
+        text: String(it.text).trim(),
+        ipa: it.ipa ? String(it.ipa).trim() : generateIpaFromDictionary(String(it.text)),
+        meaning: it.meaning ? String(it.meaning).trim() : "",
+        focus: it.focus ? String(it.focus).trim() : "",
+        level: ["easy", "medium", "hard"].includes(it.level) ? it.level : (idx < wanted / 3 ? "easy" : idx < (2 * wanted) / 3 ? "medium" : "hard")
+      }));
+    if (items.length) return { stage: 1, items, source: "ai" };
+  }
+  if (stageNum === 2 && parsed && Array.isArray(parsed.dialogues) && parsed.dialogues.length) {
+    const dialogues = parsed.dialogues
+      .filter(d => d && Array.isArray(d.lines) && d.lines.length)
+      .map(d => ({
+        title: String(d.title || "Dialogue").trim(),
+        situation: String(d.situation || "").trim(),
+        lines: d.lines.filter(l => l && l.text).map(l => ({
+          speaker: String(l.speaker || "A").trim().slice(0, 12),
+          text: String(l.text).trim(),
+          ipa: l.ipa ? String(l.ipa).trim() : generateIpaFromDictionary(String(l.text)),
+          meaning: l.meaning ? String(l.meaning).trim() : ""
+        }))
+      }));
+    if (dialogues.length) return { stage: 2, dialogues, source: "ai" };
+  }
+
+  // Fallback không cần AI: lấy các câu sạch từ chính văn bản (kém "sáng tạo" hơn nhưng vẫn dùng được)
+  const sentences = extractEnglishSentences(source);
+  if (stageNum === 1) {
+    const sorted = sentences.sort((a, b) => a.length - b.length).slice(0, wanted);
+    return {
+      stage: 1,
+      source: "fallback",
+      items: sorted.map((text, idx) => ({
+        text,
+        ipa: generateIpaFromDictionary(text),
+        meaning: "",
+        focus: "Đọc rõ âm đuôi và trọng âm từ",
+        level: idx < sorted.length / 3 ? "easy" : idx < (2 * sorted.length) / 3 ? "medium" : "hard"
+      }))
+    };
+  }
+  const lines = sentences.slice(0, 6);
+  return {
+    stage: 2,
+    source: "fallback",
+    dialogues: lines.length ? [{
+      title: unitTitle ? `Talking about ${unitTitle}` : "Practice dialogue",
+      situation: "Hai bạn học sinh trò chuyện về chủ đề của bài học.",
+      lines: lines.map((text, idx) => ({ speaker: idx % 2 === 0 ? "A" : "B", text, ipa: generateIpaFromDictionary(text), meaning: "" }))
+    }] : []
+  };
+}
+
+// ==========================================================
+// 2. AI PHÂN TÍCH ĐỘ KHÓ & THỜI GIAN LÀM TỪNG CÂU HỎI
+// ==========================================================
+const DEFAULT_SECONDS = { Phonetics: 30, "Grammar and Vocabulary": 45, Reading: 90, Writing: 300, Speaking: 120 };
+
+function heuristicQuestionAnalysis(q) {
+  const section = q.section || "Grammar and Vocabulary";
+  let seconds = DEFAULT_SECONDS[section] || 45;
+  let difficulty = "medium";
+  const len = String(q.prompt || "").length + (q.context ? Math.min(600, String(q.context).length) / 4 : 0);
+  if (q.type === "writing" || q.manual) { difficulty = "hard"; seconds = 300; }
+  else if (q.type === "speaking") { difficulty = "medium"; seconds = 120; }
+  else if (section === "Reading") { difficulty = "hard"; seconds = 90; }
+  else if (section === "Phonetics") { difficulty = "easy"; seconds = 30; }
+  else if (len > 160) { difficulty = "hard"; seconds = 60; }
+  else if (len < 70) { difficulty = "easy"; seconds = 30; }
+  return { difficulty, seconds, reason: "Ước lượng theo dạng câu hỏi và độ dài" };
+}
+
+async function analyzeTestQuestions(questions = []) {
+  const list = Array.isArray(questions) ? questions : [];
+  const fallback = Object.fromEntries(list.map(q => [q.id, heuristicQuestionAnalysis(q)]));
+  if (!list.length) return fallback;
+
+  const compact = list.map(q => ({
+    id: q.id,
+    section: q.section,
+    type: q.type,
+    prompt: String(q.prompt || "").slice(0, 400),
+    options: (q.options || []).map(o => (typeof o === "string" ? o : `${o.key}. ${o.text}`)).join(" | ").slice(0, 300),
+    hasPassage: Boolean(q.context)
+  }));
+
+  const system = `You are an assessment expert for Vietnamese Grade 9 English tests. For each question estimate its difficulty for an average Grade 9 student and a reasonable time budget in seconds. Answer with valid JSON only.`;
+  const user = `Classify each question: "difficulty" must be one of "easy" (Nhận biết), "medium" (Thông hiểu), "hard" (Vận dụng / Vận dụng cao). "seconds" is the recommended time to solve it (20-120 for objective questions, 240-420 for paragraph writing, 90-180 for speaking). Give a very short reason in Vietnamese.
+
+Return JSON: {"analysis":[{"id":"q-1","difficulty":"easy","seconds":30,"reason":"..."}]}
+
+QUESTIONS:
+${JSON.stringify(compact)}`;
+
+  try {
+    const parsed = await callAiJson(system, user, "test_analysis_" + compact.map(c => c.id + c.prompt.slice(0, 40)).join("|").toLowerCase().slice(0, 900));
+    if (parsed && Array.isArray(parsed.analysis)) {
+      for (const a of parsed.analysis) {
+        if (!a || !fallback[a.id]) continue;
+        const difficulty = ["easy", "medium", "hard"].includes(a.difficulty) ? a.difficulty : fallback[a.id].difficulty;
+        const seconds = Math.max(15, Math.min(600, Number(a.seconds) || fallback[a.id].seconds));
+        fallback[a.id] = { difficulty, seconds, reason: String(a.reason || "").slice(0, 160), source: "ai" };
+      }
+    }
+  } catch (e) {
+    console.warn("analyzeTestQuestions AI error:", e.message);
+  }
+  return fallback;
+}
+
+// ==========================================================
+// 3. AI ĐỌC MA TRẬN ĐỀ (PDF/DOCX) -> CẤU TRÚC JSON
+// ==========================================================
+function heuristicMatrix(text) {
+  const t = String(text || "");
+  const find = (re, def) => { const m = t.match(re); return m ? Number(m[1]) : def; };
+  const nb = find(/nh[aậ]n\s*bi[eế]t[^0-9]{0,40}(\d{1,2})\s*%/i, 40);
+  const th = find(/th[oô]ng\s*hi[eể]u[^0-9]{0,40}(\d{1,2})\s*%/i, 30);
+  const vd = find(/v[aậ]n\s*d[uụ]ng(?!\s*cao)[^0-9]{0,40}(\d{1,2})\s*%/i, 20);
+  const vdc = find(/v[aậ]n\s*d[uụ]ng\s*cao[^0-9]{0,40}(\d{1,2})\s*%/i, 10);
+  const total = nb + th + vd + vdc || 100;
+  return {
+    title: "Ma trận đề (ước lượng)",
+    levels: [
+      { key: "easy", name: "Nhận biết", ratio: Math.round((nb / total) * 100) },
+      { key: "medium", name: "Thông hiểu", ratio: Math.round((th / total) * 100) },
+      { key: "hard", name: "Vận dụng & Vận dụng cao", ratio: Math.round(((vd + vdc) / total) * 100) }
+    ],
+    skills: [],
+    tiers: {
+      advanced: { label: "Lớp tăng cường", easy: 25, medium: 35, hard: 40, timeFactor: 0.9 },
+      regular: { label: "Lớp thường", easy: 45, medium: 35, hard: 20, timeFactor: 1.1 }
+    },
+    notes: "Được ước lượng tự động từ văn bản ma trận.",
+    source: "heuristic"
+  };
+}
+
+async function parseTestMatrix(text) {
+  const source = trimSource(text, 9000);
+  const system = `You are an expert in Vietnamese school test design (ma trận đề kiểm tra môn Tiếng Anh THCS). Read the test matrix text and convert it into a structured JSON. Answer with valid JSON only.`;
+  const user = `Extract the test matrix. Map cognitive levels to keys: "easy" = Nhận biết, "medium" = Thông hiểu, "hard" = Vận dụng + Vận dụng cao. Ratios are percentages of total questions/points (must sum to 100). "skills" lists each section/skill (Phonetics, Grammar and Vocabulary, Reading, Writing, Speaking, Listening...) with number of questions and points per level when available.
+Also propose two class tiers: "advanced" (lớp tăng cường, more hard questions) and "regular" (lớp thường, easier) as percentage distributions of easy/medium/hard that sum to 100, plus a "timeFactor" (advanced 0.85-0.95, regular 1.0-1.2).
+
+Return JSON:
+{"title":"...","totalQuestions":0,"totalPoints":10,"durationMinutes":45,
+ "levels":[{"key":"easy","name":"Nhận biết","ratio":40},{"key":"medium","name":"Thông hiểu","ratio":30},{"key":"hard","name":"Vận dụng","ratio":30}],
+ "skills":[{"name":"Grammar and Vocabulary","questions":10,"points":2.5,"easy":4,"medium":4,"hard":2}],
+ "tiers":{"advanced":{"label":"Lớp tăng cường","easy":25,"medium":35,"hard":40,"timeFactor":0.9},"regular":{"label":"Lớp thường","easy":45,"medium":35,"hard":20,"timeFactor":1.1}},
+ "notes":"(Vietnamese, 1-2 sentences)"}
+
+MATRIX TEXT:
+"""
+${source}
+"""`;
+  try {
+    const parsed = await callAiJson(system, user, "matrix_" + source.slice(0, 300).toLowerCase());
+    if (parsed && Array.isArray(parsed.levels) && parsed.levels.length) {
+      const norm = (tier, def) => ({
+        label: String(tier?.label || def.label),
+        easy: Number(tier?.easy ?? def.easy), medium: Number(tier?.medium ?? def.medium), hard: Number(tier?.hard ?? def.hard),
+        timeFactor: Math.max(0.6, Math.min(1.5, Number(tier?.timeFactor || def.timeFactor)))
+      });
+      const h = heuristicMatrix("");
+      return {
+        title: String(parsed.title || "Ma trận đề"),
+        totalQuestions: Number(parsed.totalQuestions) || 0,
+        totalPoints: Number(parsed.totalPoints) || 10,
+        durationMinutes: Number(parsed.durationMinutes) || 45,
+        levels: parsed.levels.map(l => ({ key: ["easy", "medium", "hard"].includes(l.key) ? l.key : "medium", name: String(l.name || l.key), ratio: Number(l.ratio) || 0 })),
+        skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+        tiers: { advanced: norm(parsed.tiers?.advanced, h.tiers.advanced), regular: norm(parsed.tiers?.regular, h.tiers.regular) },
+        notes: String(parsed.notes || ""),
+        source: "ai"
+      };
+    }
+  } catch (e) {
+    console.warn("parseTestMatrix AI error:", e.message);
+  }
+  return heuristicMatrix(text);
+}
+
+// ==========================================================
+// 4. AI NHẬN XÉT LƯỢT NÓI (ngắn gọn, tiếng Việt) + phát hiện lỗi ngữ pháp trong câu nói tự do
+// ==========================================================
+async function speakingFeedback({ target = "", transcript = "", accuracy = 0, errors = [] }) {
+  const fallbackTip = () => {
+    const gram = errors.filter(e => e.type === "grammar");
+    const pron = errors.filter(e => e.type === "pronunciation");
+    if (!errors.length) return "Bạn đọc rất tốt, phát âm rõ ràng và đầy đủ. Tiếp tục phát huy nhé!";
+    const parts = [];
+    if (gram.length) parts.push(`Chú ý âm đuôi ngữ pháp ở: ${gram.map(e => e.word).join(", ")} (thiếu -s/-ed/-ing).`);
+    if (pron.length) parts.push(`Luyện lại phát âm các từ: ${pron.slice(0, 4).map(e => e.word).join(", ")}.`);
+    return parts.join(" ");
+  };
+  if (!target || !transcript) return { tip: fallbackTip(), source: "rule" };
+  const system = `You are a friendly Vietnamese English pronunciation coach for Grade 9 students. Answer with valid JSON only.`;
+  const user = `Target sentence: "${target}"
+What the speech recognizer heard: "${transcript}"
+Automatic accuracy: ${accuracy}%
+Detected issues: ${JSON.stringify(errors.slice(0, 8))}
+
+Write ONE short, warm, specific tip in Vietnamese (max 45 words) telling the student exactly which sounds/words to fix and how (mouth position or ending sound), or praise if excellent. Return JSON: {"tip":"..."}`;
+  try {
+    const parsed = await callAiJson(system, user, `spk_fb_${target.toLowerCase()}_${transcript.toLowerCase()}`.slice(0, 400));
+    if (parsed && parsed.tip) return { tip: String(parsed.tip).trim().slice(0, 400), source: "ai" };
+  } catch (e) {}
+  return { tip: fallbackTip(), source: "rule" };
+}
+
 module.exports = {
   chatWithCapybara,
   gradeWritingEssay,
   generateTestOnDemand,
-  translateAndGenerateIpa
+  translateAndGenerateIpa,
+  generateSpeakingItems,
+  analyzeTestQuestions,
+  parseTestMatrix,
+  speakingFeedback,
+  extractEnglishSentences
 };

@@ -13,6 +13,9 @@ const mammoth = require("mammoth");
 const pool = require("./database/db");
 const { parseDocxAssessment } = require("./services/docx-assessment-parser");
 const aiService = require("./services/ai-service");
+const speakingScorer = require("./services/speaking-scorer");
+const { extractDocumentText } = require("./services/document-text");
+const progressService = require("./services/progress");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -57,6 +60,19 @@ function requireRole(...roles) {
   };
 }
 
+const schemaErrors = new Set();
+function logSchemaError(e) {
+  const msg = String(e && e.message || e);
+  if (/Duplicate column|already exists|check that column.key exists|Unknown column 'password'/i.test(msg)) return; // migration đã áp dụng
+  if (schemaErrors.has(msg)) return;
+  schemaErrors.add(msg);
+  console.warn("[DB SCHEMA] " + msg);
+  if (/command denied/i.test(msg) && !schemaErrors.has("__hint")) {
+    schemaErrors.add("__hint");
+    console.warn("[DB SCHEMA] Tài khoản MySQL thiếu quyền CREATE/ALTER. Hãy chạy bằng root:  mysql -u root -p < database/migrate-v2.sql");
+  }
+}
+
 async function ensureAssessmentTables() {
   // 1. Tạo bảng users nếu chưa có
   try {
@@ -75,7 +91,7 @@ async function ensureAssessmentTables() {
         INDEX idx_users_role (role)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
-  } catch (e) {}
+  } catch (e) { logSchemaError(e); }
 
   // 2. Tạo bảng imported_tests nếu chưa có
   try {
@@ -93,7 +109,7 @@ async function ensureAssessmentTables() {
         INDEX idx_imported_tests_class (class_name)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
-  } catch (e) {}
+  } catch (e) { logSchemaError(e); }
 
   // 3. Tạo bảng writing_submissions nếu chưa có
   try {
@@ -117,7 +133,7 @@ async function ensureAssessmentTables() {
         INDEX idx_writing_status (status)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
-  } catch (e) {}
+  } catch (e) { logSchemaError(e); }
 
   // 4. Tạo bảng speaking_assignments nếu chưa có
   try {
@@ -135,7 +151,7 @@ async function ensureAssessmentTables() {
         INDEX idx_speaking_class (class_name)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
-  } catch (e) {}
+  } catch (e) { logSchemaError(e); }
 
   // 5. Tạo bảng speaking_submissions nếu chưa có
   try {
@@ -151,9 +167,94 @@ async function ensureAssessmentTables() {
         INDEX idx_speaking_sub_student (student_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
-  } catch (e) {}
+  } catch (e) { logSchemaError(e); }
 
-  // 6. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
+  // 6. Bảng lịch sử từng lượt luyện nói (theo dõi tiến bộ theo giai đoạn)
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS speaking_attempts (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        student_id BIGINT UNSIGNED NOT NULL,
+        assignment_id BIGINT UNSIGNED NULL,
+        stage TINYINT NOT NULL DEFAULT 1,
+        item_index INT NOT NULL DEFAULT 0,
+        context VARCHAR(20) NOT NULL DEFAULT 'practice',
+        target_text TEXT NOT NULL,
+        transcript TEXT NULL,
+        accuracy INT NOT NULL DEFAULT 0,
+        errors_json JSON NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_spk_att_student (student_id, created_at),
+        INDEX idx_spk_att_assignment (assignment_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) { logSchemaError(e); }
+
+  // 7. Nhật ký kết quả học tập tổng hợp (test / speaking / vocab / healing) của từng học sinh
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS learning_events (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        student_id BIGINT UNSIGNED NOT NULL,
+        event_type VARCHAR(32) NOT NULL,
+        ref_id VARCHAR(64) NULL,
+        title VARCHAR(255) NULL,
+        score DECIMAL(6,2) NULL,
+        max_score DECIMAL(6,2) NULL,
+        meta_json JSON NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_le_student (student_id, created_at),
+        INDEX idx_le_type (event_type)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) { logSchemaError(e); }
+
+  // 8. Ma trận đề kiểm tra do giáo viên upload (PDF/DOCX -> JSON)
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS test_matrices (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        teacher_id BIGINT UNSIGNED NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        source_file_name VARCHAR(255) NULL,
+        matrix_json JSON NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_matrix_teacher (teacher_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) { logSchemaError(e); }
+
+  // 9. Phân loại lớp: tăng cường (advanced) / thường (regular)
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS class_settings (
+        class_name VARCHAR(50) NOT NULL PRIMARY KEY,
+        tier VARCHAR(20) NOT NULL DEFAULT 'regular',
+        updated_by BIGINT UNSIGNED NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+  } catch (e) { logSchemaError(e); }
+
+  // 10. Migration: cột mới cho luyện nói nhiều giai đoạn, phân tích độ khó đề và điểm speaking trong bài kiểm tra
+  try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN stage TINYINT NOT NULL DEFAULT 1"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN items_json JSON NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN unit_title VARCHAR(255) NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN source_file_name VARCHAR(255) NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_assignments MODIFY COLUMN ipa TEXT NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_submissions ADD COLUMN items_result_json JSON NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_submissions ADD COLUMN attempts INT NOT NULL DEFAULT 1"); } catch (e) {}
+  try { await pool.query("ALTER TABLE speaking_submissions ADD COLUMN best_accuracy INT NOT NULL DEFAULT 0"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN matrix_id BIGINT UNSIGNED NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN analysis_json JSON NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN duration_minutes INT NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN speaking_answers_json JSON NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN speaking_score DECIMAL(5,2) NOT NULL DEFAULT 0"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN objective_max DECIMAL(5,2) NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN variant VARCHAR(20) NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN time_spent_seconds INT NULL"); } catch (e) {}
+
+  // 11. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
   try { await pool.query("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL DEFAULT NULL"); } catch (e) {}
   try { await pool.query("UPDATE users SET password_hash = password WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL"); } catch (e) {}
@@ -176,7 +277,7 @@ async function ensureAssessmentTables() {
       );
       console.log("[DB] Đã khởi tạo tài khoản mặc định (admin@engo.edu.vn / 123456).");
     }
-  } catch (e) {}
+  } catch (e) { logSchemaError(e); }
 
   await syncSubmissionColumns();
 }
@@ -219,18 +320,110 @@ function getStoredTest(row) {
   return { ...row, questions: typeof row.questions_json === "string" ? JSON.parse(row.questions_json) : row.questions_json };
 }
 
-function publicTest(test) {
+function parseJsonField(value, fallback) {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch (e) { return fallback; }
+}
+
+const DEFAULT_TIERS = {
+  advanced: { label: "Lớp tăng cường", easy: 25, medium: 35, hard: 40, timeFactor: 0.9 },
+  regular: { label: "Lớp thường", easy: 45, medium: 35, hard: 20, timeFactor: 1.1 }
+};
+
+// Lấy phân loại lớp (advanced / regular). Lớp chưa cấu hình -> null (nhận đề đầy đủ)
+async function getClassTier(className) {
+  if (!className) return null;
+  try {
+    const [rows] = await pool.execute("SELECT tier FROM class_settings WHERE class_name = ? LIMIT 1", [className]);
+    return rows.length ? rows[0].tier : null;
+  } catch (e) { return null; }
+}
+
+// Xây dựng 2 biến thể đề (nâng cao / cơ bản) từ phân tích độ khó + ma trận
+function buildTestVariants(questions, analysis, matrix) {
+  const tiers = matrix && matrix.tiers ? matrix.tiers : DEFAULT_TIERS;
+  const ids = questions.map(q => q.id);
+  const objective = questions.filter(q => !q.manual && q.type !== "speaking");
+  const byDifficulty = { easy: [], medium: [], hard: [] };
+  objective.forEach(q => {
+    const d = analysis[q.id]?.difficulty || "medium";
+    byDifficulty[d].push(q.id);
+  });
+  const total = objective.length;
+  const keepFor = (tier) => {
+    if (!tier) return ids;
+    const hardAllowed = Math.max(1, Math.round((Number(tier.hard) / 100) * total));
+    const mediumAllowed = Math.max(1, Math.round(((Number(tier.hard) + Number(tier.medium)) / 100) * total)) - Math.min(hardAllowed, byDifficulty.hard.length);
+    const dropHard = new Set(byDifficulty.hard.slice(hardAllowed));
+    const dropMedium = new Set(byDifficulty.medium.slice(Math.max(mediumAllowed, Math.ceil(byDifficulty.medium.length * 0.6))));
+    return ids.filter(id => !dropHard.has(id) && !dropMedium.has(id));
+  };
+  const sumSeconds = (list) => list.reduce((s, id) => s + Number(analysis[id]?.seconds || 45), 0);
+  const fullSeconds = sumSeconds(ids);
+  const regularIds = keepFor(tiers.regular);
+  return {
+    full: { questionIds: ids, durationMinutes: Math.max(10, Math.ceil(fullSeconds / 60)) },
+    advanced: { questionIds: ids, durationMinutes: Math.max(10, Math.ceil((fullSeconds * Number(tiers.advanced.timeFactor || 0.9)) / 60)) },
+    regular: { questionIds: regularIds, durationMinutes: Math.max(10, Math.ceil((sumSeconds(regularIds) * Number(tiers.regular.timeFactor || 1.1)) / 60)) },
+    counts: { easy: byDifficulty.easy.length, medium: byDifficulty.medium.length, hard: byDifficulty.hard.length }
+  };
+}
+
+function resolveVariantName(tier, analysis) {
+  if (!analysis || !analysis.variants) return "full";
+  if (tier === "regular") return "regular";
+  if (tier === "advanced") return "advanced";
+  return "full";
+}
+
+function variantQuestions(test, variantName) {
+  const analysis = parseJsonField(test.analysis_json, null);
+  const all = test.questions && test.questions.questions ? test.questions.questions : [];
+  if (!analysis || !analysis.variants || !analysis.variants[variantName]) return all;
+  const allowed = new Set(analysis.variants[variantName].questionIds);
+  return all.filter(q => allowed.has(q.id));
+}
+
+function publicTest(test, { variantName = "full", includeAnswers = false } = {}) {
+  const analysis = parseJsonField(test.analysis_json, null);
+  const summary = parseJsonField(test.summary_json, {});
+  const questions = variantQuestions(test, variantName);
+  const perQuestion = analysis && analysis.perQuestion ? analysis.perQuestion : {};
+  const decorate = (question) => {
+    const { answer, accepted, referenceAnswer, ...rest } = question;
+    const info = perQuestion[question.id] || {};
+    const out = { ...rest, difficulty: info.difficulty || "medium", suggestedSeconds: info.seconds || 45 };
+    if (includeAnswers) { out.answer = answer; out.accepted = accepted; out.referenceAnswer = referenceAnswer; }
+    return out;
+  };
+  const sectionNames = ["Phonetics", "Grammar and Vocabulary", "Reading", "Writing", "Speaking"];
+  const sections = sectionNames
+    .map(name => ({ name, questions: questions.filter(q => q.section === name).map(decorate) }))
+    .filter(section => section.questions.length);
+  const variantInfo = analysis && analysis.variants && analysis.variants[variantName] ? analysis.variants[variantName] : null;
+  const objectivePoints = questions.filter(q => !q.manual).reduce((s, q) => s + Number(q.points || 0), 0);
+  const totalPoints = questions.reduce((s, q) => s + Number(q.points || 0), 0);
   return {
     id: test.id,
     title: test.title,
     sourceFileName: test.source_file_name,
     className: test.class_name || null,
     createdAt: test.created_at,
-    summary: typeof test.summary_json === "string" ? JSON.parse(test.summary_json) : test.summary_json,
-    sections: test.questions && test.questions.sections ? test.questions.sections.map(section => ({
-      name: section.name,
-      questions: section.questions.map(({ answer, accepted, referenceAnswer, ...question }) => question),
-    })) : [],
+    matrixId: test.matrix_id || null,
+    variant: variantName,
+    durationMinutes: variantInfo ? variantInfo.durationMinutes : (test.duration_minutes || 45),
+    difficultyCounts: analysis && analysis.variants ? analysis.variants.counts : null,
+    summary: {
+      ...summary,
+      questionCount: questions.length,
+      objectiveCount: questions.filter(q => !q.manual && q.type !== "speaking").length,
+      manualCount: questions.filter(q => q.manual).length,
+      speakingCount: questions.filter(q => q.type === "speaking").length,
+      objectivePoints: Number(objectivePoints.toFixed(2)),
+      totalPoints: Number(totalPoints.toFixed(2))
+    },
+    sections,
   };
 }
 

@@ -31,12 +31,81 @@ function sectionFor(number) {
   return "Writing";
 }
 
+// ==========================================================
+// NHẬN DIỆN PHẦN SPEAKING TRONG ĐỀ DOCX
+// Hỗ trợ các tiêu đề: "V. SPEAKING", "PART 5: SPEAKING", "D. Speaking",
+// "SPEAKING (2 points)"... Mỗi dòng đánh số / gạch đầu dòng bên dưới là 1 câu.
+// ==========================================================
+const SPEAKING_HEADING = /(?:^|\n)[ \t]*(?:(?:[IVX]+|\d+|[A-H])[.)]\s*|PART\s*\d+\s*[:.)-]?\s*|SECTION\s*\d+\s*[:.)-]?\s*)?(?:SPEAKING|PHẦN\s+NÓI|NÓI)\b[^\n]*/i;
+const NEXT_SECTION = /\n[ \t]*(?:(?:[IVX]+|[A-H])[.)]\s+(?:[A-ZÀ-Ỹ][A-ZÀ-Ỹ\s&]{3,}|LISTENING|READING|WRITING|PRONUNCIATION|PHONETICS|GRAMMAR|VOCABULARY|LANGUAGE)|PART\s*\d+|SECTION\s*\d+|---\s*THE END|THE END)/i;
+
+function classifySpeakingPrompt(prompt) {
+  const p = prompt.trim();
+  // Câu hỏi / yêu cầu nói tự do -> chấm theo nội dung; câu trần thuật -> đọc to theo mẫu
+  if (/\?$/.test(p) || /^(talk|speak|tell|describe|introduce|discuss|say|give|present|explain|answer)\b/i.test(p) || /\b(about|your|you)\b/i.test(p) && /^(what|why|how|where|when|who|do|does|did|are|is|can|could|would|have)\b/i.test(p)) {
+    return "free";
+  }
+  return "read";
+}
+
+function extractSpeakingSection(questionText) {
+  const headingMatch = questionText.match(SPEAKING_HEADING);
+  if (!headingMatch) return { remaining: questionText, speakingQuestions: [] };
+  const start = headingMatch.index + (headingMatch[0].startsWith("\n") ? 1 : 0);
+  const afterHeading = questionText.slice(start + headingMatch[0].trim().length);
+  const nextMatch = afterHeading.match(NEXT_SECTION);
+  const blockEnd = nextMatch ? nextMatch.index : afterHeading.length;
+  const block = afterHeading.slice(0, blockEnd);
+  const remaining = (questionText.slice(0, start) + "\n" + afterHeading.slice(blockEnd)).trim();
+
+  // Điểm mỗi câu (nếu ghi trong tiêu đề, vd: "SPEAKING (2 points)" / "(2 điểm)")
+  const pointsMatch = headingMatch[0].match(/(\d+(?:[.,]\d+)?)\s*(?:points?|điểm|pts?)/i);
+  const sectionPoints = pointsMatch ? Number(pointsMatch[1].replace(",", ".")) : 0;
+
+  const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+  const items = [];
+  let buffer = "";
+  for (const line of lines) {
+    const numbered = line.match(/^(?:\d{1,2}[.)]|[a-h][.)]|[-•*–])\s*(.+)$/i);
+    if (numbered) {
+      if (buffer) items.push(buffer);
+      buffer = numbered[1].trim();
+    } else if (buffer && /^[a-z(]/i.test(line) && line.length < 200) {
+      buffer += " " + line;
+    } else if (!buffer && /[A-Za-z]{3,}/.test(line) && !/^(instruction|hướng dẫn|yêu cầu)/i.test(line) && line.length > 12) {
+      // Không đánh số: mỗi dòng đủ dài là một câu
+      items.push(line);
+    }
+  }
+  if (buffer) items.push(buffer);
+
+  const cleaned = items
+    .map(i => i.replace(/\s*\(\s*\d+(?:[.,]\d+)?\s*(?:points?|điểm|pts?)\s*\)\s*$/i, "").trim())
+    .filter(i => i.length >= 4 && /[A-Za-z]/.test(i))
+    .slice(0, 10);
+
+  const perItem = cleaned.length ? Number(((sectionPoints || Math.min(2, cleaned.length * 0.5)) / cleaned.length).toFixed(2)) : 0;
+  const speakingQuestions = cleaned.map((prompt, idx) => ({
+    id: `speaking-${idx + 1}`,
+    number: 100 + idx + 1,
+    section: "Speaking",
+    type: "speaking",
+    mode: classifySpeakingPrompt(prompt),
+    prompt,
+    options: [],
+    points: perItem || 0.5,
+    manual: false,
+  }));
+  return { remaining, speakingQuestions };
+}
+
 function parseDocxAssessment(rawText, title = "Bài kiểm tra DOCX") {
   const text = normalizeText(rawText);
   const answerMarker = text.search(/(?:^|\n)ĐÁP ÁN\b/i);
   if (answerMarker < 0) throw new Error("Không tìm thấy phần ĐÁP ÁN ở cuối file.");
 
-  const questionText = text.slice(0, answerMarker).trim();
+  const speaking = extractSpeakingSection(text.slice(0, answerMarker).trim());
+  const questionText = speaking.remaining;
   const answerText = text.slice(answerMarker).replace(/^ĐÁP ÁN\s*/i, "");
   const answerKey = parseAnswerKey(answerText);
   const passageMatch = questionText.match(/A\.\s*Read[\s\S]*?\n([\s\S]*?)\n15\.\s*/i);
@@ -107,19 +176,28 @@ function parseDocxAssessment(rawText, title = "Bài kiểm tra DOCX") {
     });
   }
 
+  questions.push(...speaking.speakingQuestions);
   questions.sort((left, right) => left.number - right.number);
-  const objectiveCount = questions.filter(question => !question.manual).length;
+  const objectiveCount = questions.filter(question => !question.manual && question.type !== "speaking").length;
   const manualCount = questions.filter(question => question.manual).length;
-  if (objectiveCount < 10 || manualCount < 1) throw new Error("Không nhận diện đủ câu hỏi trắc nghiệm và phần Writing của đề.");
+  const speakingCount = questions.filter(question => question.type === "speaking").length;
+  if (objectiveCount < 5 && !speakingCount) throw new Error("Không nhận diện đủ câu hỏi trắc nghiệm của đề (cần đánh số 1., 2., ... và phần ĐÁP ÁN ở cuối).");
 
   return {
     title,
     sourceFormat: "english-9-semester-test",
-    sections: ["Phonetics", "Grammar and Vocabulary", "Reading", "Writing"].map(name => ({ name, questions: questions.filter(question => question.section === name) })),
+    sections: ["Phonetics", "Grammar and Vocabulary", "Reading", "Writing", "Speaking"]
+      .map(name => ({ name, questions: questions.filter(question => question.section === name) }))
+      .filter(section => section.questions.length),
     questions,
     answerKey: { generated: true },
-    summary: { objectiveCount, manualCount, totalPoints: questions.reduce((sum, question) => sum + question.points, 0) },
+    summary: {
+      objectiveCount,
+      manualCount,
+      speakingCount,
+      totalPoints: Number(questions.reduce((sum, question) => sum + Number(question.points || 0), 0).toFixed(2))
+    },
   };
 }
 
-module.exports = { parseDocxAssessment };
+module.exports = { parseDocxAssessment, extractSpeakingSection };
