@@ -87,6 +87,8 @@ function extractSpeakingSection(questionText) {
   const perItem = cleaned.length ? Number(((sectionPoints || Math.min(2, cleaned.length * 0.5)) / cleaned.length).toFixed(2)) : 0;
   const speakingQuestions = cleaned.map((prompt, idx) => ({
     id: `speaking-${idx + 1}`,
+    // Câu cần đọc to: bỏ phần hướng dẫn "Read aloud:" để lấy đúng câu mẫu chấm phát âm
+    target: prompt.replace(/^(?:read\s+(?:aloud|the\s+(?:sentence|text|paragraph))|đọc(?:\s+to)?|say)\s*[:\-–]?\s*/i, "").trim(),
     number: 100 + idx + 1,
     section: "Speaking",
     type: "speaking",

@@ -360,7 +360,7 @@ function getOpenAiKeys() {
   return raw.split(",").map(k => k.trim()).filter(Boolean);
 }
 
-async function callCloudLlm(messages) {
+async function callCloudLlm(messages, timeoutMs = 20000) {
   // 1. Google Gemini Multi-Key Pool (Free at https://aistudio.google.com/apikey)
   const geminiKeys = getGeminiKeys();
   if (geminiKeys.length > 0) {
@@ -385,9 +385,9 @@ async function callCloudLlm(messages) {
             body: JSON.stringify({
               contents,
               systemInstruction: { parts: [{ text: systemInstruction }] },
-              generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+              generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
             }),
-            signal: AbortSignal.timeout(20000)
+            signal: AbortSignal.timeout(timeoutMs)
           });
 
           if (res.ok) {
@@ -919,7 +919,7 @@ function extractJson(reply) {
   try { return JSON.parse(clean.slice(start, end + 1)); } catch (e) { return null; }
 }
 
-async function callAiJson(systemInstruction, userPrompt, cacheKey) {
+async function callAiJson(systemInstruction, userPrompt, cacheKey, timeoutMs = 45000) {
   if (cacheKey) {
     const cached = getCachedResponse(cacheKey);
     if (cached) { try { return JSON.parse(cached); } catch (e) {} }
@@ -931,9 +931,10 @@ async function callAiJson(systemInstruction, userPrompt, cacheKey) {
   let reply = await callLocalOllama(messages);
   let parsed = extractJson(reply);
   if (!parsed) {
-    reply = await callCloudLlm(messages);
+    reply = await callCloudLlm(messages, timeoutMs);
     parsed = extractJson(reply);
   }
+  if (process.env.AI_DEBUG === "1") console.log("[AI_DEBUG] parsed:", Boolean(parsed), "raw:", String(reply || "").slice(0, 600));
   if (parsed && cacheKey) setCachedResponse(cacheKey, JSON.stringify(parsed));
   return parsed;
 }
@@ -1232,7 +1233,7 @@ Detected issues: ${JSON.stringify(errors.slice(0, 8))}
 
 Write ONE short, warm, specific tip in Vietnamese (max 45 words) telling the student exactly which sounds/words to fix and how (mouth position or ending sound), or praise if excellent. Return JSON: {"tip":"..."}`;
   try {
-    const parsed = await callAiJson(system, user, `spk_fb_${target.toLowerCase()}_${transcript.toLowerCase()}`.slice(0, 400));
+    const parsed = await callAiJson(system, user, `spk_fb_${target.toLowerCase()}_${transcript.toLowerCase()}`.slice(0, 400), 12000);
     if (parsed && parsed.tip) return { tip: String(parsed.tip).trim().slice(0, 400), source: "ai" };
   } catch (e) {}
   return { tip: fallbackTip(), source: "rule" };

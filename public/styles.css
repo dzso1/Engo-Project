@@ -1989,3 +1989,106 @@
       }
     }
 
+
+    /* ==========================================================
+       ENGO v2: dashboard đánh giá, bài kiểm tra, vocabulary, luyện nói khổ dọc, chữa lỗi phân mục
+       ========================================================== */
+    .stats-grid-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+    .two-col-even{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .chart-sm{height:140px}
+    .bar.good{background:linear-gradient(180deg,#34d399,#059669)}.bar.good::before{color:#059669}
+    .bar.bad{background:linear-gradient(180deg,#fca5a5,#dc2626)}.bar.bad::before{color:#dc2626}
+    .chart .empty-state{padding:20px;font-size:12px;align-self:center}
+    .title-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+    .title-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;font-size:11px;font-weight:900;border:1px solid #fcd34d;white-space:nowrap}
+    .title-chips.light .title-chip{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.35)}
+    .notice-link{cursor:pointer;transition:.15s}.notice-link:hover{border-color:#6ee7b7;background:#f0fdf4}
+    .stage-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .stage-mini{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fafbff;display:grid;gap:2px}
+    .stage-mini strong{font-size:22px}.stage-mini.locked{opacity:.6}
+    .diff-pill{display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:900;margin-right:3px}
+    .diff-pill.easy{background:#dcfce7;color:#166534}.diff-pill.medium{background:#fef3c7;color:#92400e}.diff-pill.hard{background:#fee2e2;color:#991b1b}
+    .badge.diff-easy{background:#dcfce7;color:#166534}.badge.diff-medium{background:#fef3c7;color:#92400e}.badge.diff-hard{background:#fee2e2;color:#991b1b}
+    .result-review{max-height:260px;overflow:auto;margin-top:6px}
+    .review-item{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;font-size:13px;line-height:1.5;background:#fafbff}
+    .quiz-speaking{padding:14px;border:1px dashed #a5b4fc;border-radius:14px;background:#f8faff}
+    .quiz-speaking-result{margin-top:10px;padding:10px 12px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:13px}
+
+    /* Vocabulary */
+    .flash-word{font-size:56px}
+    .flash-meta{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+    .flash-pos{display:inline-block;padding:3px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:900;text-transform:lowercase}
+    .flash-pos.back{background:rgba(255,255,255,.18);color:#fff}
+    .flash-word-small{font-size:18px;font-weight:800;color:#d1fae5}
+    .flash-tts{margin-top:6px}
+    .flash-examples{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:8px;max-width:560px;text-align:left}
+    .flash-examples li{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);padding:8px 12px;border-radius:10px;font-size:14px;line-height:1.5;color:#ecfdf5}
+    .flash-examples mark{background:#fde68a;color:#78350f;padding:0 3px;border-radius:4px;font-weight:800}
+    .flash-tts-mini{border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;width:30px;height:30px;flex-shrink:0;cursor:pointer}
+    .flash-meaning{font-size:30px}
+    .flash-finish{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;padding:14px;border:1px dashed #a7f3d0;border-radius:14px;background:#f0fdf4}
+    .flash-finish p{margin:2px 0 0}
+    .match-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .match-col{display:grid;gap:8px;align-content:start}
+    .match-item{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;text-align:left;font-weight:700;font-size:13px;display:flex;justify-content:space-between;gap:6px;transition:.15s;cursor:pointer;color:var(--ink)}
+    .match-item small{color:var(--muted);font-weight:600}
+    .match-item.selected{border-color:#6366f1;background:#eef2ff}
+    .match-item.done{border-color:#22c55e;background:#f0fdf4;opacity:.7;cursor:default}
+    .match-item.wrong{border-color:#ef4444;background:#fef2f2;animation:modalShake .3s}
+
+    /* Luyện nói khổ dọc */
+    .stage-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+    .stage-card{padding:16px 18px;border-radius:18px;border:1px solid var(--line);background:var(--surface);display:grid;gap:10px;box-shadow:0 10px 28px rgba(15,23,42,.05)}
+    .stage-card.locked{opacity:.75;background:#f8fafc}
+    .stage-card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.stage-card-head strong{font-size:15px}
+    .stage-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
+    .stage-metrics>div{padding:8px 10px;border-radius:12px;background:#f6f8ff;text-align:center}
+    .stage-metrics b{display:block;font-size:20px}.stage-metrics span{font-size:10px;color:var(--muted);font-weight:800}
+    .speaking-table td{vertical-align:middle}
+    .mini-progress{width:110px;height:6px;background:#edf0f5;border-radius:999px;overflow:hidden;margin-bottom:3px}
+    .mini-progress span{display:block;height:100%;background:linear-gradient(90deg,#059669,#34d399)}
+    tr.row-active td{background:#f0fdf4}
+    .speaking-practice{padding:24px;margin-top:20px;display:grid;gap:16px;border:2px solid #a7f3d0}
+    .speaking-practice-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .speaking-target-text{font-size:28px}
+    .speaking-speaker{font-size:12px;font-weight:900;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+    .speaking-focus{margin-top:8px;font-size:12px;color:#047857;font-weight:700}
+    .speaking-live{margin-top:6px;font-size:13px;color:#3730a3;font-style:italic;background:white;padding:6px 12px;border-radius:8px;border:1px solid #c7d2fe;width:100%;text-align:center}
+    .dialogue-script{display:grid;gap:6px;padding:12px 14px;border-radius:14px;background:#f8fafc;border:1px solid var(--line)}
+    .dialogue-line{padding:8px 10px;border-radius:10px;font-size:13px;line-height:1.5;cursor:pointer;border:1px solid transparent}
+    .dialogue-line b{color:#7c3aed;margin-right:4px}
+    .dialogue-line.current{background:#eef2ff;border-color:#a5b4fc;font-weight:700}
+    .dialogue-line.done{color:#166534}.dialogue-line.done .small{color:#16a34a;font-weight:800;margin-left:6px}
+    .word-pill.near{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+    .word-pill.ending{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd}
+    .speaking-error-note{padding:10px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fde68a;font-size:12.5px;line-height:1.6;color:#78350f;display:grid;gap:4px}
+    .speaking-summary{padding:16px;border-radius:14px;background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0}
+
+    /* Chữa lỗi */
+    .healing-stats-4{grid-template-columns:repeat(4,1fr)}
+    .healing-error-card.pron{border-color:#c4b5fd;box-shadow:0 4px 12px rgba(124,58,237,.06)}
+    .healing-error-card .error-badge.purple{background:#f5f3ff;color:#6d28d9}
+
+    /* Giáo viên */
+    .matrix-item{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fafbff;margin-bottom:10px;font-size:13px}
+    .class-settings-grid{display:grid;gap:8px}
+    .class-row{display:grid;grid-template-columns:90px 1fr;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+    .class-row select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--surface);color:var(--ink)}
+    .clamp-3{max-width:320px;line-height:1.45}
+    .healing-tab{font-size:13px}
+
+    body.dark-mode .stage-mini,body.dark-mode .stage-card,body.dark-mode .stage-metrics>div,body.dark-mode .review-item,body.dark-mode .matrix-item,body.dark-mode .dialogue-script,body.dark-mode .quiz-speaking{background:#111827;border-color:#334155}
+    body.dark-mode .stage-card.locked{background:#0f172a}
+    body.dark-mode .flash-finish{background:#0e3f2c;border-color:#164e39}
+    body.dark-mode .dialogue-line.current{background:#1e1b4b;border-color:#4338ca}
+    body.dark-mode .speaking-practice{border-color:#164e39}
+    body.dark-mode .speaking-error-note{background:#2a1f0a;border-color:#78350f;color:#fde68a}
+    body.dark-mode .speaking-summary{background:#0e3f2c;border-color:#164e39}
+    body.dark-mode .title-chip{background:#3b2a0d;color:#fcd34d;border-color:#78350f}
+    body.dark-mode .notice-link:hover{background:#0e3f2c;border-color:#164e39}
+    body.dark-mode .quiz-speaking-result{background:#064e3b;border-color:#047857}
+    body.dark-mode .speaking-live{background:#111827;border-color:#334155;color:#c7d2fe}
+
+    @media (max-width:1180px){.stats-grid-6{grid-template-columns:repeat(3,1fr)}}
+    @media (max-width:900px){.two-col-even,.stage-grid,.stage-mini-grid,.match-grid{grid-template-columns:1fr}.speaking-target-text{font-size:22px}}
+    @media (max-width:620px){.stats-grid-6{grid-template-columns:1fr 1fr}.healing-stats-4{grid-template-columns:1fr 1fr}.flash-word{font-size:40px}.flash-meaning{font-size:24px}.class-row{grid-template-columns:1fr}}

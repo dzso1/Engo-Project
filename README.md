@@ -5,146 +5,71 @@
 ---
 
 ## 📑 MỤC LỤC TỔNG QUAN HỆ THỐNG
-1. [🎓 Phân hệ Học sinh (Student Portal)](#1--phân-hệ-học-sinh-student-portal)
-   - [1.1. 🤖 Trợ lý AI Capybara 24/7 & Đa mô hình LLM](#11--trợ-lý-ai-capybara-247--đa-mô-hình-llm)
-   - [1.2. 🔥 Hệ thống Điểm danh Chuỗi ngày (Daily Streak Check-in)](#12--hệ-thống-điểm-danh-chuỗi-ngày-daily-streak-check-in)
-   - [1.3. 🏥 Phòng Chữa Lỗi Thông Minh (Smart Error Healing Room)](#13--phòng-chữa-lỗi-thông-minh-smart-error-healing-room)
-   - [1.4. 🦫 Bạn Đồng Hành Capybara & Tiến Hóa Cấp Độ](#14--bạn-đồng-hành-capybara--tiến-hóa-cấp-độ)
-   - [1.5. ✍️ Xưởng Luyện Viết & Giám Khảo AI (AI Writing Studio)](#15-️-xưởng-luyện-viết--giám-khảo-ai-ai-writing-studio)
-   - [1.6. 🎙️ Phòng Luyện Nói & Phát Âm AI (AI Speaking Lab)](#16-️-phòng-luyện-nói--phát-âm-ai-ai-speaking-lab)
-   - [1.7. 🛡️ Phòng Thi An Toàn & Quy Chế Phạt Rời Tab (Anti-Cheat Guard)](#17-️-phòng-thi-an-toàn--quy-chế-phạt-rời-tab-anti-cheat-guard)
-   - [1.8. 🎴 Flashcard Từ Vựng 3D & ⏱️ Pomodoro Timer](#18--flashcard-từ-vựng-3d--️-pomodoro-timer)
-2. [👩‍🏫 Phân hệ Giáo viên (Teacher Hub)](#2--phân-hệ-giáo-viên-teacher-hub)
-   - [2.1. Nhập đề tự động từ file Word (.docx)](#21-nhập-đề-tự-động-từ-file-word-docx)
-   - [2.2. 🎲 Sinh đề thi trắc nghiệm AI (AI Test Generator)](#22--sinh-đề-thi-trắc-nghiệm-ai-ai-test-generator)
-   - [2.3. Giao bài tập Luyện nói AI (AI Speaking Task)](#23-giao-bài-tập-luyện-nói-ai-ai-speaking-task)
-   - [2.4. Bảng điểm theo lớp & Giám sát tính trung thực thi cử](#24-bảng-điểm-theo-lớp--giám-sát-tính-trung-thực-thi-cử)
-3. [👪 Phân hệ Phụ huynh (Parent Portal)](#3--phân-hệ-phụ-huynh-parent-portal)
-4. [🔧 Phân hệ Quản trị viên (Admin Portal)](#4--phân-hệ-quản-trị-viên-admin-portal)
-5. [🔐 Kiến trúc Bảo mật & Xác thực OTP Đa Tầng](#5--kiến-trúc-bảo-mật--xác-thực-otp-đa-tầng)
-6. [🚀 Hướng dẫn Cài đặt & Khởi chạy (Local & Cloud Railway)](#6--hướng-dẫn-cài-đặt--khởi-chạy-local--cloud-railway)
+1. [🎓 Phân hệ Học sinh](#1--phân-hệ-học-sinh-student-portal)
+2. [👩‍🏫 Phân hệ Giáo viên](#2--phân-hệ-giáo-viên-teacher-hub)
+3. [👪 Phân hệ Phụ huynh](#3--phân-hệ-phụ-huynh-parent-portal)
+4. [🔧 Phân hệ Quản trị viên](#4--phân-hệ-quản-trị-viên-admin-portal)
+5. [🔐 Kiến trúc Bảo mật](#5--kiến-trúc-bảo-mật--xác-thực-otp-đa-tầng)
+6. [🚀 Cài đặt & Khởi chạy](#6--hướng-dẫn-cài-đặt--khởi-chạy-local--cloud-railway)
 
 ---
 
 ## 1. 🎓 PHÂN HỆ HỌC SINH (STUDENT PORTAL)
 
-### 1.1. 🤖 Trợ lý AI Capybara 24/7 & Đa mô hình LLM
-* **Đa động cơ AI thế hệ mới (Multi-Provider Engine):** Tích hợp linh hoạt **Google Gemini Flash (3.5 / 3.6)**, **Meta Llama 3.3 70B (qua Groq Cloud)**, OpenAI GPT-4o-mini, OpenRouter và máy chủ cục bộ **Ollama**.
-* **Cơ chế Xoay vòng Khóa API (Multi-Key Pool & Load Balancing):** Hỗ trợ nạp nhiều API key (dạng phân tách dấu phẩy `KEY1,KEY2,KEY3`), tự động luân phiên và chuyển đổi failover ngay lập tức nếu gặp lỗi hạn mức (429 Rate Limit) $\rightarrow$ Đảm bảo phục vụ trơn tru cho quy mô toàn trường học (hàng trăm học sinh chat đồng thời).
-* **Bộ nhớ đệm siêu tốc (In-Memory Response Cache 3.000 mục, TTL 12h):** Trả lời ngay tức thì (0ms) với 0 token tiêu tốn đối với các câu hỏi trùng lặp giữa các học sinh.
-* **Độ dài câu trả lời tối đa 4.096 token:** Đảm bảo giải thích ngữ pháp chi tiết, viết trọn vẹn bài văn dài hay hướng dẫn giải bài tập không bao giờ bị cắt ngắn.
-* **Tính năng hỗ trợ toàn diện:**
-  * Giải thích chi tiết các thì ngữ pháp và mẹo nhớ trực quan.
-  * Hỗ trợ viết mã code lập trình (Python, JS, HTML/CSS, C++...).
-  * Dịch thuật câu, tra từ điển thành ngữ song ngữ Anh - Việt.
-  * Kể chuyện cười tiếng Anh, tâm sự khích lệ tinh thần học tập.
+### 1.1. 📊 Dashboard đánh giá
+* Dashboard chỉ tập trung **đánh giá năng lực bằng số liệu, biểu đồ và hình ảnh**: điểm TB kiểm tra, số bài đã làm, phát âm trung bình, bộ từ vựng hoàn thành, lỗi đã chữa, chuỗi ngày học.
+* **Bản đồ năng lực 6 kỹ năng** (radar) tổng hợp từ bài kiểm tra, luyện nói, từ vựng; **xu hướng điểm kiểm tra** và **tiến bộ luyện nói theo giai đoạn** theo ngày.
+* Bạn đồng hành Capybara (cấp độ, cà rốt, XP) và danh hiệu đã đạt hiển thị ngay trên dashboard.
 
----
+### 1.2. 📝 Bài kiểm tra theo ma trận
+* Danh sách đề do giáo viên giao kèm **cấu trúc (TN / Speaking / Writing)**, **độ khó do AI phân tích** (dễ / TB / khó) và **thời gian làm bài AI đề xuất**.
+* Lớp **tăng cường** nhận đề đầy đủ (nhiều câu vận dụng), lớp **thường** nhận bản rút gọn theo tỉ lệ ma trận, thời gian được cân đối tự động.
+* Phòng thi có giám sát rời tab (3 nấc phạt), tự lưu, hiển thị độ khó & thời gian gợi ý từng câu; **câu Speaking** được ghi âm và AI chấm ngay trong phòng thi.
+* Sau khi nộp: xem ngay các câu sai kèm đáp án đúng, câu sai tự động chuyển vào Phòng chữa lỗi.
 
-### 1.2. 🔥 Hệ thống Điểm danh Chuỗi ngày (Daily Streak Check-in)
-* **Popup điểm danh tự động:** Mỗi khi học sinh mở website lần đầu tiên trong ngày, cửa sổ điểm danh rực rỡ sẽ tự động xuất hiện với lời chúc từ Bé Capybara.
-* **Lộ trình phần thưởng 7 ngày lũy tiến:**
-  * **Ngày 1:** +2 Cà rốt 🥕, +20 XP
-  * **Ngày 2:** +3 Cà rốt 🥕, +30 XP
-  * **Ngày 3:** +4 Cà rốt 🥕, +40 XP
-  * **Ngày 4:** +5 Cà rốt 🥕, +50 XP
-  * **Ngày 5:** +6 Cà rốt 🥕, +60 XP
-  * **Ngày 6:** +8 Cà rốt 🥕, +80 XP
-  * **Ngày 7+ (Vương miện Hoàng Gia):** +10 Cà rốt 🥕, +100 XP 👑
-* **Trạng thái trực quan 7 ngày:** Đánh dấu thẻ đã nhận (`✓ Đã nhận`), hiệu ứng ngọn lửa phát sáng cho ngày hôm nay và ổ khóa cho các ngày tiếp theo.
-* **Nút bấm tiện ích trên Topbar (`🔥 [X] ngày`):** Cho phép học sinh theo dõi chuỗi ngày liên tục bất cứ lúc nào trên thanh điều hướng.
+### 1.3. 🎙️ Luyện nói AI theo giai đoạn (giao diện khổ dọc)
+* **Giai đoạn 1 – Câu đơn theo chủ đề SGK** (dễ → khó) và **Giai đoạn 2 – Hội thoại theo SGK**; giai đoạn 2 mở khóa khi giai đoạn 1 đạt TB ≥ 70% với ≥ 3 lượt.
+* Danh sách bài dạng **bảng cột** (mỗi bài giáo viên giao là một dòng riêng, không gom chung), bên dưới là khu luyện tập khổ dọc: câu mẫu lớn, IPA, nghĩa, trọng tâm phát âm, nghe mẫu, ghi âm, kết quả.
+* **AI chấm phát âm thân thiện với mọi accent**: so khớp ngữ âm mờ (phonetic key + căn chỉnh chuỗi), chấm điểm từng phần thay vì đúng/sai tuyệt đối, gộp từ bị tách, chọn phương án nhận diện tốt nhất; gợi ý sửa lỗi ngắn gọn bằng tiếng Việt từ AI.
+* Lỗi **thiếu đuôi -s / -ed / -ing** được nhận diện là **lỗi ngữ pháp** → Phòng chữa lỗi (mục Ngữ pháp); từ phát âm sai → mục Phát âm.
+* Ghi nhận **tiến bộ theo từng giai đoạn** (số lượt, trung bình, tốt nhất, mức cải thiện, xu hướng theo ngày) lưu trên server.
 
----
+### 1.4. 🔤 Vocabulary
+* Flashcard chữ lớn, **từ loại**, phiên âm, **TTS** cho từ và từng câu ví dụ; mặt sau hiển thị nghĩa + 2 câu ví dụ có từ vựng được tô sáng.
+* Không cộng điểm từng thẻ; **sau khi xem hết bộ thẻ** làm bài **trắc nghiệm** hoặc **nối từ**, điểm được cộng khi hoàn thành (≥ 80%: +30 XP & +3 🥕).
 
-### 1.3. 🏥 Phòng Chữa Lỗi Thông Minh (Smart Error Healing Room)
-* **Tự động bắt lỗi sau bài thi:** Quét các câu làm sai và phân loại chính xác vào 12 dạng lỗi ngữ pháp trọng tâm THCS:
-  1. `PS_AFF`: Hiện tại đơn khẳng định (+s/es)
-  2. `PS_NEG`: Hiện tại đơn phủ định (don't/doesn't)
-  3. `PS_QUE`: Hiện tại đơn nghi vấn (Do/Does)
-  4. `PS_ADV`: Vị trí trạng từ tần suất
-  5. `PAST_REG`: Quá khứ đơn V-ed có quy tắc
-  6. `PAST_IRR`: Quá khứ đơn V2 bất quy tắc
-  7. `PAST_NEG`: Quá khứ đơn phủ định (didn't + V-inf)
-  8. `PAST_QUE`: Quá khứ đơn câu hỏi (Did + S + V-inf)
-  9. `PAST_BE`: Động từ To Be quá khứ (Was/Were)
-  10. `CMP_SHORT`: So sánh hơn tính từ ngắn (-er than)
-  11. `CMP_LONG`: So sánh hơn tính từ dài (more + adj + than)
-  12. `CMP_IRR`: So sánh bất quy tắc (better, worse, further)
-* **Luyện tập chữa lỗi 3 câu:** Hệ thống trích xuất 3 câu hỏi cùng dạng từ ngân hàng 120 câu chuẩn hóa.
-* **Thưởng khi chữa khỏi:** Hoàn thành đúng 3/3 câu $\rightarrow$ Trạng thái chuyển sang **"✅ ĐÃ CHỮA KHỎI"**, cộng ngay **+15 XP & +1 Cà rốt 🥕**.
-* **Bản đồ nhiệt ngữ pháp (Grammar Heatmap):** Đánh giá màu sắc theo 4 mức độ: Thành thạo (Xanh), Đang củng cố (Vàng), Cần chữa gấp (Đỏ), Chưa kiểm tra (Xám).
+### 1.5. 🏥 Phòng Chữa Lỗi Thông Minh (phân mục)
+* **Phát âm**: từ đọc sai nhiều lần → luyện lại từng từ với micro, đạt ≥ 85% là chữa khỏi.
+* **Ngữ pháp**: 12 dạng lỗi trọng tâm (Hiện tại đơn, Quá khứ đơn, So sánh) → bài chữa 3 câu, ≥ 2/3 đúng là chữa khỏi; bản đồ nhiệt ngữ pháp.
+* **Bài kiểm tra**: câu sai từng đề kèm đáp án đúng để xem lại; **Đã chữa khỏi**: lịch sử.
 
----
+### 1.6. 🏆 Thành tích & Danh hiệu
+* Ngoài cấp độ XP và huy hiệu, học sinh chinh phục **danh hiệu**: Vua Phát Âm, Ngôi Sao Phát Âm, Bậc Thầy Hội Thoại, Vua Ngữ Pháp, Chiến Binh Phòng Thi, Vua Từ Vựng, Bác Sĩ Ngữ Pháp, Tiến Bộ Vượt Bậc, Học Sinh Chăm Chỉ (tính từ dữ liệu server).
 
-### 1.4. 🦫 Bạn Đồng Hành Capybara & Tiến Hóa Cấp Độ
-* **Hệ thống cấp độ tiến hóa 5 bậc:**
-  * **Lv.1: Capybara Mầm Non** *(Khởi đầu)*
-  * **Lv.2: Capybara Chăm Chỉ** *(10 🥕)*
-  * **Lv.3: Capybara Học Giả** *(30 🥕)*
-  * **Lv.4: Capybara Thông Thái** *(65 🥕)*
-  * **Lv.5: Capybara Bậc Thầy** *(115 🥕)* $\rightarrow$ **Kích hoạt Buff x1.5 XP vĩnh viễn**, Hào quang Vương miện Vàng và Kho Cà rốt Danh dự.
-* **Cơ chế Cho ăn & Nâng cấp:** Dùng cà rốt tích lũy được từ việc làm bài tập, luyện phát âm, điểm danh để nuôi Capybara tăng cấp.
-* **Bộ huy hiệu thành tích 8 danh hiệu:** Tự động mở khóa khi đạt các cột mốc học tập (Bài thi đầu tiên, Điểm 10 hoàn hảo, Chuỗi Streak 7 ngày...).
+### 1.7. 📈 Kết quả
+* Ghi nhận **từng lần kiểm tra** (điểm TN + Speaking, Writing & nhận xét GV, biến thể đề), lịch sử luyện nói theo giai đoạn, lịch sử từ vựng và chữa lỗi.
 
----
-
-### 1.5. ✍️ Xưởng Luyện Viết & Giám Khảo AI (AI Writing Studio)
-* **Không gian luyện viết bài luận tự luận:** Đa dạng các chủ đề tiếng Anh lớp 9 (Bảo vệ môi trường, Cuộc sống thành thị, Kỷ nguyên số, Sở thích...).
-* **Giám khảo AI chấm điểm đa tiêu chí:**
-  * **Từ vựng (Lexical Resource):** Đo lường độ phong phú từ vựng, collocation.
-  * **Ngữ pháp (Grammar Accuracy):** Đánh dấu lỗi ngữ pháp và gợi ý câu sửa chuẩn xác.
-  * **Cấu trúc & Mạch lạc (Coherence & Cohesion):** Đánh giá liên kết câu, độ dài từ ngữ.
-  * **Lời khuyên sư phạm:** Nhận xét ưu điểm và hướng dẫn cải thiện từng phần.
-
----
-
-### 1.6. 🎙️ Phòng Luyện Nói & Phát Âm AI (AI Speaking Lab)
-* **Nhận diện giọng nói thời gian thực (Web Speech Recognition):** Phân tích sóng âm trực tiếp từ microphone.
-* **Chấm điểm chi tiết từng từ (Word-by-word Breakdown):** Tô màu xanh lá cho từ phát âm chuẩn, màu đỏ cho từ phát âm chưa chuẩn hoặc bị thiếu.
-* **Mẫu phát âm chuẩn bản xứ (Audio TTS):** Cung cấp giọng đọc mẫu US/UK, phiên âm quốc tế IPA và dịch nghĩa ngữ cảnh.
-
----
-
-### 1.7. 🛡️ Phòng Thi An Toàn & Quy Chế Phạt Rời Tab (Anti-Cheat Guard)
-* **Cơ chế giám sát hành vi thi cử 3 nấc:**
-  * ⚠️ **Lần 1 rời tab:** Cảnh báo vi phạm + **Trừ -0.50 điểm**.
-  * ⚠️ **Lần 2 rời tab:** Cảnh báo nghiêm trọng + **Trừ thêm -0.75 điểm** *(Tổng trừ: `-1.25đ`)*.
-  * ⛔ **Lần 3 rời tab:** **Trừ thêm -1.00 điểm** *(Tổng trừ: `-2.25đ`)* và **TỰ ĐỘNG KHÓA & NỘP BÀI NGAY LẬP TỨC!**
-* **Chống gian lận toàn diện:** Khóa sao chép câu hỏi, khóa chuột phải, xáo trộn ngẫu nhiên thứ tự câu hỏi và 4 đáp án (Fisher-Yates Shuffle).
-* **Tự động lưu bài làm:** Sao lưu tiến độ vào LocalStorage mỗi 15 giây, bảo toàn bài thi khi mất điện hay rớt mạng.
-
----
-
-### 1.8. 🎴 Flashcard Từ Vựng 3D & ⏱️ Pomodoro Timer
-* **Flashcard 3D:** Lật thẻ tương tác 3 chiều, học từ vựng, phiên âm IPA, nghĩa tiếng Việt, câu ví dụ thực tế; phân loại từ đã nhớ / chưa nhớ theo phương pháp Spaced Repetition.
-* **Pomodoro Timer:** 3 chế độ (25p học tập / 5p nghỉ ngắn / 15p nghỉ dài), tự động đo lường thời gian tập trung và tặng thưởng Cà rốt.
+### 1.8. 🔥 Điểm danh chuỗi ngày & 🤖 Trợ lý Capybara AI
+* Popup điểm danh 7 ngày lũy tiến (cà rốt + XP); chatbot Capybara (Gemini / Groq / OpenAI / Ollama) hỗ trợ giải đáp ngữ pháp, từ vựng, phát âm.
 
 ---
 
 ## 2. 👩‍🏫 PHÂN HỆ GIÁO VIÊN (TEACHER HUB)
 
-### 2.1. Nhập đề tự động từ file Word (.docx)
-* **AI Document Parser (mammoth):** Tự động bóc tách file Word đề thi tiếng Anh THCS thành 4 phần thi chuẩn:
-  1. *Phonetics* (Trắc nghiệm phát âm/trọng âm)
-  2. *Grammar & Vocabulary* (Trắc nghiệm từ vựng, ngữ pháp)
-  3. *Reading* (Bóc tách bài đọc hiểu và câu hỏi điền từ)
-  4. *Writing* (Tự luận viết lại câu và viết đoạn văn $\rightarrow$ gửi giáo viên chấm).
+### 2.1. 📐 Ma trận đề & phân loại lớp
+* Upload **ma trận đề (PDF/DOCX)** → AI đọc tỉ lệ Nhận biết / Thông hiểu / Vận dụng, số câu & điểm từng kỹ năng, đề xuất phân tầng cho **lớp tăng cường** (vd 9A5, 9A6) và **lớp thường** (vd 9A12, 9A13).
+* **Phân loại lớp** (tăng cường / thường): học sinh mỗi lớp tự động nhận biến thể đề phù hợp.
 
-### 2.2. 🎲 Sinh đề thi trắc nghiệm AI (AI Test Generator)
-* **Tạo đề thi tự động:** Giáo viên chỉ cần nhập chủ đề, Unit hoặc chủ điểm ngữ pháp mong muốn $\rightarrow$ AI tự động thiết kế bộ câu hỏi trắc nghiệm 4 phương án kèm đáp án và lời giải thích chi tiết, lưu trực tiếp vào ngân hàng đề thi chung.
+### 2.2. 📝 Tạo đề từ DOCX + AI phân tích câu hỏi
+* Parser nhận diện Phonetics, Grammar & Vocabulary, Reading, Writing và **phần SPEAKING** (đọc to / nói tự do).
+* **AI phân tích từng câu**: độ khó (dễ/TB/khó) và **thời gian hợp lý** → tổng thời gian đề và 2 biến thể (nâng cao / cơ bản). Có nút "🤖 Phân tích" để chạy lại.
 
-### 2.3. Giao bài tập Luyện nói AI (AI Speaking Task)
-* **Tạo bài luyện phát âm:** Giáo viên soạn câu luyện nói $\rightarrow$ Hệ thống tự động sinh audio phát âm mẫu bản xứ.
-* **Theo dõi bài nộp:** Xem danh sách học sinh nộp bài, điểm phát âm AI, nghe lại bản thu âm và tỷ lệ hoàn thành theo lớp.
+### 2.3. 📚 SGK → Bài luyện nói AI
+* Upload **PDF/DOCX một Unit SGK** → AI viết **câu đơn mới theo chủ đề** (không chép SGK, dễ → khó, kèm IPA, nghĩa, trọng tâm phát âm) và **hội thoại theo phong cách SGK**; giao theo lớp. Ngoài ra có thể giao bài thủ công nhiều câu / hội thoại "A: … / B: …".
 
-### 2.4. Bảng điểm theo lớp & Giám sát tính trung thực thi cử
-* **Bảng điểm trực quan:** Lọc theo từng lớp (9A1, 9A2, 9A3, 9A4) và theo từng đề kiểm tra.
-* **Huy hiệu giám sát thi cử:**
-  * 🟢 `✓ Nghiêm túc` (0 vi phạm)
-  * 🟡 `⚠️ 1 lần rời tab (-0.5đ)`
-  * 🟠 `⚠️ 2 lần rời tab (-1.25đ)`
-  * 🔴 `⛔ Bị thu bài (3 lần -2.25đ)`
-* **Chấm bài tự luận (Writing):** Giao diện chấm điểm tự luận (thang 0 – 3 điểm) kèm nhận xét sư phạm chi tiết cho từng học sinh.
+### 2.4. 👩‍🎓 Kết quả từng học sinh
+* Tab **Học sinh**: điểm TB & số bài kiểm tra, mức tiến bộ, phát âm GĐ1/GĐ2, từ vựng, danh hiệu, hoạt động cuối; bấm **Chi tiết** xem toàn bộ tiến độ (radar kỹ năng, lịch sử từng bài, từ hay phát âm sai).
+* Tab **Bảng điểm**: lọc theo lớp/đề, chấm Writing, giám sát thi; tab **Luyện nói**: bài đã giao & kết quả từng câu của học sinh.
 
 ---
 
@@ -183,8 +108,9 @@
 # 1. Cài đặt các gói phụ thuộc
 npm install
 
-# 2. Tạo cơ sở dữ liệu MySQL
+# 2. Tạo cơ sở dữ liệu MySQL (chạy bằng root)
 mysql -u root -p engo < database/assessment-schema.sql
+mysql -u root -p < database/migrate-v2.sql   # bảng luyện nói theo giai đoạn, ma trận đề, phân loại lớp, nhật ký kết quả
 
 # 3. Tạo file cấu hình .env (Xem mẫu dưới đây)
 ```
@@ -225,7 +151,7 @@ node server.js
    git push origin main
    ```
 2. Trên **Railway Dashboard**:
-   * Tạo **MySQL Service** và import file `database/assessment-schema.sql`.
+   * Tạo **MySQL Service**, import `database/assessment-schema.sql` rồi `database/migrate-v2.sql` (bỏ 2 dòng GRANT nếu Railway dùng user khác).
    * Tạo **NodeJS Service** kết nối với Repository GitHub.
    * Vào tab **Variables** trên Railway và thêm các biến môi trường tương ứng:
      * `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (lấy từ MySQL Railway).
