@@ -288,17 +288,26 @@ let tableCols = {
   is_forced_submit: false
 };
 
+// Bộ nhớ cột hiện có của từng bảng -> server chạy được cả khi CSDL chưa migrate đủ cột
+const schemaCols = {};
 async function syncSubmissionColumns() {
-  try {
-    const [cols] = await pool.query("SHOW COLUMNS FROM writing_submissions");
-    const colNames = cols.map(c => c.Field);
-    tableCols.tab_violations = colNames.includes("tab_violations");
-    tableCols.violation_penalty = colNames.includes("violation_penalty");
-    tableCols.is_forced_submit = colNames.includes("is_forced_submit");
-  } catch (e) {
-    tableCols = { tab_violations: false, violation_penalty: false, is_forced_submit: false };
+  for (const table of ["writing_submissions", "imported_tests", "speaking_assignments", "speaking_submissions"]) {
+    try {
+      const [cols] = await pool.query("SHOW COLUMNS FROM " + table);
+      schemaCols[table] = new Set(cols.map(c => c.Field));
+    } catch (e) {
+      schemaCols[table] = new Set();
+    }
   }
+  const ws = schemaCols.writing_submissions;
+  tableCols.tab_violations = ws.has("tab_violations");
+  tableCols.violation_penalty = ws.has("violation_penalty");
+  tableCols.is_forced_submit = ws.has("is_forced_submit");
 }
+function hasCol(table, col) { return Boolean(schemaCols[table] && schemaCols[table].has(col)); }
+// Trả về "alias.col" nếu cột tồn tại, ngược lại "NULL AS col" (hoặc giá trị mặc định)
+function optCol(table, alias, col, def = "NULL") { return hasCol(table, col) ? `${alias}.${col}` : `${def} AS ${col}`; }
+function optCols(table, alias, cols) { return cols.map(c => optCol(table, alias, c)).join(", "); }
 
 function getViolationSelectCols() {
   const tabCol = tableCols.tab_violations ? "ws.tab_violations" : "0 AS tab_violations";
@@ -317,7 +326,11 @@ function normalizeAnswer(value) {
 }
 
 function getStoredTest(row) {
-  return { ...row, questions: typeof row.questions_json === "string" ? JSON.parse(row.questions_json) : row.questions_json };
+  const questions = typeof row.questions_json === "string" ? JSON.parse(row.questions_json) : row.questions_json;
+  const out = { ...row, questions };
+  // Khi CSDL chưa có cột analysis_json, phân tích được nhúng trong questions_json
+  if ((out.analysis_json === null || out.analysis_json === undefined) && questions && questions.analysis) out.analysis_json = questions.analysis;
+  return out;
 }
 
 function parseJsonField(value, fallback) {
@@ -972,32 +985,68 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
   }
 });
 
+// ==========================================
+// BÀI KIỂM TRA: IMPORT DOCX + AI PHÂN TÍCH ĐỘ KHÓ + BIẾN THỂ THEO MA TRẬN
+// ==========================================
+function testSelect() {
+  return "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, " + optCols("imported_tests", "imported_tests", ["analysis_json", "matrix_id", "duration_minutes"]) + ", created_at FROM imported_tests";
+}
+
+async function loadMatrix(matrixId) {
+  if (!matrixId) return null;
+  try {
+    const [rows] = await pool.execute("SELECT id, title, matrix_json FROM test_matrices WHERE id = ? LIMIT 1", [matrixId]);
+    if (!rows.length) return null;
+    return { id: rows[0].id, title: rows[0].title, ...parseJsonField(rows[0].matrix_json, {}) };
+  } catch (e) { return null; }
+}
+
+async function analyzeAndBuildVariants(test, matrix) {
+  const perQuestion = await aiService.analyzeTestQuestions(test.questions);
+  const variants = buildTestVariants(test.questions, perQuestion, matrix);
+  return { perQuestion, variants, matrixId: matrix ? matrix.id : null, analyzedAt: new Date().toISOString() };
+}
+
 app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (req, res) => {
   try {
     await assessmentReady;
-    const { documentBase64, fileName = "de-kiem-tra.docx", title, className } = req.body;
+    const { documentBase64, fileName = "de-kiem-tra.docx", title, className, matrixId } = req.body;
     if (!documentBase64 || !String(documentBase64).startsWith("data:")) return res.status(400).json({ success: false, message: "File DOCX không hợp lệ." });
     const buffer = Buffer.from(String(documentBase64).split(",").pop(), "base64");
     if (buffer.length > 8 * 1024 * 1024) return res.status(413).json({ success: false, message: "File DOCX vượt quá 8 MB." });
     const extracted = await mammoth.extractRawText({ buffer });
     const test = parseDocxAssessment(extracted.value, String(title || fileName).replace(/\.docx$/i, ""));
     const assignedClass = String(className || "").trim() || null;
-    const [result] = await pool.execute(
-      "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json) VALUES (?, ?, ?, ?, ?, ?)",
-      [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary)]
-    );
-    return res.status(201).json({ success: true, testId: result.insertId, title: test.title, className: assignedClass, summary: test.summary, message: "Đã tạo bài kiểm tra từ DOCX." });
+    const matrix = await loadMatrix(matrixId);
+    const analysis = await analyzeAndBuildVariants(test, matrix);
+    const [result] = hasCol("imported_tests", "analysis_json")
+      ? await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes]
+        )
+      : await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json) VALUES (?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, analysis }), JSON.stringify(test.summary)]
+        );
+    return res.status(201).json({
+      success: true, testId: result.insertId, title: test.title, className: assignedClass, summary: test.summary,
+      analysis: { counts: analysis.variants.counts, durationMinutes: analysis.variants.full.durationMinutes, regularQuestions: analysis.variants.regular.questionIds.length, totalQuestions: test.questions.length },
+      message: "Đã tạo bài kiểm tra từ DOCX."
+    });
   } catch (error) {
     console.error("DOCX import error:", error);
     return res.status(400).json({ success: false, message: error.message || "Không thể đọc cấu trúc đề DOCX." });
   }
 });
 
+// Danh sách đề (học sinh: kèm trạng thái đã nộp / biến thể theo lớp)
 app.get("/api/tests/latest", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
-    let query = "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, created_at FROM imported_tests";
+    let query = testSelect();
     const params = [];
+    let variantName = "full";
+    let submittedMap = {};
 
     if (req.user.role === "student") {
       const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
@@ -1006,11 +1055,21 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
         query += " WHERE (class_name = ? OR class_name IS NULL OR class_name = '')";
         params.push(userClass);
       }
+      variantName = resolveVariantName(await getClassTier(userClass), { variants: true });
+      try {
+        const [subRows] = await pool.execute(`SELECT ws.test_id, ws.objective_score, ws.manual_score, ${optCol("writing_submissions", "ws", "objective_max")}, ws.status, ws.submitted_at, it.summary_json FROM writing_submissions ws JOIN imported_tests it ON it.id = ws.test_id WHERE ws.student_id = ?`, [req.user.userId]);
+        subRows.forEach(r => { submittedMap[r.test_id] = { ...progressService.scoreSubmissionRow(r), status: r.status, submittedAt: r.submitted_at }; });
+      } catch (e) {}
     }
 
-    query += " ORDER BY created_at DESC LIMIT 20";
+    query += " ORDER BY created_at DESC LIMIT 30";
     const [rows] = await pool.execute(query, params);
-    return res.json({ success: true, tests: rows.map(row => publicTest(getStoredTest(row))) });
+    const tests = rows.map(row => {
+      const t = publicTest(getStoredTest(row), { variantName });
+      const sub = submittedMap[row.id];
+      return { ...t, submission: sub ? { scoreOnTen: sub.scoreOnTen, status: sub.status, submittedAt: sub.submittedAt } : null };
+    });
+    return res.json({ success: true, tests, variant: variantName });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể tải danh sách bài kiểm tra." });
@@ -1020,84 +1079,152 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
 app.get("/api/tests/:id", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
-    const [rows] = await pool.execute("SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, created_at FROM imported_tests WHERE id = ? LIMIT 1", [req.params.id]);
+    const [rows] = await pool.execute(testSelect() + " WHERE id = ? LIMIT 1", [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
-    return res.json({ success: true, test: publicTest(getStoredTest(rows[0])) });
+    let variantName = "full";
+    if (req.user.role === "student") {
+      const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
+      variantName = resolveVariantName(await getClassTier(uRows[0]?.class_name), { variants: true });
+    }
+    const isTeacher = req.user.role === "teacher" || req.user.role === "admin";
+    return res.json({ success: true, test: publicTest(getStoredTest(rows[0]), { variantName, includeAnswers: isTeacher }) });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể tải bài kiểm tra." });
   }
 });
 
+// Giáo viên phân tích lại độ khó / gắn ma trận cho đề đã có
+app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const [rows] = await pool.execute(testSelect() + " WHERE id = ? LIMIT 1", [req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
+    const stored = getStoredTest(rows[0]);
+    const matrix = await loadMatrix(req.body.matrixId || rows[0].matrix_id);
+    const analysis = await analyzeAndBuildVariants(stored.questions, matrix);
+    if (hasCol("imported_tests", "analysis_json")) {
+      await pool.execute("UPDATE imported_tests SET analysis_json = ?, matrix_id = ?, duration_minutes = ? WHERE id = ?", [JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes, req.params.id]);
+    } else {
+      await pool.execute("UPDATE imported_tests SET questions_json = ? WHERE id = ?", [JSON.stringify({ ...stored.questions, analysis }), req.params.id]);
+    }
+    return res.json({ success: true, analysis: { perQuestion: analysis.perQuestion, counts: analysis.variants.counts, durations: { full: analysis.variants.full.durationMinutes, advanced: analysis.variants.advanced.durationMinutes, regular: analysis.variants.regular.durationMinutes }, regularQuestions: analysis.variants.regular.questionIds.length }, message: "Đã phân tích lại đề bằng AI." });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không thể phân tích đề." });
+  }
+});
+
 app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), async (req, res) => {
   try {
     await assessmentReady;
-    const { answers = {}, tabViolations = 0, violationPenalty = 0, isForcedSubmit = false } = req.body;
-    const [rows] = await pool.execute("SELECT questions_json FROM imported_tests WHERE id = ? LIMIT 1", [req.params.id]);
+    const { answers = {}, speakingAnswers = {}, tabViolations = 0, violationPenalty = 0, isForcedSubmit = false, timeSpentSeconds = null } = req.body;
+    const [rows] = await pool.execute(testSelect() + " WHERE id = ? LIMIT 1", [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
-    const test = typeof rows[0].questions_json === "string" ? JSON.parse(rows[0].questions_json) : rows[0].questions_json;
-    const objective = test.questions.filter(question => !question.manual);
-    const manual = test.questions.filter(question => question.manual);
+    const stored = getStoredTest(rows[0]);
+    const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
+    const variantName = resolveVariantName(await getClassTier(uRows[0]?.class_name), { variants: true });
+    const questionsInVariant = variantQuestions(stored, variantName);
+
+    const objective = questionsInVariant.filter(question => !question.manual && question.type !== "speaking");
+    const speaking = questionsInVariant.filter(question => question.type === "speaking");
+    const manual = questionsInVariant.filter(question => question.manual);
+
     let earned = 0;
     objective.forEach(question => {
       const value = answers[question.id];
-      const correct = question.type === "multiple_choice" ? normalizeAnswer(value) === normalizeAnswer(question.answer) : (question.accepted || []).map(normalizeAnswer).includes(normalizeAnswer(value));
+      const correct = question.type === "multiple_choice"
+        ? normalizeAnswer(value) === normalizeAnswer(question.answer)
+        : (question.accepted || []).map(normalizeAnswer).includes(normalizeAnswer(value));
       if (correct) earned += Number(question.points || 0);
     });
-    const objectiveMax = objective.reduce((sum, question) => sum + Number(question.points || 0), 0);
+
+    // Speaking: điểm = points x độ chuẩn AI (%)
+    let speakingEarned = 0;
+    const speakingRecord = {};
+    speaking.forEach(question => {
+      const ans = speakingAnswers[question.id] || {};
+      const acc = Math.max(0, Math.min(100, Number(ans.accuracy) || 0));
+      speakingEarned += Number(question.points || 0) * (acc / 100);
+      speakingRecord[question.id] = { transcript: String(ans.transcript || "").slice(0, 2000), accuracy: acc, prompt: question.prompt };
+    });
+    speakingEarned = Number(speakingEarned.toFixed(2));
+
+    const objectiveMax = Number((objective.reduce((sum, q) => sum + Number(q.points || 0), 0) + speaking.reduce((sum, q) => sum + Number(q.points || 0), 0)).toFixed(2));
+    const manualMax = Number(manual.reduce((sum, q) => sum + Number(q.points || 0), 0).toFixed(2));
     const writingAnswers = Object.fromEntries(manual.map(question => [question.id, String(answers[question.id] || "").trim()]).filter(([, value]) => value));
     const status = Object.keys(writingAnswers).length ? "pending_manual" : "completed";
-    
-    // Tính trừ điểm vi phạm thi cử (Lần 1: -0.5đ, Lần 2: -1.25đ, Lần 3: -2.25đ)
+
     const penalty = Math.max(0, Number(violationPenalty) || 0);
     const violationsCount = Math.max(0, Number(tabViolations) || 0);
     const forced = Boolean(isForcedSubmit) ? 1 : 0;
-    const netObjectiveEarned = Math.max(0, Number((earned - penalty).toFixed(2)));
+    const netObjectiveEarned = Math.max(0, Number((earned + speakingEarned - penalty).toFixed(2)));
 
-    if (tableCols.tab_violations) {
+    if (!hasCol("writing_submissions", "speaking_answers_json")) {
       await pool.execute(
         `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, tab_violations, violation_penalty, is_forced_submit, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE 
-           objective_answers_json = VALUES(objective_answers_json), 
-           writing_answers_json = VALUES(writing_answers_json), 
-           objective_score = VALUES(objective_score), 
-           tab_violations = VALUES(tab_violations),
-           violation_penalty = VALUES(violation_penalty),
-           is_forced_submit = VALUES(is_forced_submit),
+         ON DUPLICATE KEY UPDATE objective_answers_json = VALUES(objective_answers_json), writing_answers_json = VALUES(writing_answers_json), objective_score = VALUES(objective_score),
+           tab_violations = VALUES(tab_violations), violation_penalty = VALUES(violation_penalty), is_forced_submit = VALUES(is_forced_submit),
            manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
-        [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), netObjectiveEarned, violationsCount, penalty, forced, status]
+        [req.params.id, req.user.userId, JSON.stringify({ ...answers, __speaking: speakingRecord, __objectiveMax: objectiveMax, __variant: variantName }), JSON.stringify(writingAnswers), netObjectiveEarned, violationsCount, penalty, forced, status]
       );
-    } else {
-      await pool.execute(
-        `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, objective_score, status)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE 
-           objective_answers_json = VALUES(objective_answers_json), 
-           writing_answers_json = VALUES(writing_answers_json), 
-           objective_score = VALUES(objective_score), 
-           manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
-        [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), netObjectiveEarned, status]
-      );
-    }
+    } else await pool.execute(
+      `INSERT INTO writing_submissions (test_id, student_id, objective_answers_json, writing_answers_json, speaking_answers_json, objective_score, speaking_score, objective_max, variant, time_spent_seconds, tab_violations, violation_penalty, is_forced_submit, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         objective_answers_json = VALUES(objective_answers_json),
+         writing_answers_json = VALUES(writing_answers_json),
+         speaking_answers_json = VALUES(speaking_answers_json),
+         objective_score = VALUES(objective_score),
+         speaking_score = VALUES(speaking_score),
+         objective_max = VALUES(objective_max),
+         variant = VALUES(variant),
+         time_spent_seconds = VALUES(time_spent_seconds),
+         tab_violations = VALUES(tab_violations),
+         violation_penalty = VALUES(violation_penalty),
+         is_forced_submit = VALUES(is_forced_submit),
+         manual_score = NULL, teacher_feedback = NULL, status = VALUES(status), submitted_at = CURRENT_TIMESTAMP, graded_at = NULL`,
+      [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), JSON.stringify(speakingRecord), netObjectiveEarned, speakingEarned, objectiveMax, variantName, timeSpentSeconds !== null ? Number(timeSpentSeconds) : null, violationsCount, penalty, forced, status]
+    );
+
+    // Chi tiết từng câu để hiển thị lỗi sai + đưa vào phòng chữa lỗi
+    const review = objective.map(question => {
+      const value = answers[question.id];
+      const correct = question.type === "multiple_choice"
+        ? normalizeAnswer(value) === normalizeAnswer(question.answer)
+        : (question.accepted || []).map(normalizeAnswer).includes(normalizeAnswer(value));
+      return { id: question.id, section: question.section, prompt: question.prompt, selected: value ?? "", correctAnswer: question.type === "multiple_choice" ? question.answer : (question.accepted || []).join(" / "), correct, options: question.options || [] };
+    });
+
+    const totalMax = objectiveMax + manualMax;
+    const scoreOnTen = totalMax > 0 ? Number(((netObjectiveEarned / totalMax) * 10).toFixed(1)) : 0;
+    await progressService.recordLearningEvent({
+      studentId: req.user.userId, type: "test", refId: req.params.id, title: stored.title,
+      score: netObjectiveEarned, maxScore: totalMax,
+      meta: { variant: variantName, objective: earned, speaking: speakingEarned, penalty, violations: violationsCount, wrong: review.filter(r => !r.correct).length, status }
+    });
 
     let submitMsg = status === "pending_manual" ? "Đã nộp bài. Phần Writing đang chờ giáo viên chấm." : "Đã nộp bài kiểm tra.";
-    if (forced) {
-      submitMsg = `⛔ BÀI THI BỊ THU TỰ ĐỘNG do rời tab 3 lần! (Bị trừ ${penalty} điểm vi phạm).`;
-    } else if (penalty > 0) {
-      submitMsg += ` (Lưu ý: Bị trừ ${penalty}đ do có ${violationsCount} lần rời tab).`;
-    }
+    if (forced) submitMsg = `⛔ BÀI THI BỊ THU TỰ ĐỘNG do rời tab 3 lần! (Bị trừ ${penalty} điểm vi phạm).`;
+    else if (penalty > 0) submitMsg += ` (Lưu ý: Bị trừ ${penalty}đ do có ${violationsCount} lần rời tab).`;
 
-    return res.json({ 
-      success: true, 
-      objectiveScore: netObjectiveEarned, 
+    return res.json({
+      success: true,
+      objectiveScore: netObjectiveEarned,
       rawObjectiveScore: earned,
+      speakingScore: speakingEarned,
       violationPenalty: penalty,
       tabViolations: violationsCount,
       isForcedSubmit: Boolean(forced),
-      objectiveMax, 
-      status, 
-      message: submitMsg 
+      objectiveMax,
+      manualMax,
+      totalMax,
+      scoreOnTen,
+      variant: variantName,
+      review,
+      status,
+      message: submitMsg
     });
   } catch (error) {
     console.error(error);
@@ -1146,7 +1273,7 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
       `SELECT 
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
         ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()},
-        ws.objective_answers_json, ws.writing_answers_json,
+        ws.objective_answers_json, ws.writing_answers_json, ${optCols("writing_submissions", "ws", ["speaking_answers_json", "speaking_score", "objective_max", "variant", "time_spent_seconds"])},
         it.title AS test_title, it.summary_json, it.questions_json,
         u.full_name AS teacher_name, stu.full_name AS student_name, stu.class_name AS student_class
        FROM writing_submissions ws
@@ -1165,13 +1292,10 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
     let pendingWriting = 0;
 
     const submissions = rows.map(row => {
-      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
-      const objectiveScore = Number(row.objective_score || 0);
-      const manualScore = row.manual_score !== null ? Number(row.manual_score) : null;
-      const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
-      const maxScore = Number(summary.totalPoints || 10);
-      const scoreOnTen = maxScore > 0 ? Number((totalScore / maxScore * 10).toFixed(1)) : totalScore;
-      const objectiveMax = Number(summary.objectiveCount ? summary.objectiveCount * 0.25 : 7.0);
+      const summary = parseJsonField(row.summary_json, {});
+      const sc = progressService.scoreSubmissionRow(row);
+      const { objectiveScore, manualScore, totalScore, maxScore, scoreOnTen } = sc;
+      const objectiveMax = Number(row.objective_max || 0) > 0 ? Number(row.objective_max) : Number((maxScore - Number(summary.manualCount ? 3 : 0)).toFixed(2));
 
       totalObjectiveEarned += objectiveScore;
       totalObjectiveMax += objectiveMax;
@@ -1201,8 +1325,12 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
         tabViolations: Number(row.tab_violations || 0),
         violationPenalty: Number(row.violation_penalty || 0),
         isForcedSubmit: Boolean(row.is_forced_submit),
-        objectiveAnswers: typeof row.objective_answers_json === "string" ? JSON.parse(row.objective_answers_json) : row.objective_answers_json,
-        writingAnswers: typeof row.writing_answers_json === "string" ? JSON.parse(row.writing_answers_json) : row.writing_answers_json,
+        speakingScore: Number(row.speaking_score || 0),
+        variant: row.variant || "full",
+        timeSpentSeconds: row.time_spent_seconds !== null ? Number(row.time_spent_seconds) : null,
+        objectiveAnswers: parseJsonField(row.objective_answers_json, {}),
+        writingAnswers: parseJsonField(row.writing_answers_json, {}),
+        speakingAnswers: parseJsonField(row.speaking_answers_json, {}),
       };
     });
 
@@ -1234,7 +1362,7 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
         ws.id, ws.test_id, ws.student_id, ws.objective_score, ws.manual_score, 
         ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at,
         ${getViolationSelectCols()},
-        ws.objective_answers_json, ws.writing_answers_json,
+        ws.objective_answers_json, ws.writing_answers_json, ${optCols("writing_submissions", "ws", ["speaking_answers_json", "speaking_score", "objective_max", "variant", "time_spent_seconds"])},
         u.full_name AS student_name, u.email AS student_email, u.class_name AS student_class,
         it.title AS test_title, it.class_name AS test_assigned_class, it.summary_json, it.questions_json
       FROM writing_submissions ws
@@ -1260,18 +1388,18 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
     const [rows] = await pool.execute(query, params);
 
     const submissions = rows.map(row => {
-      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
-      const objectiveScore = Number(row.objective_score || 0);
-      const manualScore = row.manual_score !== null ? Number(row.manual_score) : null;
-      const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
-      const maxScore = Number(summary.totalPoints || 10);
-      const scoreOnTen = maxScore > 0 ? Number((totalScore / maxScore * 10).toFixed(1)) : totalScore;
+      const { objectiveScore, manualScore, totalScore, maxScore, scoreOnTen } = progressService.scoreSubmissionRow(row);
 
       return {
         id: row.id,
         testId: row.test_id,
         testTitle: row.test_title,
         testAssignedClass: row.test_assigned_class,
+        speakingScore: Number(row.speaking_score || 0),
+        variant: row.variant || "full",
+        objectiveMax: row.objective_max !== null ? Number(row.objective_max) : null,
+        timeSpentSeconds: row.time_spent_seconds !== null ? Number(row.time_spent_seconds) : null,
+        speakingAnswers: parseJsonField(row.speaking_answers_json, {}),
         studentId: row.student_id,
         studentName: row.student_name,
         studentEmail: row.student_email,
@@ -1320,7 +1448,7 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
     const [submissionsRows] = await pool.execute(
       `SELECT 
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
-        ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()},
+        ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()}, ${optCol("writing_submissions", "ws", "objective_max")},
         it.title AS test_title, it.summary_json, u.full_name AS teacher_name
        FROM writing_submissions ws
        JOIN imported_tests it ON it.id = ws.test_id
@@ -1335,12 +1463,7 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
     let totalViolations = 0;
 
     const submissions = submissionsRows.map(row => {
-      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
-      const objectiveScore = Number(row.objective_score || 0);
-      const manualScore = row.manual_score !== null ? Number(row.manual_score) : null;
-      const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
-      const maxScore = Number(summary.totalPoints || 10);
-      const scoreOnTen = maxScore > 0 ? Number((totalScore / maxScore * 10).toFixed(1)) : totalScore;
+      const { scoreOnTen } = progressService.scoreSubmissionRow(row);
       const tabViolations = Number(row.tab_violations || 0);
       totalViolations += tabViolations;
       totalScoreSum += scoreOnTen;
@@ -1361,8 +1484,11 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
     });
 
     const avgScore = scoredCount > 0 ? Number((totalScoreSum / scoredCount).toFixed(1)) : 0;
+    let progress = null;
+    try { progress = await progressService.buildStudentProgress(student.id); } catch (e) { logSchemaError(e); }
     return res.json({
       success: true,
+      progress,
       student: {
         id: student.id,
         fullName: student.full_name,
@@ -1395,12 +1521,12 @@ app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admi
     const [testCountRows] = await pool.execute(testCountQuery, isTeacher ? [teacherId] : []);
 
     const subQuery = isTeacher
-      ? `SELECT ws.id, ws.objective_score, ws.manual_score, ws.status, u.class_name, it.summary_json
+      ? `SELECT ws.id, ws.objective_score, ws.manual_score, ${optCol("writing_submissions", "ws", "objective_max")}, ws.status, u.class_name, it.summary_json
          FROM writing_submissions ws
          JOIN imported_tests it ON it.id = ws.test_id
          JOIN users u ON u.id = ws.student_id
          WHERE it.teacher_id = ?`
-      : `SELECT ws.id, ws.objective_score, ws.manual_score, ws.status, u.class_name, it.summary_json
+      : `SELECT ws.id, ws.objective_score, ws.manual_score, ${optCol("writing_submissions", "ws", "objective_max")}, ws.status, u.class_name, it.summary_json
          FROM writing_submissions ws
          JOIN imported_tests it ON it.id = ws.test_id
          JOIN users u ON u.id = ws.student_id`;
@@ -1409,10 +1535,10 @@ app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admi
     const [studentRows] = await pool.execute("SELECT COUNT(*) AS totalStudents FROM users WHERE role = 'student' AND status = 'active'");
 
     const classStats = {};
-    const defaultClasses = ["9A1", "9A2", "9A3", "9A4"];
-    defaultClasses.forEach(c => {
-      classStats[c] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 };
-    });
+    try {
+      const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
+      classRows.forEach(r => { classStats[r.class_name] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 }; });
+    } catch (e) {}
 
     let pendingGrading = 0;
     let totalScoreSum = 0;
@@ -1432,10 +1558,7 @@ app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admi
         classStats[cls].gradedCount++;
       }
 
-      const summary = typeof row.summary_json === "string" ? JSON.parse(row.summary_json) : (row.summary_json || {});
-      const max = Number(summary.totalPoints || 10);
-      const totalRaw = Number(row.objective_score || 0) + (row.manual_score !== null ? Number(row.manual_score) : 0);
-      const score10 = max > 0 ? (totalRaw / max * 10) : totalRaw;
+      const score10 = progressService.scoreSubmissionRow(row).scoreOnTen;
 
       classStats[cls].totalScore10 += score10;
       totalScoreSum += score10;
@@ -1492,7 +1615,7 @@ app.patch("/api/teacher/writing-submissions/:id", requireLogin, requireRole("tea
     await assessmentReady;
     const score = Number(req.body.score);
     const feedback = String(req.body.feedback || "").trim();
-    if (!Number.isFinite(score) || score < 0 || score > 3) return res.status(400).json({ success: false, message: "Điểm Writing phải nằm trong khoảng 0–3." });
+    if (!Number.isFinite(score) || score < 0 || score > 10) return res.status(400).json({ success: false, message: "Điểm Writing phải nằm trong khoảng 0–10 (theo thang điểm phần tự luận của đề)." });
     const [result] = await pool.execute(
       `UPDATE writing_submissions ws JOIN imported_tests it ON it.id = ws.test_id SET ws.manual_score = ?, ws.teacher_feedback = ?, ws.status = 'graded', ws.graded_at = CURRENT_TIMESTAMP WHERE ws.id = ? AND it.teacher_id = ?`,
       [score, feedback, req.params.id, req.user.userId]
@@ -1506,35 +1629,134 @@ app.patch("/api/teacher/writing-submissions/:id", requireLogin, requireRole("tea
 });
 
 // ==========================================
-// API GIAO & NỘP BÀI TẬP SPEAKING (AI SPEAKING ASSIGNMENTS)
+// API LUYỆN NÓI AI THEO GIAI ĐOẠN (GIAO BÀI, SINH BÀI TỪ SGK, CHẤM, NỘP)
 // ==========================================
 
-// 1. Giáo viên tạo bài tập Speaking mới
+function normalizeSpeakingItems(rawItems, fallbackSentence, fallbackIpa, fallbackTranslation) {
+  const list = Array.isArray(rawItems) ? rawItems : [];
+  const items = list
+    .filter(it => it && (it.text || it.sentence))
+    .map(it => ({
+      text: String(it.text || it.sentence).trim(),
+      ipa: it.ipa ? String(it.ipa).trim() : "",
+      meaning: String(it.meaning || it.translation || "").trim(),
+      focus: String(it.focus || "").trim(),
+      level: ["easy", "medium", "hard"].includes(it.level) ? it.level : "medium",
+      speaker: it.speaker ? String(it.speaker).trim() : ""
+    }));
+  if (!items.length && fallbackSentence) {
+    items.push({ text: String(fallbackSentence).trim(), ipa: fallbackIpa || "", meaning: fallbackTranslation || "", focus: "", level: "medium", speaker: "" });
+  }
+  return items;
+}
+
+function publicSpeakingAssignment(row) {
+  const items = parseJsonField(row.items_json, null) || normalizeSpeakingItems([], row.sentence, row.ipa, row.translation);
+  return {
+    id: row.id,
+    title: row.title,
+    className: row.class_name || null,
+    stage: Number(row.stage) || 1,
+    unitTitle: row.unit_title || null,
+    sourceFileName: row.source_file_name || null,
+    teacherName: row.teacher_name || "Giáo viên",
+    sentence: row.sentence,
+    ipa: row.ipa || "",
+    translation: row.translation || "",
+    items,
+    itemCount: items.length,
+    createdAt: row.created_at,
+    submissionCount: row.submission_count !== undefined ? Number(row.submission_count) : undefined,
+    progress: row.student_best !== undefined ? {
+      best: Number(row.student_best || 0),
+      last: Number(row.student_accuracy || 0),
+      attempts: Number(row.student_attempts || 0),
+      submittedAt: row.student_submitted_at || null,
+      itemsResult: parseJsonField(row.student_items_result, null)
+    } : undefined
+  };
+}
+
+// 1. Giáo viên giao bài Speaking thủ công (1 câu hoặc nhiều câu / hội thoại)
 app.post("/api/teacher/speaking-assignments", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
-    const { title, className, sentence, ipa, translation } = req.body;
-    if (!title || !sentence) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập tiêu đề và câu tiếng Anh cần luyện nói." });
+    const { title, className, sentence, ipa, translation, stage, items, unitTitle } = req.body;
+    const normalized = normalizeSpeakingItems(items, sentence, ipa, translation);
+    if (!title || !normalized.length) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tiêu đề và ít nhất một câu tiếng Anh cần luyện nói." });
+    }
+    for (const it of normalized) {
+      if (!it.ipa || !it.meaning) {
+        try {
+          const gen = await aiService.translateAndGenerateIpa(it.text);
+          it.ipa = it.ipa || gen.ipa || "";
+          it.meaning = it.meaning || gen.translation || "";
+        } catch (e) {}
+      }
     }
     const targetClass = className && String(className).trim() ? String(className).trim() : null;
-    const [result] = await pool.execute(
-      `INSERT INTO speaking_assignments (teacher_id, title, class_name, sentence, ipa, translation)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.user.userId, String(title).trim(), targetClass, String(sentence).trim(), ipa ? String(ipa).trim() : null, translation ? String(translation).trim() : null]
-    );
-    return res.status(201).json({
-      success: true,
-      message: "Đã giao bài tập Speaking thành công!",
-      assignmentId: result.insertId
-    });
+    const stageNum = Number(stage) === 2 ? 2 : 1;
+    const first = normalized[0];
+    const [result] = hasCol("speaking_assignments", "items_json")
+      ? await pool.execute(
+          `INSERT INTO speaking_assignments (teacher_id, title, class_name, sentence, ipa, translation, stage, items_json, unit_title) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [req.user.userId, String(title).trim(), targetClass, first.text, first.ipa || null, first.meaning || null, stageNum, JSON.stringify(normalized), unitTitle ? String(unitTitle).trim() : null]
+        )
+      : await pool.execute(
+          `INSERT INTO speaking_assignments (teacher_id, title, class_name, sentence, ipa, translation) VALUES (?, ?, ?, ?, ?, ?)`,
+          [req.user.userId, String(title).trim(), targetClass, first.text, first.ipa || null, first.meaning || null]
+        );
+    return res.status(201).json({ success: true, message: "Đã giao bài tập Speaking thành công!", assignmentId: result.insertId, itemCount: normalized.length });
   } catch (error) {
     console.error("Lỗi giao bài speaking:", error);
     return res.status(500).json({ success: false, message: "Không thể tạo bài tập Speaking: " + error.message });
   }
 });
 
-// 2. Lấy danh sách bài tập Speaking (Học sinh & Giáo viên)
+// 2. Giáo viên upload SGK (PDF/DOCX) -> AI sinh bài giai đoạn 1 (câu đơn) & giai đoạn 2 (hội thoại)
+app.post("/api/teacher/speaking-units", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { documentBase64, fileName = "sgk.pdf", title, unitTitle, className, stages = ["1", "2"], count = 8 } = req.body;
+    if (!documentBase64) return res.status(400).json({ success: false, message: "Vui lòng chọn file SGK (PDF/DOCX)." });
+    const doc = await extractDocumentText(documentBase64, fileName);
+    const baseTitle = String(title || unitTitle || fileName.replace(/\.(pdf|docx|txt)$/i, "")).trim();
+    const targetClass = className && String(className).trim() ? String(className).trim() : null;
+    const wantStages = (Array.isArray(stages) ? stages : [stages]).map(Number).filter(s => s === 1 || s === 2);
+    const created = [];
+    for (const stage of (wantStages.length ? wantStages : [1, 2])) {
+      const gen = await aiService.generateSpeakingItems({ sourceText: doc.text, unitTitle, stage, count });
+      if (stage === 1) {
+        const items = normalizeSpeakingItems(gen.items);
+        if (!items.length) continue;
+        const [r] = await pool.execute(
+          `INSERT INTO speaking_assignments (teacher_id, title, class_name, sentence, ipa, translation, stage, items_json, unit_title, source_file_name) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+          [req.user.userId, `${baseTitle} · GĐ1 Câu đơn`, targetClass, items[0].text, items[0].ipa || null, items[0].meaning || null, JSON.stringify(items), unitTitle || null, String(fileName).slice(0, 255)]
+        );
+        created.push({ id: r.insertId, stage: 1, itemCount: items.length, source: gen.source });
+      } else {
+        for (const [idx, d] of (gen.dialogues || []).entries()) {
+          const items = normalizeSpeakingItems(d.lines);
+          if (!items.length) continue;
+          const [r] = await pool.execute(
+            `INSERT INTO speaking_assignments (teacher_id, title, class_name, sentence, ipa, translation, stage, items_json, unit_title, source_file_name) VALUES (?, ?, ?, ?, ?, ?, 2, ?, ?, ?)`,
+            [req.user.userId, `${baseTitle} · GĐ2 Hội thoại ${idx + 1}: ${d.title}`, targetClass, items[0].text, items[0].ipa || null, d.situation || items[0].meaning || null, JSON.stringify(items), unitTitle || null, String(fileName).slice(0, 255)]
+          );
+          created.push({ id: r.insertId, stage: 2, itemCount: items.length, source: gen.source, title: d.title });
+        }
+      }
+    }
+    if (!created.length) return res.status(422).json({ success: false, message: "Không sinh được câu luyện nói từ tài liệu này. Hãy thử file có nhiều văn bản tiếng Anh hơn." });
+    const usedAi = created.some(c => c.source === "ai");
+    return res.status(201).json({ success: true, created, message: `Đã tạo ${created.length} bài luyện nói từ SGK${usedAi ? " (AI sinh nội dung mới)" : " (trích câu từ tài liệu vì AI tạm bận)"}.` });
+  } catch (error) {
+    console.error("Lỗi sinh bài speaking từ SGK:", error);
+    return res.status(400).json({ success: false, message: error.message || "Không thể xử lý tài liệu SGK." });
+  }
+});
+
+// 3. Danh sách bài Speaking (GV: tất cả bài của mình; HS: bài của lớp + tiến độ cá nhân)
 app.get("/api/speaking/assignments", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1546,51 +1768,43 @@ app.get("/api/speaking/assignments", requireLogin, async (req, res) => {
         LEFT JOIN users u ON u.id = sa.teacher_id
       `;
       const params = [];
-      if (req.user.role === "teacher") {
-        query += " WHERE sa.teacher_id = ?";
-        params.push(req.user.userId);
-      }
-      query += " ORDER BY sa.created_at DESC";
+      if (req.user.role === "teacher") { query += " WHERE sa.teacher_id = ?"; params.push(req.user.userId); }
+      query += " ORDER BY sa.stage ASC, sa.created_at DESC";
       const [rows] = await pool.execute(query, params);
-      return res.json({ success: true, assignments: rows });
+      return res.json({ success: true, assignments: rows.map(publicSpeakingAssignment) });
     }
 
-    // Nếu là học sinh: lấy bài tập của lớp mình hoặc bài giao toàn khối
     const [userRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
     const studentClass = userRows[0]?.class_name || null;
-
-    let query = `
+    const [rows] = await pool.execute(`
       SELECT sa.*, u.full_name AS teacher_name,
-             ss.accuracy_percent AS student_accuracy, ss.spoken_transcript AS student_transcript,
-             ss.submitted_at AS student_submitted_at
+             ss.accuracy_percent AS student_accuracy, ss.best_accuracy AS student_best, ss.attempts AS student_attempts,
+             ss.submitted_at AS student_submitted_at, ss.items_result_json AS student_items_result
       FROM speaking_assignments sa
       LEFT JOIN users u ON u.id = sa.teacher_id
       LEFT JOIN speaking_submissions ss ON ss.assignment_id = sa.id AND ss.student_id = ?
       WHERE (sa.class_name IS NULL OR sa.class_name = '' OR sa.class_name = ?)
-      ORDER BY sa.created_at DESC
-    `;
-    const [rows] = await pool.execute(query, [req.user.userId, studentClass || ""]);
-    return res.json({ success: true, assignments: rows });
+      ORDER BY sa.stage ASC, sa.created_at ASC
+    `, [req.user.userId, studentClass || ""]);
+    const assignments = rows.map(r => publicSpeakingAssignment({ ...r, student_best: r.student_best ?? 0 }));
+    const progress = await progressService.getSpeakingProgress(req.user.userId);
+    return res.json({ success: true, assignments, progress });
   } catch (error) {
     console.error("Lỗi lấy bài speaking:", error);
     return res.status(500).json({ success: false, message: "Không thể tải danh sách bài tập Speaking." });
   }
 });
 
-// 3. Giáo viên xóa bài tập Speaking
+// 4. Giáo viên xóa bài Speaking
 app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
     let query = "DELETE FROM speaking_assignments WHERE id = ?";
     const params = [req.params.id];
-    if (req.user.role === "teacher") {
-      query += " AND teacher_id = ?";
-      params.push(req.user.userId);
-    }
+    if (req.user.role === "teacher") { query += " AND teacher_id = ?"; params.push(req.user.userId); }
     const [result] = await pool.execute(query, params);
-    if (!result.affectedRows) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy bài tập hoặc không có quyền xóa." });
-    }
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: "Không tìm thấy bài tập hoặc không có quyền xóa." });
+    try { await pool.execute("DELETE FROM speaking_submissions WHERE assignment_id = ?", [req.params.id]); } catch (e) {}
     return res.json({ success: true, message: "Đã xóa bài tập Speaking." });
   } catch (error) {
     console.error("Lỗi xóa bài speaking:", error);
@@ -1598,42 +1812,105 @@ app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("t
   }
 });
 
-// 4. Học sinh nộp kết quả phát âm Speaking cho giáo viên
+// 5. AI chấm một lượt đọc (dùng cho luyện nói & câu Speaking trong bài kiểm tra)
+app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    const { target, transcript, alternatives, assignmentId = null, itemIndex = 0, stage = 1, context = "practice", mode = "read" } = req.body;
+    const targetText = String(target || "").trim();
+    const alts = Array.isArray(alternatives) && alternatives.length ? alternatives : [transcript];
+    if (!targetText && mode !== "free") return res.status(400).json({ success: false, message: "Thiếu câu mẫu để chấm." });
+
+    let result, bestTranscript;
+    if (mode === "free") {
+      // Nói tự do (trả lời câu hỏi): chấm theo độ dài + từ khoá của đề bài
+      bestTranscript = String(alts[0] || "").trim();
+      const words = speakingScorer.normalizeWords(bestTranscript);
+      const keyWords = speakingScorer.normalizeWords(targetText).filter(w => w.length > 3);
+      const hit = keyWords.filter(k => words.some(w => speakingScorer.wordSimilarity(k, w) >= 0.8)).length;
+      const lengthScore = Math.min(100, Math.round((words.length / 15) * 100));
+      const relevance = keyWords.length ? Math.round((hit / keyWords.length) * 100) : lengthScore;
+      const accuracy = words.length < 3 ? Math.min(20, lengthScore) : Math.round(lengthScore * 0.6 + relevance * 0.4);
+      result = { accuracy, breakdown: words.map(w => ({ word: w, status: "correct", similarity: 1, heard: w })), errors: [] };
+    } else {
+      const picked = speakingScorer.pickBestTranscript(targetText, alts);
+      bestTranscript = picked.transcript;
+      result = picked.result;
+    }
+
+    const verdict = speakingScorer.verdictFor(result.accuracy);
+    // Nhận xét AI (giới hạn 9s để không làm học sinh chờ lâu)
+    let tip = "";
+    try {
+      const fb = await Promise.race([
+        aiService.speakingFeedback({ target: targetText, transcript: bestTranscript, accuracy: result.accuracy, errors: result.errors }),
+        new Promise(resolve => setTimeout(() => resolve(null), 9000))
+      ]);
+      tip = fb && fb.tip ? fb.tip : "";
+    } catch (e) {}
+    if (!tip) {
+      const fb = await aiService.speakingFeedback({ target: "", transcript: "", accuracy: result.accuracy, errors: result.errors });
+      tip = fb.tip;
+    }
+
+    if (req.user.role === "student") {
+      try {
+        await pool.execute(
+          "INSERT INTO speaking_attempts (student_id, assignment_id, stage, item_index, context, target_text, transcript, accuracy, errors_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [req.user.userId, assignmentId || null, Number(stage) === 2 ? 2 : 1, Number(itemIndex) || 0, String(context).slice(0, 20), targetText || "(free speaking)", bestTranscript, result.accuracy, JSON.stringify(result.errors || [])]
+        );
+      } catch (e) { logSchemaError(e); }
+    }
+
+    return res.json({ success: true, accuracy: result.accuracy, transcript: bestTranscript, breakdown: result.breakdown, errors: result.errors, verdict, tip });
+  } catch (error) {
+    console.error("Lỗi chấm speaking:", error);
+    return res.status(500).json({ success: false, message: "Không thể chấm điểm phát âm lúc này." });
+  }
+});
+
+// 6. Học sinh nộp kết quả cả bài Speaking (nhiều câu) cho giáo viên
 app.post("/api/student/speaking-submissions", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
-    const { assignmentId, accuracyPercent, spokenTranscript } = req.body;
-    if (!assignmentId) {
-      return res.status(400).json({ success: false, message: "Thiếu ID bài tập Speaking." });
-    }
-    const accuracy = Math.max(0, Math.min(100, Number(accuracyPercent) || 0));
+    const { assignmentId, accuracyPercent, spokenTranscript, itemsResult } = req.body;
+    if (!assignmentId) return res.status(400).json({ success: false, message: "Thiếu ID bài tập Speaking." });
+    const items = Array.isArray(itemsResult) ? itemsResult.map(r => ({ index: Number(r.index) || 0, accuracy: Math.max(0, Math.min(100, Number(r.accuracy) || 0)), transcript: String(r.transcript || "").slice(0, 500) })) : [];
+    const accuracy = items.length
+      ? Math.round(items.reduce((s, r) => s + r.accuracy, 0) / items.length)
+      : Math.max(0, Math.min(100, Number(accuracyPercent) || 0));
     await pool.execute(
-      `INSERT INTO speaking_submissions (assignment_id, student_id, accuracy_percent, spoken_transcript, submitted_at)
-       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `INSERT INTO speaking_submissions (assignment_id, student_id, accuracy_percent, spoken_transcript, items_result_json, attempts, best_accuracy, submitted_at)
+       VALUES (?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP)
        ON DUPLICATE KEY UPDATE
          accuracy_percent = VALUES(accuracy_percent),
          spoken_transcript = VALUES(spoken_transcript),
+         items_result_json = VALUES(items_result_json),
+         attempts = attempts + 1,
+         best_accuracy = GREATEST(best_accuracy, VALUES(best_accuracy)),
          submitted_at = CURRENT_TIMESTAMP`,
-      [assignmentId, req.user.userId, accuracy, String(spokenTranscript || "").trim()]
+      [assignmentId, req.user.userId, accuracy, String(spokenTranscript || "").trim().slice(0, 3000), JSON.stringify(items), accuracy]
     );
-    return res.json({
-      success: true,
-      message: `Đã nộp bài Speaking thành công cho giáo viên! Độ chuẩn: ${accuracy}%`
+    const [aRows] = await pool.execute("SELECT title, stage FROM speaking_assignments WHERE id = ? LIMIT 1", [assignmentId]);
+    await progressService.recordLearningEvent({
+      studentId: req.user.userId, type: "speaking", refId: assignmentId, title: aRows[0]?.title || "Bài luyện nói",
+      score: accuracy, maxScore: 100, meta: { stage: aRows[0]?.stage || 1, items: items.length }
     });
+    return res.json({ success: true, accuracy, message: `Đã nộp bài Speaking cho giáo viên! Độ chuẩn trung bình: ${accuracy}%` });
   } catch (error) {
     console.error("Lỗi nộp bài speaking:", error);
     return res.status(500).json({ success: false, message: "Không thể nộp bài Speaking." });
   }
 });
 
-// 5. Giáo viên xem danh sách học sinh đã nộp bài Speaking
+// 7. Giáo viên xem danh sách học sinh đã nộp bài Speaking
 app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
     const { assignmentId, className } = req.query;
     let query = `
-      SELECT ss.id, ss.assignment_id, ss.accuracy_percent, ss.spoken_transcript, ss.submitted_at,
-             sa.title AS task_title, sa.sentence AS target_sentence, sa.ipa AS target_ipa,
+      SELECT ss.id, ss.assignment_id, ss.accuracy_percent, ss.best_accuracy, ss.attempts, ss.spoken_transcript, ss.items_result_json, ss.submitted_at,
+             sa.title AS task_title, sa.sentence AS target_sentence, sa.ipa AS target_ipa, sa.stage,
              u.full_name AS student_name, u.email AS student_email, u.class_name AS student_class
       FROM speaking_submissions ss
       JOIN speaking_assignments sa ON sa.id = ss.assignment_id
@@ -1641,24 +1918,153 @@ app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher"
       WHERE 1=1
     `;
     const params = [];
-    if (req.user.role === "teacher") {
-      query += " AND sa.teacher_id = ?";
-      params.push(req.user.userId);
-    }
-    if (assignmentId) {
-      query += " AND ss.assignment_id = ?";
-      params.push(assignmentId);
-    }
-    if (className) {
-      query += " AND u.class_name = ?";
-      params.push(className);
-    }
+    if (req.user.role === "teacher") { query += " AND sa.teacher_id = ?"; params.push(req.user.userId); }
+    if (assignmentId) { query += " AND ss.assignment_id = ?"; params.push(assignmentId); }
+    if (className) { query += " AND u.class_name = ?"; params.push(className); }
     query += " ORDER BY ss.submitted_at DESC";
     const [rows] = await pool.execute(query, params);
-    return res.json({ success: true, submissions: rows });
+    return res.json({ success: true, submissions: rows.map(r => ({ ...r, items_result: parseJsonField(r.items_result_json, []) })) });
   } catch (error) {
     console.error("Lỗi lấy danh sách bài nộp speaking:", error);
     return res.status(500).json({ success: false, message: "Không thể tải danh sách nộp bài Speaking." });
+  }
+});
+
+// ==========================================
+// MA TRẬN ĐỀ & PHÂN LOẠI LỚP
+// ==========================================
+app.get("/api/class-settings", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    const [rows] = await pool.execute("SELECT class_name, tier, updated_at FROM class_settings ORDER BY class_name");
+    const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
+    return res.json({ success: true, settings: rows.map(r => ({ className: r.class_name, tier: r.tier })), knownClasses: classRows.map(r => r.class_name), tiers: DEFAULT_TIERS });
+  } catch (error) {
+    logSchemaError(error);
+    return res.json({ success: true, settings: [], knownClasses: [], tiers: DEFAULT_TIERS });
+  }
+});
+
+app.put("/api/teacher/class-settings", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const settings = Array.isArray(req.body.settings) ? req.body.settings : [];
+    for (const s of settings) {
+      const cls = String(s.className || "").trim();
+      const tier = s.tier === "advanced" ? "advanced" : s.tier === "regular" ? "regular" : null;
+      if (!cls) continue;
+      if (!tier) { await pool.execute("DELETE FROM class_settings WHERE class_name = ?", [cls]); continue; }
+      await pool.execute("INSERT INTO class_settings (class_name, tier, updated_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE tier = VALUES(tier), updated_by = VALUES(updated_by)", [cls, tier, req.user.userId]);
+    }
+    return res.json({ success: true, message: "Đã lưu phân loại lớp." });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không thể lưu phân loại lớp: " + error.message });
+  }
+});
+
+app.get("/api/teacher/test-matrices", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const [rows] = await pool.execute("SELECT id, teacher_id, title, source_file_name, matrix_json, created_at FROM test_matrices ORDER BY created_at DESC");
+    return res.json({ success: true, matrices: rows.map(r => ({ id: r.id, title: r.title, sourceFileName: r.source_file_name, createdAt: r.created_at, matrix: parseJsonField(r.matrix_json, {}) })) });
+  } catch (error) {
+    logSchemaError(error);
+    return res.json({ success: true, matrices: [] });
+  }
+});
+
+app.post("/api/teacher/test-matrices", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { documentBase64, fileName = "ma-tran.pdf", title } = req.body;
+    if (!documentBase64) return res.status(400).json({ success: false, message: "Vui lòng chọn file ma trận đề (PDF/DOCX)." });
+    const doc = await extractDocumentText(documentBase64, fileName);
+    const matrix = await aiService.parseTestMatrix(doc.text);
+    const finalTitle = String(title || matrix.title || fileName.replace(/\.(pdf|docx|txt)$/i, "")).trim();
+    const [result] = await pool.execute("INSERT INTO test_matrices (teacher_id, title, source_file_name, matrix_json) VALUES (?, ?, ?, ?)", [req.user.userId, finalTitle, String(fileName).slice(0, 255), JSON.stringify(matrix)]);
+    return res.status(201).json({ success: true, matrixId: result.insertId, matrix: { ...matrix, title: finalTitle }, message: matrix.source === "ai" ? "AI đã đọc xong ma trận đề." : "Đã lưu ma trận (ước lượng tự động, AI tạm bận)." });
+  } catch (error) {
+    console.error("Lỗi đọc ma trận:", error);
+    return res.status(400).json({ success: false, message: error.message || "Không thể đọc ma trận đề." });
+  }
+});
+
+app.delete("/api/teacher/test-matrices/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await pool.execute("DELETE FROM test_matrices WHERE id = ?", [req.params.id]);
+    return res.json({ success: true, message: "Đã xóa ma trận." });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Không thể xóa ma trận." });
+  }
+});
+
+// ==========================================
+// TIẾN ĐỘ HỌC TẬP TỪNG HỌC SINH (dashboard, kết quả, giáo viên, phụ huynh)
+// ==========================================
+app.get("/api/student/progress", requireLogin, async (req, res) => {
+  try {
+    await assessmentReady;
+    const progress = await progressService.buildStudentProgress(req.user.userId);
+    return res.json({ success: true, progress });
+  } catch (error) {
+    logSchemaError(error);
+    return res.status(500).json({ success: false, message: "Không thể tải tiến độ học tập (kiểm tra migration CSDL)." });
+  }
+});
+
+app.post("/api/learning-events", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { type, refId, title, score, maxScore, meta } = req.body;
+    if (!["vocab", "healing", "speaking"].includes(type)) return res.status(400).json({ success: false, message: "Loại sự kiện không hợp lệ." });
+    await progressService.recordLearningEvent({ studentId: req.user.userId, type, refId, title: String(title || "").slice(0, 255), score: score !== undefined ? Number(score) : null, maxScore: maxScore !== undefined ? Number(maxScore) : null, meta: meta || null });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Không thể ghi nhận kết quả." });
+  }
+});
+
+app.get("/api/teacher/students-overview", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { className } = req.query;
+    let query = "SELECT id, full_name, email, class_name, created_at FROM users WHERE role = 'student' AND status = 'active'";
+    const params = [];
+    if (className) { query += " AND class_name = ?"; params.push(className); }
+    query += " ORDER BY class_name, full_name LIMIT 300";
+    const [students] = await pool.execute(query, params);
+    const overview = [];
+    for (const s of students) {
+      const p = await progressService.buildStudentProgress(s.id);
+      overview.push({
+        id: s.id, fullName: s.full_name, email: s.email, className: s.class_name || "Chưa phân lớp",
+        tests: { count: p.tests.count, avgScore: p.tests.avgScore, bestScore: p.tests.bestScore, improvement: p.tests.improvement, pending: p.tests.pending },
+        speaking: { attempts: p.speaking.totalAttempts, avgAccuracy: p.speaking.avgAccuracy, stage1: p.speaking.stages[1]?.avgAccuracy || 0, stage2: p.speaking.stages[2]?.avgAccuracy || 0 },
+        vocab: { sets: p.vocab.setsCompleted, avg: p.vocab.avgQuizPercent },
+        healing: p.healing.healed,
+        skills: p.skills, overall: p.overall, activeDays: p.activeDays,
+        titles: p.earnedTitles.map(t => t.name),
+        lastActive: p.events[0]?.createdAt || null
+      });
+    }
+    return res.json({ success: true, students: overview });
+  } catch (error) {
+    logSchemaError(error);
+    return res.status(500).json({ success: false, message: "Không thể tải tổng quan học sinh." });
+  }
+});
+
+app.get("/api/teacher/students/:id/progress", requireLogin, requireRole("teacher", "admin", "parent"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const [rows] = await pool.execute("SELECT id, full_name, email, class_name FROM users WHERE id = ? AND role = 'student' LIMIT 1", [req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy học sinh." });
+    const progress = await progressService.buildStudentProgress(rows[0].id);
+    return res.json({ success: true, student: { id: rows[0].id, fullName: rows[0].full_name, email: rows[0].email, className: rows[0].class_name }, progress });
+  } catch (error) {
+    logSchemaError(error);
+    return res.status(500).json({ success: false, message: "Không thể tải tiến độ học sinh." });
   }
 });
 
