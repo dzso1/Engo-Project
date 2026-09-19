@@ -1,6 +1,7 @@
 -- ============================================================
 -- ENGO v2: Chạy file này bằng tài khoản ROOT của MySQL
---   mysql -u root -p < database/migrate-v2.sql
+--   mysql -u root -p < database/migrate-v2.sql   (hoặc mở bằng MySQL Workbench rồi bấm ⚡)
+-- Trên Railway: đổi "USE engo;" thành tên database của bạn (thường là "railway") và XÓA 3 dòng GRANT cuối file.
 -- Tạo các bảng mới cho: Luyện nói AI nhiều giai đoạn, ma trận đề,
 -- phân loại lớp, nhật ký kết quả học tập; và cấp quyền cho engo_app.
 -- ============================================================
@@ -90,15 +91,39 @@ CREATE TABLE IF NOT EXISTS class_settings (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7. Cột mới cho bảng đề & bài nộp (MySQL 8: dùng IF NOT EXISTS; nếu MySQL cũ, bỏ qua lỗi "Duplicate column")
-ALTER TABLE imported_tests ADD COLUMN IF NOT EXISTS matrix_id BIGINT UNSIGNED NULL;
-ALTER TABLE imported_tests ADD COLUMN IF NOT EXISTS analysis_json JSON NULL;
-ALTER TABLE imported_tests ADD COLUMN IF NOT EXISTS duration_minutes INT NULL;
-ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS speaking_answers_json JSON NULL;
-ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS speaking_score DECIMAL(5,2) NOT NULL DEFAULT 0;
-ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS objective_max DECIMAL(5,2) NULL;
-ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS variant VARCHAR(20) NULL;
-ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS time_spent_seconds INT NULL;
+-- 7. Cột mới cho bảng đề & bài nộp (MySQL 8 không có "ADD COLUMN IF NOT EXISTS" nên dùng thủ tục kiểm tra trước)
+DROP PROCEDURE IF EXISTS engo_add_column;
+DELIMITER $$
+CREATE PROCEDURE engo_add_column(IN p_table VARCHAR(64), IN p_column VARCHAR(64), IN p_definition VARCHAR(255))
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = p_table AND COLUMN_NAME = p_column
+  ) THEN
+    SET @ddl = CONCAT('ALTER TABLE `', p_table, '` ADD COLUMN `', p_column, '` ', p_definition);
+    PREPARE stmt FROM @ddl;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+  END IF;
+END$$
+DELIMITER ;
+
+CALL engo_add_column('imported_tests', 'matrix_id', 'BIGINT UNSIGNED NULL');
+CALL engo_add_column('imported_tests', 'analysis_json', 'JSON NULL');
+CALL engo_add_column('imported_tests', 'duration_minutes', 'INT NULL');
+CALL engo_add_column('writing_submissions', 'speaking_answers_json', 'JSON NULL');
+CALL engo_add_column('writing_submissions', 'speaking_score', 'DECIMAL(5,2) NOT NULL DEFAULT 0');
+CALL engo_add_column('writing_submissions', 'objective_max', 'DECIMAL(5,2) NULL');
+CALL engo_add_column('writing_submissions', 'variant', 'VARCHAR(20) NULL');
+CALL engo_add_column('writing_submissions', 'time_spent_seconds', 'INT NULL');
+CALL engo_add_column('speaking_assignments', 'stage', 'TINYINT NOT NULL DEFAULT 1');
+CALL engo_add_column('speaking_assignments', 'items_json', 'JSON NULL');
+CALL engo_add_column('speaking_assignments', 'unit_title', 'VARCHAR(255) NULL');
+CALL engo_add_column('speaking_assignments', 'source_file_name', 'VARCHAR(255) NULL');
+CALL engo_add_column('speaking_submissions', 'items_result_json', 'JSON NULL');
+CALL engo_add_column('speaking_submissions', 'attempts', 'INT NOT NULL DEFAULT 1');
+CALL engo_add_column('speaking_submissions', 'best_accuracy', 'INT NOT NULL DEFAULT 0');
+DROP PROCEDURE IF EXISTS engo_add_column;
 
 -- 8. Cấp quyền tạo/sửa bảng cho engo_app để server tự migrate về sau
 GRANT ALL PRIVILEGES ON engo.* TO 'engo_app'@'localhost';
