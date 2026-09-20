@@ -12,6 +12,22 @@ function parseJson(value, fallback) {
 
 function round1(n) { return Number((Number(n) || 0).toFixed(1)); }
 
+// Cột hiện có của từng bảng (cache) -> truy vấn vẫn chạy khi CSDL chưa migrate đủ cột
+const colCache = {};
+async function tableCols(table) {
+  if (colCache[table]) return colCache[table];
+  try {
+    const [cols] = await pool.query("SHOW COLUMNS FROM " + table);
+    colCache[table] = new Set(cols.map(c => c.Field));
+  } catch (e) { colCache[table] = new Set(); }
+  return colCache[table];
+}
+async function optCols(table, alias, cols) {
+  const have = await tableCols(table);
+  return cols.map(c => (have.has(c) ? `${alias}.${c}` : `NULL AS ${c}`)).join(", ");
+}
+function invalidateColumnCache() { Object.keys(colCache).forEach(k => delete colCache[k]); }
+
 async function recordLearningEvent({ studentId, type, refId = null, title = null, score = null, maxScore = null, meta = null }) {
   try {
     await pool.execute(
@@ -43,12 +59,14 @@ async function getSpeakingProgress(studentId) {
     [studentId]
   );
   const [subs] = await pool.execute(
-    `SELECT ss.assignment_id, ss.best_accuracy, ss.accuracy_percent, ss.attempts, sa.stage, sa.title
+    `SELECT ss.assignment_id, ss.accuracy_percent, ${await optCols("speaking_submissions", "ss", ["best_accuracy", "attempts"])}, ${await optCols("speaking_assignments", "sa", ["stage"])}, sa.title
      FROM speaking_submissions ss JOIN speaking_assignments sa ON sa.id = ss.assignment_id
      WHERE ss.student_id = ?`,
     [studentId]
   );
-  const [assignRows] = await pool.execute("SELECT stage, COUNT(*) AS total FROM speaking_assignments GROUP BY stage");
+  const [assignRows] = (await tableCols("speaking_assignments")).has("stage")
+    ? await pool.execute("SELECT stage, COUNT(*) AS total FROM speaking_assignments GROUP BY stage")
+    : await pool.execute("SELECT 1 AS stage, COUNT(*) AS total FROM speaking_assignments");
   const totalsByStage = {};
   assignRows.forEach(r => { totalsByStage[Number(r.stage) || 1] = Number(r.total); });
 
@@ -107,8 +125,8 @@ async function getSpeakingProgress(studentId) {
 
 async function getTestProgress(studentId) {
   const [rows] = await pool.execute(
-    `SELECT ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.objective_max, ws.speaking_score, ws.status, ws.submitted_at,
-            ws.tab_violations, ws.variant, it.title AS test_title, it.summary_json
+    `SELECT ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.status, ws.submitted_at,
+            ${await optCols("writing_submissions", "ws", ["objective_max", "speaking_score", "tab_violations", "variant"])}, it.title AS test_title, it.summary_json
      FROM writing_submissions ws JOIN imported_tests it ON it.id = ws.test_id
      WHERE ws.student_id = ? ORDER BY ws.submitted_at ASC`,
     [studentId]
@@ -211,4 +229,4 @@ async function buildStudentProgress(studentId) {
   };
 }
 
-module.exports = { recordLearningEvent, buildStudentProgress, getSpeakingProgress, getTestProgress, scoreSubmissionRow, parseJson };
+module.exports = { recordLearningEvent, buildStudentProgress, getSpeakingProgress, getTestProgress, scoreSubmissionRow, parseJson, invalidateColumnCache };

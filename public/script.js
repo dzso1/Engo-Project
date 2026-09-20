@@ -178,12 +178,17 @@ function getInitials(name, role) {
   const parts = String(name || "HS").trim().split(/\s+/).filter(Boolean);
   return parts.slice(-2).map(p => p[0]).join("").toUpperCase() || "HS";
 }
+function sortClasses(list) { return [...new Set(list)].sort((x, y) => x.localeCompare(y, "vi", { numeric: true })); }
 async function loadClassNames() {
   try {
-    const data = await apiRequest("/api/class-settings");
-    const set = new Set([...(data.knownClasses || []), ...(data.settings || []).map(s => s.className)]);
-    knownClasses = [...set].sort();
-  } catch (e) { knownClasses = []; }
+    if (currentUser) {
+      const data = await apiRequest("/api/class-settings");
+      knownClasses = sortClasses([...(data.knownClasses || []), ...(data.settings || []).map(s => s.className)]);
+    } else {
+      const data = await apiRequest("/api/classes");
+      knownClasses = sortClasses(data.classes || []);
+    }
+  } catch (e) { knownClasses = knownClasses.length ? knownClasses : Array.from({ length: 13 }, (_, i) => `9A${i + 1}`); }
   const dl = document.getElementById("classNameList");
   if (dl) dl.innerHTML = knownClasses.map(c => `<option value="${escapeHTML(c)}"></option>`).join("");
   document.querySelectorAll("#teacherClassFilter, #teacherStudentsClassFilter").forEach(sel => {
@@ -1849,4 +1854,5 @@ document.getElementById("globalSearch")?.addEventListener("keydown", e => {
 renderNotifications();
 resetFlashOrder();
 renderVocabDecks();
+loadClassNames();
 restoreSession();

@@ -279,6 +279,12 @@ async function ensureAssessmentTables() {
     }
   } catch (e) { logSchemaError(e); }
 
+  // 12. Khởi tạo 13 lớp 9A1..9A13 trong bảng phân loại (chỉ chèn lớp chưa có; GV đổi lại trong "Phân loại lớp")
+  try {
+    const values = DEFAULT_CLASSES.map(c => [c, ["9A5", "9A6"].includes(c) ? "advanced" : "regular"]);
+    await pool.query("INSERT IGNORE INTO class_settings (class_name, tier) VALUES " + values.map(() => "(?, ?)").join(", "), values.flat());
+  } catch (e) { logSchemaError(e); }
+
   await syncSubmissionColumns();
 }
 
@@ -304,6 +310,8 @@ async function syncSubmissionColumns() {
   tableCols.violation_penalty = ws.has("violation_penalty");
   tableCols.is_forced_submit = ws.has("is_forced_submit");
 }
+// Làm mới cache cột mỗi 60s để server nhận cột mới ngay sau khi migrate, không cần restart
+setInterval(() => { syncSubmissionColumns().catch(() => {}); progressService.invalidateColumnCache(); }, 60000).unref();
 function hasCol(table, col) { return Boolean(schemaCols[table] && schemaCols[table].has(col)); }
 // Trả về "alias.col" nếu cột tồn tại, ngược lại "NULL AS col" (hoặc giá trị mặc định)
 function optCol(table, alias, col, def = "NULL") { return hasCol(table, col) ? `${alias}.${col}` : `${def} AS ${col}`; }
@@ -339,6 +347,8 @@ function parseJsonField(value, fallback) {
   try { return JSON.parse(value); } catch (e) { return fallback; }
 }
 
+// 13 lớp mặc định của khối 9 (9A1 -> 9A13); giáo viên có thể thêm lớp khác trong "Phân loại lớp"
+const DEFAULT_CLASSES = Array.from({ length: 13 }, (_, i) => `9A${i + 1}`);
 const DEFAULT_TIERS = {
   advanced: { label: "Lớp tăng cường", easy: 25, medium: 35, hard: 40, timeFactor: 0.9 },
   regular: { label: "Lớp thường", easy: 45, medium: 35, hard: 20, timeFactor: 1.1 }
@@ -1537,7 +1547,7 @@ app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admi
     const classStats = {};
     try {
       const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
-      classRows.forEach(r => { classStats[r.class_name] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 }; });
+      [...DEFAULT_CLASSES, ...classRows.map(r => r.class_name)].forEach(c => { if (!classStats[c]) classStats[c] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 }; });
     } catch (e) {}
 
     let pendingGrading = 0;
@@ -1933,15 +1943,26 @@ app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher"
 // ==========================================
 // MA TRẬN ĐỀ & PHÂN LOẠI LỚP
 // ==========================================
+// Danh sách lớp công khai (dùng cho form đăng ký trước khi đăng nhập)
+app.get("/api/classes", async (req, res) => {
+  let classes = [...DEFAULT_CLASSES];
+  try {
+    const [rows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> ''");
+    classes = [...new Set([...classes, ...rows.map(r => r.class_name)])];
+  } catch (e) {}
+  return res.json({ success: true, classes });
+});
+
 app.get("/api/class-settings", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
     const [rows] = await pool.execute("SELECT class_name, tier, updated_at FROM class_settings ORDER BY class_name");
     const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
-    return res.json({ success: true, settings: rows.map(r => ({ className: r.class_name, tier: r.tier })), knownClasses: classRows.map(r => r.class_name), tiers: DEFAULT_TIERS });
+    const known = [...new Set([...DEFAULT_CLASSES, ...classRows.map(r => r.class_name), ...rows.map(r => r.class_name)])];
+    return res.json({ success: true, settings: rows.map(r => ({ className: r.class_name, tier: r.tier })), knownClasses: known, tiers: DEFAULT_TIERS });
   } catch (error) {
     logSchemaError(error);
-    return res.json({ success: true, settings: [], knownClasses: [], tiers: DEFAULT_TIERS });
+    return res.json({ success: true, settings: [], knownClasses: DEFAULT_CLASSES, tiers: DEFAULT_TIERS });
   }
 });
 
