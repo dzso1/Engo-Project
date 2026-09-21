@@ -1248,5 +1248,6 @@ module.exports = {
   analyzeTestQuestions,
   parseTestMatrix,
   speakingFeedback,
-  extractEnglishSentences
+  extractEnglishSentences,
+  callAiJson
 };

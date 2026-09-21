@@ -16,6 +16,7 @@ const aiService = require("./services/ai-service");
 const speakingScorer = require("./services/speaking-scorer");
 const { extractDocumentText } = require("./services/document-text");
 const progressService = require("./services/progress");
+const unitsData = require("./services/units-data");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -2147,6 +2148,91 @@ app.post("/api/ai/translate-and-ipa", async (req, res) => {
   } catch (error) {
     console.error("Lỗi AI dịch & IPA:", error);
     return res.status(500).json({ success: false, message: "Không thể tạo phiên âm và bản dịch lúc này." });
+  }
+});
+
+
+/* ==================== HỌC LIỆU THEO UNIT 1–12 ==================== */
+
+// Tổng quan 12 unit: số từ vựng, điểm ngữ pháp, mã lỗi, câu nói, đoạn nghe.
+app.get("/api/units", requireLogin, (req, res) => {
+  try {
+    return res.json({ success: true, ...unitsData.summary() });
+  } catch (error) {
+    console.error("Lỗi đọc học liệu theo unit:", error);
+    return res.status(500).json({ success: false, message: "Không đọc được học liệu theo unit." });
+  }
+});
+
+// Toàn bộ học liệu của một unit (từ vựng, ngữ pháp, luyện nói, luyện nghe).
+app.get("/api/units/:n", requireLogin, (req, res) => {
+  const n = Number(req.params.n);
+  if (!Number.isInteger(n) || n < 1 || n > 12) {
+    return res.status(400).json({ success: false, message: "Unit phải là số từ 1 đến 12." });
+  }
+  const data = unitsData.unit(n);
+  if (!data) return res.status(404).json({ success: false, message: `Chưa có học liệu cho Unit ${n}.` });
+  return res.json({ success: true, ...data });
+});
+
+// Danh sách mã lỗi ngữ pháp theo unit — Phòng Chữa Lỗi dùng để gom nhóm và vẽ bản đồ nhiệt.
+app.get("/api/units/meta/error-codes", requireLogin, (req, res) => {
+  return res.json({ success: true, codes: unitsData.errorCodes() });
+});
+
+/* ==================== KHUNG ĐỀ KTTX / KTGK / KTCK ==================== */
+
+// 12 khung đề của cả hai học kì; ?term=1 hoặc ?term=2 để lọc.
+app.get("/api/exams/specs", requireLogin, (req, res) => {
+  const term = req.query.term ? Number(req.query.term) : null;
+  if (term !== null && ![1, 2].includes(term)) {
+    return res.status(400).json({ success: false, message: "Học kì chỉ nhận giá trị 1 hoặc 2." });
+  }
+  return res.json({ success: true, specs: unitsData.examSpecs(term) });
+});
+
+// Một khung đề cụ thể, kèm ma trận và cấu trúc điểm.
+app.get("/api/exams/specs/:id", requireLogin, (req, res) => {
+  const spec = unitsData.examSpec(String(req.params.id));
+  if (!spec) return res.status(404).json({ success: false, message: "Không tìm thấy khung đề này." });
+  return res.json({ success: true, spec });
+});
+
+// Giáo viên nạp đề Word thật vào một khung đề: dùng lại bộ tách 5 phần kĩ năng sẵn có.
+app.post("/api/exams/specs/:id/import", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const spec = unitsData.examSpec(String(req.params.id));
+    if (!spec) return res.status(404).json({ success: false, message: "Không tìm thấy khung đề này." });
+
+    const { fileBase64, fileName } = req.body || {};
+    if (!fileBase64) return res.status(400).json({ success: false, message: "Vui lòng chọn tệp đề Word." });
+
+    const buffer = Buffer.from(String(fileBase64).split(",").pop(), "base64");
+    const { value: html } = await mammoth.convertToHtml({ buffer });
+    const parsed = parseDocxAssessment(html);
+    const questionCount = (parsed.sections || []).reduce((a, sec) => a + (sec.questions || []).length, 0);
+
+    const [result] = await pool.query(
+      "INSERT INTO imported_tests (title, class_name, payload, created_by) VALUES (?, ?, ?, ?)",
+      [
+        `${spec.name}${fileName ? " · " + fileName : ""}`,
+        req.user.className || null,
+        JSON.stringify({ specId: spec.id, type: spec.type, term: spec.term, units: spec.units, matrix: spec.matrix, ...parsed }),
+        req.user.id
+      ]
+    );
+
+    return res.json({
+      success: true,
+      testId: result.insertId,
+      specId: spec.id,
+      questionCount,
+      expected: spec.sections.reduce((a, x) => a + x.n, 0),
+      message: `Đã nạp ${questionCount} câu vào khung "${spec.name}".`
+    });
+  } catch (error) {
+    console.error("Lỗi nạp đề vào khung:", error);
+    return res.status(500).json({ success: false, message: "Không nạp được đề. Kiểm tra lại tệp Word." });
   }
 });
 

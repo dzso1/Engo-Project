@@ -94,18 +94,18 @@ document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("cli
 
 
 const ROUTE_MAP = {
-  "overview": "/overview", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
-  "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
+  "student-home": "/dashboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
+  "vocabulary": "/vocabulary", "errorHealing": "/healing", "results": "/results", "speaking-lab": "/speaking",
   "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin"
 };
 const REVERSE_ROUTE_MAP = {
-  "/": "overview", "/overview": "overview", "/dashboard": "overview", "/results": "overview", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
+  "/": "student-home", "/dashboard": "student-home", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
-  "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
+  "/healing": "errorHealing", "/healing-room": "errorHealing", "/results": "results", "/speaking": "speaking-lab",
   "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin"
 };
-const STUDENT_VIEWS = new Set(["overview", "quiz", "achievements", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
-const ROLE_HOME = { student: "overview", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
+const STUDENT_VIEWS = new Set(["student-home", "quiz", "achievements", "tests", "vocabulary", "errorHealing", "results", "speaking-lab"]);
+const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
 
 function switchView(id, pushHistory = true) {
   if (!id || !document.getElementById(id)) return;
@@ -123,20 +123,20 @@ function switchView(id, pushHistory = true) {
   if (chatWidget) { chatWidget.style.display = isQuiz ? "none" : "block"; if (isQuiz) document.getElementById("capybaraChatWindow")?.classList.add("hidden"); }
 
   if (!currentUser) return;
-  if (id === "overview") { renderStudentDashboard(); renderStudentResults(); }
+  if (id === "student-home") renderStudentDashboard();
   if (id === "tests") renderTestsPage();
+  if (id === "results") renderStudentResults();
   if (id === "errorHealing") renderHealingRoom();
   if (id === "speaking-lab") renderSpeakingLab();
   if (id === "achievements") renderAchievements();
   if (id === "vocabulary") renderVocabDecks();
-  if (window.ENGO_UNITS_UI) window.ENGO_UNITS_UI.onView(id);
   if (id === "teacher-home") renderTeacherHome();
   if (id === "parent-home") renderParentDashboard();
   if (id === "data-admin") renderDataAdmin();
 }
 window.addEventListener("popstate", e => {
   const path = (window.location.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
-  switchView((e.state && e.state.viewId) || REVERSE_ROUTE_MAP[path] || "overview", false);
+  switchView((e.state && e.state.viewId) || REVERSE_ROUTE_MAP[path] || "student-home", false);
 });
 document.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", e => { e.preventDefault(); if (btn.dataset.view) switchView(btn.dataset.view); }));
 document.getElementById("menuBtn").addEventListener("click", () => sidebar.classList.toggle("open"));
@@ -155,10 +155,10 @@ function applyRole(role, switchPage = true) {
   const fromUrl = REVERSE_ROUTE_MAP[currentPath];
   
   if (fromUrl && (isStudent ? STUDENT_VIEWS.has(fromUrl) : !STUDENT_VIEWS.has(fromUrl))) { switchView(fromUrl, false); return; }
-  switchView(ROLE_HOME[role] || "overview");
+  switchView(ROLE_HOME[role] || "student-home");
 }
 roleSelect.disabled = true;
-document.getElementById("dashboardBtn").addEventListener("click", () => switchView(ROLE_HOME[currentUser?.role] || "overview"));
+document.getElementById("dashboardBtn").addEventListener("click", () => switchView(ROLE_HOME[currentUser?.role] || "student-home"));
 
 
 const authScreen = document.getElementById("authScreen");
@@ -264,7 +264,7 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   try { await apiRequest("/api/auth/logout", { method: "POST", body: "{}" }); } catch {}
   currentUser = null; studentProgress = null;
   authScreen.classList.remove("hidden");
-  views.forEach(v => v.classList.toggle("active", v.id === "overview"));
+  views.forEach(v => v.classList.toggle("active", v.id === "student-home"));
   window.history.pushState({}, "", "/");
   document.getElementById("loginForm").reset();
   showToast("Đã đăng xuất");
@@ -533,7 +533,7 @@ async function renderStudentDashboard(force = false) {
   } catch (e) {}
   if (!p.speaking.stages[1]?.attempts) todos.push({ title: "Bắt đầu luyện nói giai đoạn 1", desc: "Đọc các câu đơn theo chủ đề để mở khóa giai đoạn hội thoại.", view: "speaking-lab" });
   else if (p.speaking.stages[2]?.unlocked && !p.speaking.stages[2]?.attempts) todos.push({ title: "Giai đoạn 2 đã mở khóa!", desc: "Thử sức với hội thoại theo SGK.", view: "speaking-lab" });
-  if (p.tests.pending) todos.push({ title: `${p.tests.pending} bài đang chờ giáo viên chấm Writing`, desc: "Điểm sẽ cập nhật khi giáo viên chấm xong.", view: "overview" });
+  if (p.tests.pending) todos.push({ title: `${p.tests.pending} bài đang chờ giáo viên chấm Writing`, desc: "Điểm sẽ cập nhật khi giáo viên chấm xong.", view: "results" });
   const localHealing = getHealingProfile();
   const pendingErrors = localHealing.pronunciation.length + localHealing.grammar.length + localHealing.test.filter(t => !t.reviewed).length;
   if (pendingErrors) todos.push({ title: `${pendingErrors} lỗi đang chờ chữa`, desc: "Vào Phòng chữa lỗi để luyện lại.", view: "errorHealing" });
@@ -569,7 +569,7 @@ async function renderTestsPage() {
         ? `<span class="badge ${t.submission.status === "pending_manual" ? "orange" : "green"}">${t.submission.status === "pending_manual" ? "Chờ chấm Writing" : "Đã nộp"} · ${t.submission.scoreOnTen}/10</span>`
         : '<span class="badge blue">Chưa làm</span>';
       const action = t.submission
-        ? `<button class="btn btn-light btn-sm" data-view="overview">Xem kết quả</button>`
+        ? `<button class="btn btn-light btn-sm" data-view="results">Xem kết quả</button>`
         : `<button class="btn btn-primary btn-sm start-test-btn" data-test-id="${t.id}">Làm bài</button>`;
       return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Toàn khối</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes} phút</strong><div class="small muted">AI đề xuất</div></td><td>${status}</td><td>${action}</td></tr>`;
     }).join("");
@@ -795,7 +795,7 @@ async function submitQuiz() {
   } catch (error) { showToast(error.message); }
 }
 document.getElementById("gotoHealingRoomBtn")?.addEventListener("click", () => { closeModal("resultModal"); switchView("errorHealing"); });
-document.querySelectorAll(".modal-close").forEach(btn => btn.addEventListener("click", () => { closeModal("resultModal"); switchView("overview"); }));
+document.querySelectorAll(".modal-close").forEach(btn => btn.addEventListener("click", () => { closeModal("resultModal"); switchView("student-home"); }));
 setInterval(() => { if (document.getElementById("quiz").classList.contains("active")) saveAnswers(); }, 15000);
 
 

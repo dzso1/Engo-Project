@@ -81,7 +81,10 @@
 
       <div class="nav-label student-nav-group">Không gian học tập</div>
       <nav class="nav-list student-nav-group" id="mainNav">
-        <button class="nav-btn active" data-view="tests">
+        <button class="nav-btn active" data-view="student-home">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Dashboard
+        </button>
+        <button class="nav-btn" data-view="tests">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Bài kiểm tra
         </button>
         <button class="nav-btn" data-view="vocabulary">
@@ -90,17 +93,14 @@
         <button class="nav-btn" data-view="speaking-lab">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg></span> Luyện nói AI
         </button>
-        <button class="nav-btn" data-view="listening-lab">
-          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M6 8.5a6 6 0 1 1 12 0c0 3-2 4-3 5s-1 2-1 3a3 3 0 0 1-6 0"/><path d="M9 8.5a3 3 0 0 1 6 0"/></svg></span> Luyện nghe
-        </button>
         <button class="nav-btn" data-view="errorHealing">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span> Chữa lỗi
         </button>
+        <button class="nav-btn" data-view="results">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Kết quả
+        </button>
         <button class="nav-btn" data-view="achievements">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span> Thành tích
-        </button>
-        <button class="nav-btn" data-view="overview">
-          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span> Tổng kết &amp; Đánh giá
         </button>
       </nav>
 
@@ -143,7 +143,126 @@
 
       <div class="content">
         <!-- ===================== STUDENT DASHBOARD (ĐÁNH GIÁ) ===================== -->
-        
+        <section class="view active" id="student-home">
+          <div class="page-heading">
+            <div>
+              <h2 id="welcomeHeading">Dashboard đánh giá</h2>
+              <p>Toàn cảnh năng lực của bạn qua số liệu, biểu đồ và tiến bộ theo thời gian.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-light" id="refreshDashboardBtn">Làm mới</button>
+              <button class="btn btn-primary" data-view="tests">Vào bài kiểm tra</button>
+            </div>
+          </div>
+
+          <!-- CAPYBARA COMPANION -->
+          <section class="section card panel capybara-companion-card" id="capybaraCompanionCard" style="margin-top:0">
+            <div class="capybara-companion-main">
+              <div class="capybara-avatar-wrap">
+                <img src="./images/engocircle.png" alt="Capybara ENGO Companion" class="capybara-companion-img" id="capybaraAvatarImg" />
+                <span class="capybara-badge-lv" id="capybaraBadgeLv">Lv.1</span>
+              </div>
+              <div class="capybara-info-wrap">
+                <div class="capybara-header-row">
+                  <div>
+                    <h3 class="capybara-title" id="capybaraTitle">Bạn Đồng Hành Capybara</h3>
+                    <span class="small muted" id="capybaraSubtitle">Cấp độ 1: Capybara Mầm Non</span>
+                    <div class="title-chips" id="dashboardTitleChips"></div>
+                  </div>
+                  <div class="capybara-stats-pill">
+                    <span class="carrot-count" id="capybaraCarrotCount">🥕 <strong>15</strong> Cà rốt</span>
+                    <span class="streak-count" id="capybaraStreakCount">🔥 <strong>1</strong> ngày streak</span>
+                  </div>
+                </div>
+                <div class="capybara-speech-bubble" id="capybaraSpeechBubble">
+                  <span class="quote-icon">💬</span>
+                  <p id="capybaraMessage">"Xin chào! Hôm nay hãy luyện nói hoặc làm một bài kiểm tra để nhận thêm Cà rốt nhé! 🦫✨"</p>
+                </div>
+                <div class="capybara-level-progress-wrap" id="capybaraLevelProgressWrap">
+                  <div class="capybara-level-progress-labels">
+                    <span id="capybaraLevelNextLabel">Tiến hóa lên Lv.2: <strong>0 / 10 🥕</strong></span>
+                    <span id="capybaraLevelPercent">0%</span>
+                  </div>
+                  <div class="capybara-level-progress-bar"><div class="capybara-level-progress-fill" id="capybaraLevelProgressFill" style="width:0%"></div></div>
+                  <div class="small muted" id="capybaraLevelHint">Cần thêm 10 Cà rốt để tiến hóa cấp tiếp theo</div>
+                </div>
+                <div class="capybara-master-perks" id="capybaraMasterPerks" style="display:none">
+                  <div class="master-perk-badge">👑 ĐẶC QUYỀN BẬC THẦY HOÀNG GIA ĐÃ KÍCH HOẠT</div>
+                  <div class="master-perks-list"><span>⚡ <strong>Buff x1.5 XP</strong> vĩnh viễn</span><span>🌟 <strong>Hào quang Vương miện Vàng</strong></span></div>
+                </div>
+                <div class="capybara-actions-row">
+                  <button class="btn btn-soft btn-sm" id="talkToCapybaraBtn">🔊 Trò chuyện cùng Capybara</button>
+                  <button class="btn btn-soft btn-sm" id="feedCapybaraBtn">🥕 Cho ăn Cà rốt (-5 🥕)</button>
+                  <button class="btn btn-primary btn-sm" data-view="speaking-lab">Luyện nói AI ngay</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- CON SỐ TỔNG QUAN -->
+          <div class="grid stats-grid stats-grid-6">
+            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div><div><strong id="dashTestAvg">--</strong><span>Điểm TB kiểm tra</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5"><svg viewBox="0 0 24 24" style="stroke:#059669"><polyline points="20 6 9 17 4 12"/></svg></div><div><strong id="dashTestCount">0</strong><span>Bài kiểm tra đã làm</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#eef2ff"><svg viewBox="0 0 24 24" style="stroke:#4f46e5"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div><div><strong id="dashSpeakingAvg">--%</strong><span>Phát âm trung bình</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg></div><div><strong id="dashVocabSets">0</strong><span>Bộ từ vựng hoàn thành</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2"><svg viewBox="0 0 24 24" style="stroke:#dc2626"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div><strong id="dashHealed">0</strong><span>Lỗi đã chữa khỏi</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#ea580c"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><strong id="dashboardStreak">1 ngày</strong><span>Chuỗi ngày học</span></div></div>
+          </div>
+
+          <!-- NĂNG LỰC + CHỈ SỐ TỔNG QUAN -->
+          <section class="section learning-progress-section">
+            <div class="grid learning-overview-grid">
+              <article class="card panel competency-card">
+                <div class="section-head"><div><h3>Bản đồ năng lực 6 kỹ năng</h3><p class="small muted" id="competencyMessage">Tổng hợp từ bài kiểm tra, luyện nói và từ vựng.</p></div></div>
+                <div class="radar-wrap" aria-label="Biểu đồ năng lực 6 kỹ năng">
+                  <svg class="radar-chart" viewBox="0 0 320 280" role="img">
+                    <polygon class="radar-grid" points="160,38 244,86 244,182 160,230 76,182 76,86"></polygon>
+                    <polygon class="radar-grid radar-grid-mid" points="160,70 216,102 216,166 160,198 104,166 104,102"></polygon>
+                    <line x1="160" y1="38" x2="160" y2="230"></line><line x1="76" y1="86" x2="244" y2="182"></line><line x1="244" y1="86" x2="76" y2="182"></line>
+                    <polygon class="radar-value" id="radarPolygon" points="160,134 160,134 160,134 160,134 160,134 160,134"></polygon>
+                    <circle class="radar-dot" id="radarDotListening" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotSpeaking" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotVocabulary" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotGrammar" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotWriting" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotReading" cx="160" cy="134" r="4"></circle>
+                    <text x="160" y="22">Nghe</text><text x="258" y="91">Nói</text><text x="251" y="197">Từ vựng</text><text x="160" y="255">Ngữ pháp</text><text x="25" y="197">Viết</text><text x="34" y="91">Đọc</text>
+                  </svg>
+                </div>
+              </article>
+              <article class="card panel overall-card">
+                <div class="section-head"><h3>Chỉ số tổng quan</h3><span class="badge green" id="progressStatus">Đang khởi động</span></div>
+                <div class="overall-score"><div class="score-orbit"><strong id="overallProgress">0%</strong><span>Mức độ thành thạo</span></div><div><strong id="overallLevel">Người học khởi động</strong><p class="small muted" id="overallHint">Hoàn thành bài kiểm tra hoặc bài nói đầu tiên để mở thống kê.</p></div></div>
+                <div class="skill-stat-list" id="skillStatList"></div>
+                <div class="mini-stat-row"><div><span>Điểm cao nhất</span><strong id="progressBest">--</strong></div><div><span>XP tích lũy</span><strong id="progressPoints">0 XP</strong></div><div><span>Ngày hoạt động</span><strong id="progressActiveDays">0</strong></div></div>
+              </article>
+            </div>
+          </section>
+
+          <!-- BIỂU ĐỒ XU HƯỚNG -->
+          <div class="section grid two-col-even">
+            <div class="card panel">
+              <div class="section-head"><div><h3>Xu hướng điểm kiểm tra</h3><p class="small muted" id="testTrendHint">Điểm hệ 10 của các bài gần nhất</p></div></div>
+              <div class="chart" id="testTrendChart"><div class="empty-state" style="width:100%">Chưa có bài kiểm tra nào.</div></div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><div><h3>Tiến bộ luyện nói theo giai đoạn</h3><p class="small muted">Độ chuẩn phát âm trung bình mỗi ngày</p></div></div>
+              <div class="stage-mini-grid" id="dashStageGrid"></div>
+              <div class="chart chart-sm" id="speakingTrendChart"><div class="empty-state" style="width:100%">Chưa có lượt luyện nói.</div></div>
+            </div>
+          </div>
+
+          <div class="section grid two-col">
+            <div class="card panel">
+              <div class="section-head"><h3>Kết quả gần đây</h3><a href="#" data-view="results">Chi tiết</a></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Hoạt động</th><th>Ngày</th><th>Kết quả</th><th>Loại</th></tr></thead>
+                  <tbody id="recentHomeSubmissionsBody"><tr><td colspan="4" class="small muted" style="text-align:center;padding:20px">Chưa có hoạt động nào.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Việc cần làm</h3></div>
+              <div class="notice-list" id="dashboardTodoList"><div class="notice"><strong>Đang tải...</strong></div></div>
+            </div>
+          </div>
+        </section>
 
         <!-- ===================== BÀI KIỂM TRA ===================== -->
         <section class="view" id="tests">
@@ -358,7 +477,37 @@
         </section>
 
         <!-- ===================== KẾT QUẢ ===================== -->
-        
+        <section class="view" id="results">
+          <div class="page-heading">
+            <div><h2>Kết quả học tập</h2><p>Ghi nhận từng lần kiểm tra, từng bài luyện nói và bộ từ vựng bạn đã hoàn thành.</p></div>
+            <button class="btn btn-light" id="refreshStudentResultsBtn">Làm mới</button>
+          </div>
+          <div class="grid stats-grid">
+            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div><div><strong id="studentAvgScore">--</strong><span>Điểm trung bình</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5"><svg viewBox="0 0 24 24" style="stroke:#059669"><polyline points="20 6 9 17 4 12"/></svg></div><div><strong id="studentAccuracy">--%</strong><span>Tỷ lệ chính xác</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></div><div><strong id="studentTotalTests">0</strong><span>Bài kiểm tra đã nộp</span></div></div>
+            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2"><svg viewBox="0 0 24 24" style="stroke:#dc2626"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div><div><strong id="studentPendingWriting">0</strong><span>Bài chờ chấm Writing</span></div></div>
+          </div>
+          <div class="section card panel">
+            <div class="section-head"><h3>Lịch sử bài kiểm tra & nhận xét của giáo viên</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Bài kiểm tra</th><th>Trắc nghiệm + Speaking</th><th>Writing & Nhận xét</th><th>Tổng điểm</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody id="studentResultsTableBody"><tr><td colspan="6" class="small muted" style="text-align:center;padding:24px">Đang tải lịch sử bài làm...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="section grid two-col-even">
+            <div class="card panel">
+              <div class="section-head"><h3>Lịch sử luyện nói</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>Bài</th><th>Giai đoạn</th><th>Độ chuẩn</th><th>Ngày</th></tr></thead><tbody id="studentSpeakingHistoryBody"><tr><td colspan="4" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Lịch sử từ vựng & chữa lỗi</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>Hoạt động</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody id="studentVocabHistoryBody"><tr><td colspan="3" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
+            </div>
+          </div>
+        </section>
 
         <!-- ===================== THÀNH TÍCH ===================== -->
         <section class="view" id="achievements">
@@ -592,181 +741,6 @@
               <button class="btn btn-primary" id="backupNow" style="width:100%;margin-top:13px">Sao lưu ngay</button>
             </div>
           </div>
-        </section>
-
-        <!-- ===================== TỔNG KẾT & ĐÁNH GIÁ (gộp Dashboard + Kết quả) ===================== -->
-        <section class="view active" id="overview">
-          <div class="page-heading">
-            <div><h2>Tổng kết &amp; Đánh giá</h2><p>Toàn bộ bức tranh học tập của bạn: tiến độ đang diễn ra và kết quả đã đạt được, gộp chung một chỗ.</p></div>
-            <button class="btn btn-light" id="refreshOverviewBtn">Làm mới</button>
-          </div>
-          <div class="healing-tabs" id="overviewTabs">
-            <button class="healing-tab active" data-ov-tab="progress">📈 Tiến độ học tập</button>
-            <button class="healing-tab" data-ov-tab="results">🏁 Đánh giá kết quả</button>
-          </div>
-          <div class="healing-panel active" id="overviewPanel-progress">
-          <div class="page-heading">
-            <div>
-              <h2 id="welcomeHeading">Dashboard đánh giá</h2>
-              <p>Toàn cảnh năng lực của bạn qua số liệu, biểu đồ và tiến bộ theo thời gian.</p>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-light" id="refreshDashboardBtn">Làm mới</button>
-              <button class="btn btn-primary" data-view="tests">Vào bài kiểm tra</button>
-            </div>
-          </div>
-
-          <!-- CAPYBARA COMPANION -->
-          <section class="section card panel capybara-companion-card" id="capybaraCompanionCard" style="margin-top:0">
-            <div class="capybara-companion-main">
-              <div class="capybara-avatar-wrap">
-                <img src="./images/engocircle.png" alt="Capybara ENGO Companion" class="capybara-companion-img" id="capybaraAvatarImg" />
-                <span class="capybara-badge-lv" id="capybaraBadgeLv">Lv.1</span>
-              </div>
-              <div class="capybara-info-wrap">
-                <div class="capybara-header-row">
-                  <div>
-                    <h3 class="capybara-title" id="capybaraTitle">Bạn Đồng Hành Capybara</h3>
-                    <span class="small muted" id="capybaraSubtitle">Cấp độ 1: Capybara Mầm Non</span>
-                    <div class="title-chips" id="dashboardTitleChips"></div>
-                  </div>
-                  <div class="capybara-stats-pill">
-                    <span class="carrot-count" id="capybaraCarrotCount">🥕 <strong>15</strong> Cà rốt</span>
-                    <span class="streak-count" id="capybaraStreakCount">🔥 <strong>1</strong> ngày streak</span>
-                  </div>
-                </div>
-                <div class="capybara-speech-bubble" id="capybaraSpeechBubble">
-                  <span class="quote-icon">💬</span>
-                  <p id="capybaraMessage">"Xin chào! Hôm nay hãy luyện nói hoặc làm một bài kiểm tra để nhận thêm Cà rốt nhé! 🦫✨"</p>
-                </div>
-                <div class="capybara-level-progress-wrap" id="capybaraLevelProgressWrap">
-                  <div class="capybara-level-progress-labels">
-                    <span id="capybaraLevelNextLabel">Tiến hóa lên Lv.2: <strong>0 / 10 🥕</strong></span>
-                    <span id="capybaraLevelPercent">0%</span>
-                  </div>
-                  <div class="capybara-level-progress-bar"><div class="capybara-level-progress-fill" id="capybaraLevelProgressFill" style="width:0%"></div></div>
-                  <div class="small muted" id="capybaraLevelHint">Cần thêm 10 Cà rốt để tiến hóa cấp tiếp theo</div>
-                </div>
-                <div class="capybara-master-perks" id="capybaraMasterPerks" style="display:none">
-                  <div class="master-perk-badge">👑 ĐẶC QUYỀN BẬC THẦY HOÀNG GIA ĐÃ KÍCH HOẠT</div>
-                  <div class="master-perks-list"><span>⚡ <strong>Buff x1.5 XP</strong> vĩnh viễn</span><span>🌟 <strong>Hào quang Vương miện Vàng</strong></span></div>
-                </div>
-                <div class="capybara-actions-row">
-                  <button class="btn btn-soft btn-sm" id="talkToCapybaraBtn">🔊 Trò chuyện cùng Capybara</button>
-                  <button class="btn btn-soft btn-sm" id="feedCapybaraBtn">🥕 Cho ăn Cà rốt (-5 🥕)</button>
-                  <button class="btn btn-primary btn-sm" data-view="speaking-lab">Luyện nói AI ngay</button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- CON SỐ TỔNG QUAN -->
-          <div class="grid stats-grid stats-grid-6">
-            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div><div><strong id="dashTestAvg">--</strong><span>Điểm TB kiểm tra</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5"><svg viewBox="0 0 24 24" style="stroke:#059669"><polyline points="20 6 9 17 4 12"/></svg></div><div><strong id="dashTestCount">0</strong><span>Bài kiểm tra đã làm</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#eef2ff"><svg viewBox="0 0 24 24" style="stroke:#4f46e5"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div><div><strong id="dashSpeakingAvg">--%</strong><span>Phát âm trung bình</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg></div><div><strong id="dashVocabSets">0</strong><span>Bộ từ vựng hoàn thành</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2"><svg viewBox="0 0 24 24" style="stroke:#dc2626"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div><strong id="dashHealed">0</strong><span>Lỗi đã chữa khỏi</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#ea580c"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><strong id="dashboardStreak">1 ngày</strong><span>Chuỗi ngày học</span></div></div>
-          </div>
-
-          <!-- NĂNG LỰC + CHỈ SỐ TỔNG QUAN -->
-          <section class="section learning-progress-section">
-            <div class="grid learning-overview-grid">
-              <article class="card panel competency-card">
-                <div class="section-head"><div><h3>Bản đồ năng lực 6 kỹ năng</h3><p class="small muted" id="competencyMessage">Tổng hợp từ bài kiểm tra, luyện nói và từ vựng.</p></div></div>
-                <div class="radar-wrap" aria-label="Biểu đồ năng lực 6 kỹ năng">
-                  <svg class="radar-chart" viewBox="0 0 320 280" role="img">
-                    <polygon class="radar-grid" points="160,38 244,86 244,182 160,230 76,182 76,86"></polygon>
-                    <polygon class="radar-grid radar-grid-mid" points="160,70 216,102 216,166 160,198 104,166 104,102"></polygon>
-                    <line x1="160" y1="38" x2="160" y2="230"></line><line x1="76" y1="86" x2="244" y2="182"></line><line x1="244" y1="86" x2="76" y2="182"></line>
-                    <polygon class="radar-value" id="radarPolygon" points="160,134 160,134 160,134 160,134 160,134 160,134"></polygon>
-                    <circle class="radar-dot" id="radarDotListening" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotSpeaking" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotVocabulary" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotGrammar" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotWriting" cx="160" cy="134" r="4"></circle><circle class="radar-dot" id="radarDotReading" cx="160" cy="134" r="4"></circle>
-                    <text x="160" y="22">Nghe</text><text x="258" y="91">Nói</text><text x="251" y="197">Từ vựng</text><text x="160" y="255">Ngữ pháp</text><text x="25" y="197">Viết</text><text x="34" y="91">Đọc</text>
-                  </svg>
-                </div>
-              </article>
-              <article class="card panel overall-card">
-                <div class="section-head"><h3>Chỉ số tổng quan</h3><span class="badge green" id="progressStatus">Đang khởi động</span></div>
-                <div class="overall-score"><div class="score-orbit"><strong id="overallProgress">0%</strong><span>Mức độ thành thạo</span></div><div><strong id="overallLevel">Người học khởi động</strong><p class="small muted" id="overallHint">Hoàn thành bài kiểm tra hoặc bài nói đầu tiên để mở thống kê.</p></div></div>
-                <div class="skill-stat-list" id="skillStatList"></div>
-                <div class="mini-stat-row"><div><span>Điểm cao nhất</span><strong id="progressBest">--</strong></div><div><span>XP tích lũy</span><strong id="progressPoints">0 XP</strong></div><div><span>Ngày hoạt động</span><strong id="progressActiveDays">0</strong></div></div>
-              </article>
-            </div>
-          </section>
-
-          <!-- BIỂU ĐỒ XU HƯỚNG -->
-          <div class="section grid two-col-even">
-            <div class="card panel">
-              <div class="section-head"><div><h3>Xu hướng điểm kiểm tra</h3><p class="small muted" id="testTrendHint">Điểm hệ 10 của các bài gần nhất</p></div></div>
-              <div class="chart" id="testTrendChart"><div class="empty-state" style="width:100%">Chưa có bài kiểm tra nào.</div></div>
-            </div>
-            <div class="card panel">
-              <div class="section-head"><div><h3>Tiến bộ luyện nói theo giai đoạn</h3><p class="small muted">Độ chuẩn phát âm trung bình mỗi ngày</p></div></div>
-              <div class="stage-mini-grid" id="dashStageGrid"></div>
-              <div class="chart chart-sm" id="speakingTrendChart"><div class="empty-state" style="width:100%">Chưa có lượt luyện nói.</div></div>
-            </div>
-          </div>
-
-          <div class="section grid two-col">
-            <div class="card panel">
-              <div class="section-head"><h3>Kết quả gần đây</h3><a href="#" data-ov-jump="results">Chi tiết</a></div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Hoạt động</th><th>Ngày</th><th>Kết quả</th><th>Loại</th></tr></thead>
-                  <tbody id="recentHomeSubmissionsBody"><tr><td colspan="4" class="small muted" style="text-align:center;padding:20px">Chưa có hoạt động nào.</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="card panel">
-              <div class="section-head"><h3>Việc cần làm</h3></div>
-              <div class="notice-list" id="dashboardTodoList"><div class="notice"><strong>Đang tải...</strong></div></div>
-            </div>
-          </div>
-        </div>
-          <div class="healing-panel" id="overviewPanel-results">
-          <div class="page-heading">
-            <div><h2>Kết quả học tập</h2><p>Ghi nhận từng lần kiểm tra, từng bài luyện nói và bộ từ vựng bạn đã hoàn thành.</p></div>
-            <button class="btn btn-light" id="refreshStudentResultsBtn">Làm mới</button>
-          </div>
-          <div class="grid stats-grid">
-            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div><div><strong id="studentAvgScore">--</strong><span>Điểm trung bình</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5"><svg viewBox="0 0 24 24" style="stroke:#059669"><polyline points="20 6 9 17 4 12"/></svg></div><div><strong id="studentAccuracy">--%</strong><span>Tỷ lệ chính xác</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></div><div><strong id="studentTotalTests">0</strong><span>Bài kiểm tra đã nộp</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2"><svg viewBox="0 0 24 24" style="stroke:#dc2626"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div><div><strong id="studentPendingWriting">0</strong><span>Bài chờ chấm Writing</span></div></div>
-          </div>
-          <div class="section card panel">
-            <div class="section-head"><h3>Lịch sử bài kiểm tra & nhận xét của giáo viên</h3></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Bài kiểm tra</th><th>Trắc nghiệm + Speaking</th><th>Writing & Nhận xét</th><th>Tổng điểm</th><th>Trạng thái</th><th></th></tr></thead>
-                <tbody id="studentResultsTableBody"><tr><td colspan="6" class="small muted" style="text-align:center;padding:24px">Đang tải lịch sử bài làm...</td></tr></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="section grid two-col-even">
-            <div class="card panel">
-              <div class="section-head"><h3>Lịch sử luyện nói</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>Bài</th><th>Giai đoạn</th><th>Độ chuẩn</th><th>Ngày</th></tr></thead><tbody id="studentSpeakingHistoryBody"><tr><td colspan="4" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
-            </div>
-            <div class="card panel">
-              <div class="section-head"><h3>Lịch sử từ vựng & chữa lỗi</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>Hoạt động</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody id="studentVocabHistoryBody"><tr><td colspan="3" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
-            </div>
-          </div>
-        </div>
-        </section>
-
-        <!-- ===================== LUYỆN NGHE THEO UNIT ===================== -->
-        <section class="view" id="listening-lab">
-          <div class="page-heading">
-            <div><h2>Luyện nghe theo Unit</h2><p>Mỗi Unit có 3 cấp độ nghe từ dễ đến khó. Nghe xong làm ngay bài tập áp dụng để biết mình nắm được bao nhiêu.</p></div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:700" id="listenProgressBadge">0 / 36 đoạn</span>
-              <button class="btn btn-light btn-sm" id="refreshListeningBtn">Làm mới</button>
-            </div>
-          </div>
-          <div id="listeningMount"></div>
         </section>
 
         <!-- ===================== QUIZ / PHÒNG THI ===================== -->
@@ -1033,12 +1007,6 @@
   <script src="./data/healing-bank.js?v=3"></script>
   <script src="./data/vocab-decks.js?v=3"></script>
   <script src="./data/speaking-sets.js?v=3"></script>
-  <script src="./data/vocab-units.js?v=4"></script>
-  <script src="./data/grammar-units.js?v=4"></script>
-  <script src="./data/speaking-units.js?v=4"></script>
-  <script src="./data/listening-units.js?v=4"></script>
-  <script src="./data/exam-bank.js?v=4"></script>
-  <script src="./script.js?v=4" defer></script>
-  <script src="./units-ui.js?v=4" defer></script>
+  <script src="./script.js?v=3" defer></script>
 </body>
 </html>

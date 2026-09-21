@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/baocaoengo//**)",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\);const m=require\\('mysql2/promise'\\);m.createConnection\\({host:process.env.DB_HOST,port:process.env.DB_PORT,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME}\\).then\\(async c=>{const [t]=await c.query\\('SHOW TABLES'\\);console.log\\('MySQL OK, tables:',t.map\\(r=>Object.values\\(r\\)[0]\\).join\\(', '\\)\\);const [u]=await c.query\\('SELECT id,email,role,class_name FROM users LIMIT 20'\\);console.log\\(u\\);await c.end\\(\\)}\\).catch\\(e=>console.log\\('MySQL ERR:',e.message\\)\\)\")",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\);const m=require\\('mysql2/promise'\\);m.createConnection\\({host:process.env.DB_HOST,port:process.env.DB_PORT,user:process.env.DB_USER,password:process.env.DB_PASSWORD,database:process.env.DB_NAME}\\).then\\(async c=>{for\\(const t of ['flashcard_sets','flashcards','imported_tests','writing_submissions']\\){const [r]=await c.query\\('SHOW CREATE TABLE '+t\\);console.log\\(r[0]['Create Table']\\);console.log\\('---'\\);}const [cnt]=await c.query\\('SELECT \\(SELECT COUNT\\(*\\) FROM flashcard_sets\\) s,\\(SELECT COUNT\\(*\\) FROM flashcards\\) f,\\(SELECT COUNT\\(*\\) FROM imported_tests\\) t,\\(SELECT COUNT\\(*\\) FROM writing_submissions\\) w'\\);console.log\\(cnt\\);await c.end\\(\\)}\\).catch\\(e=>console.log\\('ERR',e.message\\)\\)\")"
+    ]
+  }
+}

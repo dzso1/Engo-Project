@@ -1,0 +1,411 @@
+/* ============================================================================
+ * ENGO Learning Hub — Lớp giao diện "học theo Unit 1–12"
+ * ----------------------------------------------------------------------------
+ * Gắn thêm vào các màn hình sẵn có mà không sửa script.js:
+ *   #vocabulary    → Từ vựng & Ngữ pháp theo Unit (data/vocab-units.js, grammar-units.js)
+ *   #speaking-lab  → Luyện nói theo Unit, 3 cấp độ dễ → khó (data/speaking-units.js)
+ *   #listening-lab → Luyện nghe theo Unit, 3 cấp độ + bài tập (data/listening-units.js)
+ *   #tests         → Khung KTTX / KTGK / KTCK cho HK1 và HK2 (data/exam-bank.js)
+ *   #overview      → Gộp Tiến độ học tập và Đánh giá kết quả thành một phần cuối
+ * Dùng lại speakEnglishText(), gainRewards(), showToast() của script.js khi có.
+ * ==========================================================================*/
+(function () {
+  "use strict";
+
+  const VOCAB = () => window.ENGO_VOCAB_UNITS || {};
+  const GRAM = () => window.ENGO_GRAMMAR_UNITS || {};
+  const SPEAK = () => window.ENGO_SPEAKING_UNITS || {};
+  const LISTEN = () => window.ENGO_LISTENING_UNITS || {};
+  const EXAM = () => window.ENGO_EXAM_BANK || null;
+  const UNITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+  const esc = s => String(s ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m]));
+  const toast = m => (window.showToast ? window.showToast(m) : null);
+  const say = (t, rate, onDone) => (window.speakEnglishText ? window.speakEnglishText(t, { rate: rate || 0.85, onDone }) : onDone && onDone());
+  const reward = (xp, carrots, why) => { try { window.gainRewards && window.gainRewards(xp, carrots, why || ""); } catch (_) {} };
+  const $ = (sel, root) => (root || document).querySelector(sel);
+
+  /* ---------------------------- lưu tiến độ ---------------------------- */
+  function storeKey() {
+    try { if (window.getUserStorageKey) return window.getUserStorageKey("engoUnitsProgressV1"); } catch (_) {}
+    return "engoUnitsProgressV1_guest";
+  }
+  function loadProg() {
+    try { return JSON.parse(localStorage.getItem(storeKey()) || "") || {}; } catch (_) { return {}; }
+  }
+  function saveProg(p) {
+    try { localStorage.setItem(storeKey(), JSON.stringify(p)); } catch (_) {}
+  }
+  function markDone(bucket, id) {
+    const p = loadProg();
+    p[bucket] = p[bucket] || {};
+    if (p[bucket][id]) return false;
+    p[bucket][id] = new Date().toISOString();
+    saveProg(p);
+    return true;
+  }
+  const countDone = bucket => Object.keys(loadProg()[bucket] || {}).length;
+
+  /* ------------------------- bộ chọn Unit dùng chung ------------------------- */
+  const state = { vocabUnit: 1, vocabTab: "words", speakUnit: 1, listenUnit: 1, examTerm: 1 };
+
+  function unitChips(current, attr) {
+    return '<div class="unit-chip-row">' + UNITS.map(u =>
+      `<button type="button" class="unit-chip${u === current ? " active" : ""}" ${attr}="${u}">U${u}</button>`
+    ).join("") + "</div>";
+  }
+
+  /* ============================== 1. TỪ VỰNG ============================== */
+  function vocabPanelHTML() {
+    const u = state.vocabUnit;
+    const deck = VOCAB()["unit" + u];
+    const gram = GRAM()["unit" + u];
+    if (!deck) return '<div class="card panel"><p class="small muted">Chưa nạp được dữ liệu từ vựng.</p></div>';
+
+    const SECN = { GS: "Getting Started", CL1: "A Closer Look 1", CL2: "A Closer Look 2", COM: "Communication", SK1: "Skills 1", SK2: "Skills 2", LB: "Looking Back", PRJ: "Project" };
+    const groups = {};
+    deck.cards.forEach(c => { (groups[c.sec] = groups[c.sec] || []).push(c); });
+
+    const words = Object.keys(groups).map(sec => `
+      <div class="unit-sec">
+        <h4 class="unit-sec-title">${esc(SECN[sec] || sec)} <span class="small muted">· ${groups[sec].length} từ</span></h4>
+        <div class="unit-word-grid">
+          ${groups[sec].map(c => `
+            <div class="unit-word">
+              <button type="button" class="unit-say" data-say="${esc(c.w)}" title="Nghe phát âm">🔊</button>
+              <div>
+                <b>${esc(c.w)}</b> ${c.pos ? `<span class="unit-pos">${esc(c.pos)}</span>` : ""}
+                <div class="small muted">${esc(c.ipa)}</div>
+                <div class="unit-vi">${esc(c.vi)}</div>
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>`).join("");
+
+    const grammar = !gram ? '<p class="small muted">Chưa có dữ liệu ngữ pháp cho unit này.</p>' : `
+      <p class="unit-focus"><b>Trọng tâm:</b> ${esc(gram.focus)}</p>
+      ${gram.points.map(pt => `
+        <div class="unit-rule">
+          <h4>${esc(pt.title)}</h4>
+          <p>${esc(pt.rule)}</p>
+          <div class="unit-form">${esc(pt.form)}</div>
+          <div class="unit-ok">✔ ${esc(pt.ok)}</div>
+          <div class="unit-no">✘ ${esc(pt.no)}</div>
+          <p class="small muted">${esc(pt.note)}</p>
+        </div>`).join("")}
+      <div class="unit-codes">
+        <b class="small">Mã lỗi Phòng Chữa Lỗi nhận ra ở unit này:</b>
+        ${gram.codes.map(c => `<span class="unit-code" title="${esc(c.hint)}">${esc(c.id)} · ${esc(c.label)}</span>`).join("")}
+      </div>
+      <div class="unit-quiz" id="unitGrammarQuiz">
+        <h4>Luyện tập nhanh</h4>
+        ${gram.quiz.map((q, i) => {
+          const opts = [q.a].concat(q.b).map((o, k) => ({ o, k })).sort(() => Math.random() - 0.5);
+          return `<div class="unit-q" data-answer="${esc(q.a)}" data-code="${esc(q.code)}">
+            <p><b>${i + 1}.</b> ${esc(q.q)}</p>
+            <div class="unit-opts">${opts.map(x => `<button type="button" class="unit-opt" data-val="${esc(x.o)}">${esc(x.o)}</button>`).join("")}</div>
+          </div>`;
+        }).join("")}
+        <button class="btn btn-primary btn-sm" id="unitGrammarCheck" type="button">Kiểm tra đáp án</button>
+        <span class="small muted" id="unitGrammarScore"></span>
+      </div>`;
+
+    return `
+      <div class="card panel unit-panel">
+        <div class="section-head">
+          <div><h3>Học theo Unit · ${esc(deck.name)}</h3>
+            <p class="small muted">${deck.cards.length} từ vựng và ${gram ? gram.points.length : 0} điểm ngữ pháp bám sát sách Global Success 9.</p></div>
+          <span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:700">700 từ · 12 unit</span>
+        </div>
+        ${unitChips(u, "data-vunit")}
+        <div class="healing-tabs" style="margin-top:12px">
+          <button class="healing-tab${state.vocabTab === "words" ? " active" : ""}" data-vtab="words">📘 Từ vựng</button>
+          <button class="healing-tab${state.vocabTab === "grammar" ? " active" : ""}" data-vtab="grammar">✍️ Ngữ pháp</button>
+        </div>
+        <div class="unit-body">${state.vocabTab === "words" ? words : grammar}</div>
+      </div>`;
+  }
+
+  function mountVocab() {
+    const view = document.getElementById("vocabulary");
+    if (!view) return;
+    let host = document.getElementById("unitVocabMount");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "unitVocabMount";
+      view.insertBefore(host, view.children[1] || null);
+    }
+    host.innerHTML = vocabPanelHTML();
+
+    host.querySelectorAll("[data-vunit]").forEach(b => b.addEventListener("click", () => {
+      state.vocabUnit = Number(b.dataset.vunit); mountVocab();
+    }));
+    host.querySelectorAll("[data-vtab]").forEach(b => b.addEventListener("click", () => {
+      state.vocabTab = b.dataset.vtab; mountVocab();
+    }));
+    host.querySelectorAll("[data-say]").forEach(b => b.addEventListener("click", () => say(b.dataset.say, 0.8)));
+
+    host.querySelectorAll(".unit-q").forEach(q => q.querySelectorAll(".unit-opt").forEach(o => o.addEventListener("click", () => {
+      q.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked"));
+      o.classList.add("picked");
+    })));
+    const check = document.getElementById("unitGrammarCheck");
+    if (check) check.addEventListener("click", () => {
+      const qs = [...host.querySelectorAll(".unit-q")];
+      let right = 0;
+      qs.forEach(q => {
+        const picked = q.querySelector(".unit-opt.picked");
+        const ok = picked && picked.dataset.val === q.dataset.answer;
+        if (ok) right++;
+        q.querySelectorAll(".unit-opt").forEach(o => {
+          o.classList.toggle("right", o.dataset.val === q.dataset.answer);
+          o.classList.toggle("wrong", o === picked && !ok);
+        });
+        if (!ok && window.ENGO_UNITS_UI) window.ENGO_UNITS_UI.pushError(q.dataset.code);
+      });
+      $("#unitGrammarScore").textContent = `Đúng ${right}/${qs.length}`;
+      if (right === qs.length && markDone("grammar", "u" + state.vocabUnit)) {
+        reward(30, 3, `Ngữ pháp Unit ${state.vocabUnit}`);
+        toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3 🥕`);
+      }
+    });
+  }
+
+  /* ============================== 2. LUYỆN NÓI ============================== */
+  function mountSpeaking() {
+    const view = document.getElementById("speaking-lab");
+    if (!view) return;
+    let host = document.getElementById("unitSpeakMount");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "unitSpeakMount";
+      view.insertBefore(host, view.children[1] || null);
+    }
+    const u = state.speakUnit;
+    const set = SPEAK()["unit" + u];
+    host.innerHTML = !set ? "" : `
+      <div class="card panel unit-panel">
+        <div class="section-head">
+          <div><h3>Luyện nói theo Unit · ${esc(set.name)}</h3>
+            <p class="small muted">Ba cấp độ tăng dần. Nghe câu mẫu, bấm micro ở bảng dưới để đọc theo; điểm phát âm chấm theo cách đọc nên giọng miền nào cũng công bằng.</p></div>
+          <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700">96 câu · 12 unit</span>
+        </div>
+        ${unitChips(u, "data-sunit")}
+        <div class="unit-body">
+          ${set.levels.map(l => `
+            <div class="unit-sec">
+              <h4 class="unit-sec-title"><span class="unit-lv lv${l.level}">Cấp ${l.level}</span> ${esc(l.label)}</h4>
+              ${l.items.map(it => `
+                <div class="unit-line">
+                  <button type="button" class="unit-say" data-say="${esc(it.text)}" title="Nghe câu mẫu">🔊</button>
+                  <div>
+                    <b>${esc(it.text)}</b>
+                    <div class="unit-vi">${esc(it.vi)}</div>
+                    <div class="small muted">Chú ý: ${esc(it.focus)}</div>
+                  </div>
+                </div>`).join("")}
+            </div>`).join("")}
+        </div>
+      </div>`;
+    host.querySelectorAll("[data-sunit]").forEach(b => b.addEventListener("click", () => { state.speakUnit = Number(b.dataset.sunit); mountSpeaking(); }));
+    host.querySelectorAll("[data-say]").forEach(b => b.addEventListener("click", () => say(b.dataset.say, 0.8)));
+  }
+
+  /* ============================== 3. LUYỆN NGHE ============================== */
+  function mountListening() {
+    const host = document.getElementById("listeningMount");
+    if (!host) return;
+    const u = state.listenUnit;
+    const set = LISTEN()["unit" + u];
+    const badge = document.getElementById("listenProgressBadge");
+    if (badge) badge.textContent = `${countDone("listen")} / 36 đoạn`;
+    if (!set) { host.innerHTML = '<div class="card panel"><p class="small muted">Chưa nạp được dữ liệu luyện nghe.</p></div>'; return; }
+
+    host.innerHTML = `
+      <div class="card panel unit-panel">
+        <div class="section-head">
+          <div><h3>${esc(set.name)}</h3>
+            <p class="small muted">Nghe tối đa 3 lần mỗi đoạn, sau đó làm bài tập. Xem lời thoại chỉ nên bấm sau khi đã trả lời.</p></div>
+        </div>
+        ${unitChips(u, "data-lunit")}
+      </div>
+      ${set.tasks.map((t, ti) => `
+        <div class="card panel unit-panel" data-task="${ti}">
+          <div class="section-head">
+            <div><h3><span class="unit-lv lv${t.level}">Cấp ${t.level}</span> ${esc(t.title)}</h3>
+              <p class="small muted">${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "l" + t.level] ? "· ✅ đã hoàn thành" : ""}</p></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button">▶ Nghe</button>
+              <span class="small muted" data-plays="${ti}">Còn 3 lượt</span>
+            </div>
+          </div>
+          <div class="unit-body">
+            ${t.qs.map((q, qi) => renderQ(q, ti, qi)).join("")}
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+              <button class="btn btn-primary btn-sm" data-check="${ti}" type="button">Kiểm tra</button>
+              <button class="btn btn-light btn-sm" data-script="${ti}" type="button">Xem lời thoại</button>
+              <span class="small muted" data-score="${ti}"></span>
+            </div>
+            <div class="unit-script hidden" data-scripttext="${ti}">${esc(t.script)}</div>
+          </div>
+        </div>`).join("")}`;
+
+    host.querySelectorAll("[data-lunit]").forEach(b => b.addEventListener("click", () => { state.listenUnit = Number(b.dataset.lunit); mountListening(); }));
+
+    const plays = {};
+    set.tasks.forEach((t, ti) => {
+      plays[ti] = 3;
+      const playBtn = host.querySelector(`[data-play="${ti}"]`);
+      const label = host.querySelector(`[data-plays="${ti}"]`);
+      playBtn.addEventListener("click", () => {
+        if (plays[ti] <= 0) { toast("Đã hết lượt nghe cho đoạn này."); return; }
+        plays[ti]--;
+        label.textContent = `Còn ${plays[ti]} lượt`;
+        playBtn.disabled = true;
+        say(t.script, t.rate, () => { playBtn.disabled = false; });
+      });
+      host.querySelector(`[data-script="${ti}"]`).addEventListener("click", () => {
+        host.querySelector(`[data-scripttext="${ti}"]`).classList.toggle("hidden");
+      });
+      host.querySelectorAll(`[data-task="${ti}"] .unit-opt`).forEach(o => o.addEventListener("click", () => {
+        o.parentElement.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked"));
+        o.classList.add("picked");
+      }));
+      host.querySelector(`[data-check="${ti}"]`).addEventListener("click", () => {
+        let right = 0;
+        t.qs.forEach((q, qi) => {
+          const box = host.querySelector(`[data-task="${ti}"] [data-q="${qi}"]`);
+          let ok = false;
+          if (q.type === "gap") {
+            const val = (box.querySelector("input").value || "").trim().toLowerCase();
+            ok = val === String(q.a).toLowerCase();
+            box.querySelector("input").classList.toggle("wrong", !ok);
+            box.querySelector("input").classList.toggle("right", ok);
+          } else {
+            const picked = box.querySelector(".unit-opt.picked");
+            const want = q.type === "tf" ? (q.a ? "Đúng" : "Sai") : q.opts[q.a];
+            ok = picked && picked.dataset.val === want;
+            box.querySelectorAll(".unit-opt").forEach(o => {
+              o.classList.toggle("right", o.dataset.val === want);
+              o.classList.toggle("wrong", o === picked && !ok);
+            });
+          }
+          if (ok) right++;
+        });
+        host.querySelector(`[data-score="${ti}"]`).textContent = `Đúng ${right}/${t.qs.length}`;
+        if (right === t.qs.length && markDone("listen", "u" + u + "l" + t.level)) {
+          reward(30, 3, `Nghe Unit ${u} cấp ${t.level}`);
+          toast(`Hoàn thành đoạn nghe: +30 XP, +3 🥕`);
+          if (badge) badge.textContent = `${countDone("listen")} / 36 đoạn`;
+        }
+      });
+    });
+  }
+
+  function renderQ(q, ti, qi) {
+    const head = `<p><b>${qi + 1}.</b> ${esc(q.q)}</p>`;
+    if (q.type === "gap") return `<div class="unit-q" data-q="${qi}">${head}<input class="unit-gap" type="text" placeholder="Điền từ nghe được"></div>`;
+    const opts = q.type === "tf" ? ["Đúng", "Sai"] : q.opts;
+    return `<div class="unit-q" data-q="${qi}">${head}<div class="unit-opts">${opts.map(o => `<button type="button" class="unit-opt" data-val="${esc(o)}">${esc(o)}</button>`).join("")}</div></div>`;
+  }
+
+  /* ============================== 4. NGÂN HÀNG ĐỀ ============================== */
+  function mountExams() {
+    const view = document.getElementById("tests");
+    const B = EXAM();
+    if (!view || !B) return;
+    let host = document.getElementById("unitExamMount");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "unitExamMount";
+      view.insertBefore(host, view.children[1] || null);
+    }
+    const term = state.examTerm;
+    const specs = B.byTerm(term);
+    const TYPEN = { KTTX: "Thường xuyên", KTGK: "Giữa kì", KTCK: "Cuối kì" };
+
+    host.innerHTML = `
+      <div class="card panel unit-panel">
+        <div class="section-head">
+          <div><h3>Ba loại kiểm tra theo Thông tư 22</h3>
+            <p class="small muted">Mỗi học kì có 4 đầu điểm thường xuyên, 1 bài giữa kì và 1 bài cuối kì. Khung dưới đây là mặc định; ma trận thật của trường sẽ ghi đè khi giáo viên tải lên.</p></div>
+          <span class="badge" style="background:#fff7ed;color:#b45309;font-weight:700">12 khung đề</span>
+        </div>
+        <div class="healing-tabs">
+          <button class="healing-tab${term === 1 ? " active" : ""}" data-term="1">Học kì I · Unit 1–6</button>
+          <button class="healing-tab${term === 2 ? " active" : ""}" data-term="2">Học kì II · Unit 7–12</button>
+        </div>
+        <div class="table-wrap" style="margin-top:12px">
+          <table>
+            <thead><tr><th>Bài kiểm tra</th><th>Loại</th><th>Phạm vi</th><th>Thời gian</th><th>Cấu trúc</th><th>Ma trận NB–TH–VD–VDC</th><th>Ngân hàng đề</th></tr></thead>
+            <tbody>
+              ${specs.map(s => `
+                <tr>
+                  <td><b>${esc(s.name)}</b><div class="small muted">${esc(s.form)}</div></td>
+                  <td><span class="unit-code">${esc(TYPEN[s.type])}</span></td>
+                  <td>Unit ${s.units.join(", ")}</td>
+                  <td>${s.minutes} phút</td>
+                  <td class="small">${s.sections.map(x => `${esc(x.skill)} <b>${x.n}</b> câu · ${x.pts} đ`).join("<br>")}</td>
+                  <td class="small">${s.matrix.NB}% – ${s.matrix.TH}% – ${s.matrix.VD}% – ${s.matrix.VDC}%</td>
+                  <td>${B.hasBank(s.id) ? '<span class="unit-ok" style="display:inline">✔ Đã nạp</span>' : '<span class="small muted">Chưa nạp — giáo viên tải đề Word lên</span>'}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    host.querySelectorAll("[data-term]").forEach(b => b.addEventListener("click", () => { state.examTerm = Number(b.dataset.term); mountExams(); }));
+  }
+
+  /* ============================== 5. TỔNG KẾT ============================== */
+  function bindOverview() {
+    const tabs = document.querySelectorAll("[data-ov-tab]");
+    if (!tabs.length || tabs[0].dataset.bound) return;
+    const show = name => {
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.ovTab === name));
+      ["progress", "results"].forEach(n => {
+        const el = document.getElementById("overviewPanel-" + n);
+        if (el) el.classList.toggle("active", n === name);
+      });
+    };
+    tabs.forEach(t => { t.dataset.bound = "1"; t.addEventListener("click", () => show(t.dataset.ovTab)); });
+    document.querySelectorAll("[data-ov-jump]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); show(a.dataset.ovJump); }));
+    const r = document.getElementById("refreshOverviewBtn");
+    if (r) r.addEventListener("click", () => {
+      try { window.renderStudentDashboard && window.renderStudentDashboard(true); } catch (_) {}
+      try { window.renderStudentResults && window.renderStudentResults(); } catch (_) {}
+      toast("Đã làm mới phần tổng kết.");
+    });
+  }
+
+  /* ------------------------------ điều phối ------------------------------ */
+  const api = {
+    onView(id) {
+      try {
+        if (id === "vocabulary") mountVocab();
+        if (id === "speaking-lab") mountSpeaking();
+        if (id === "listening-lab") mountListening();
+        if (id === "tests") mountExams();
+        if (id === "overview") bindOverview();
+      } catch (e) { console.error("[ENGO units-ui]", e); }
+    },
+    pushError(code) {
+      try {
+        const p = loadProg();
+        p.errors = p.errors || {};
+        p.errors[code] = (p.errors[code] || 0) + 1;
+        saveProg(p);
+      } catch (_) {}
+    },
+    errorMap() { return loadProg().errors || {}; },
+    stats() {
+      return { grammarDone: countDone("grammar"), listenDone: countDone("listen"), errors: api.errorMap() };
+    }
+  };
+  window.ENGO_UNITS_UI = api;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    bindOverview();
+    const rl = document.getElementById("refreshListeningBtn");
+    if (rl) rl.addEventListener("click", () => mountListening());
+  });
+})();

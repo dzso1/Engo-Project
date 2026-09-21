@@ -5,7 +5,7 @@
 -- Tạo các bảng mới cho: Luyện nói AI nhiều giai đoạn, ma trận đề,
 -- phân loại lớp, nhật ký kết quả học tập; và cấp quyền cho engo_app.
 -- ============================================================
-USE engo;
+USE railway;
 
 -- 1. Bài luyện nói do giáo viên giao / AI sinh từ SGK
 CREATE TABLE IF NOT EXISTS speaking_assignments (

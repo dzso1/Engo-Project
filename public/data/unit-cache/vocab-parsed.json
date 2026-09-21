@@ -1,0 +1,5023 @@
+[
+ {
+  "unit": 1,
+  "title": "Local Community",
+  "words": [
+   {
+    "word": "local",
+    "ipa": "/ˈləʊkl/",
+    "pos": "adj",
+    "meaning": "(thuộc) địa phương",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "community",
+    "ipa": "/kəˈmjuːnəti/",
+    "pos": "n",
+    "meaning": "cộng đồng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "move",
+    "ipa": "/muːv/",
+    "pos": "v",
+    "meaning": "di chuyển",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "suburb",
+    "ipa": "/ˈsʌbɜːb/",
+    "pos": "n",
+    "meaning": "ngoại ô",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "neighbour",
+    "ipa": "/ˈneɪbə(r)/",
+    "pos": "n",
+    "meaning": "hàng xóm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "facility",
+    "ipa": "/fəˈsɪləti/",
+    "pos": "n",
+    "meaning": "cơ sở vật chất",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "shopping mall",
+    "ipa": "/ˈʃɒp.ɪŋ ˌmɔːl/",
+    "pos": "n",
+    "meaning": "trung tâm mua sắm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "look for",
+    "ipa": "/lʊk. fɔːr/",
+    "pos": "v",
+    "meaning": "tìm kiếm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "bus station",
+    "ipa": "/bʌs ˈsteɪʃən/",
+    "pos": "n",
+    "meaning": "trạm xe buýt",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "remind somebody of something",
+    "ipa": "/rɪˈmaɪnd ˈsʌmbədi əv ˈsʌmθɪŋ/",
+    "pos": "phr v",
+    "meaning": "gợi nhớ cho ai về điều gì",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "advice",
+    "ipa": "/ədˈvaɪs/",
+    "pos": "n",
+    "meaning": "lời khuyên",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "get on (well) with someone",
+    "ipa": "/ɡet ɒn (wel) wɪðˈsʌmwn/",
+    "pos": "phr v",
+    "meaning": "có mối quan hệ tốt với ai",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "police officer",
+    "ipa": "/pəˈliːs ˌɑː.fɪ.sɚ/",
+    "pos": "n",
+    "meaning": "nhân viên cảnh sát",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "garbage collector",
+    "ipa": "/ˈɡɑːbɪdʒ kəˈlektər/",
+    "pos": "n",
+    "meaning": "người thu gom rác",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "electrician",
+    "ipa": "/ɪˌlekˈtrɪʃn/",
+    "pos": "n",
+    "meaning": "thợ điện",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "firefighter",
+    "ipa": "/ˈfaɪəfaɪtə(r)/",
+    "pos": "n",
+    "meaning": "nhân viên cứu hỏa",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "delivery person",
+    "ipa": "/dɪˈlɪvəri ˈpɜːrsən/",
+    "pos": "n",
+    "meaning": "người giao hàng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "artisan",
+    "ipa": "/ˌɑːtɪˈzæn/",
+    "pos": "n",
+    "meaning": "thợ thủ công",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "speciality food",
+    "ipa": "/ˌspeʃiˈæləti fuːd/",
+    "pos": "n",
+    "meaning": "đặc sản địa phương",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "break down",
+    "ipa": "/breɪk daʊn/",
+    "pos": "phr v",
+    "meaning": "bị hỏng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "take (rubbish) away",
+    "ipa": "/teɪk (ˈrʌbɪʃ) əˈweɪ/",
+    "pos": "phr v",
+    "meaning": "vứt/ đổ (rác)",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "lantern",
+    "ipa": "/ˈlæntən/",
+    "pos": "n",
+    "meaning": "đèn lồng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "tourist attraction",
+    "ipa": "/ˈtʊərɪst əˈtrækʃ(ə)n/",
+    "pos": "n",
+    "meaning": "địa điểm du lịch",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "pottery",
+    "ipa": "/ˈpɒtəri/",
+    "pos": "n",
+    "meaning": "đồ gốm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "bamboo bed",
+    "ipa": "/ˌbæmˈbuː bed/",
+    "pos": "n",
+    "meaning": "giường tre",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "artist",
+    "ipa": "/ˈɑːtɪst/",
+    "pos": "n",
+    "meaning": "nghệ nhân",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "swimming pool",
+    "ipa": "/ˈswɪm.ɪŋ ˌpuːl/",
+    "pos": "n",
+    "meaning": "bể bơi",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "handicraft",
+    "ipa": "/ˈhændikrɑːft/",
+    "pos": "n",
+    "meaning": "đồ thủ công",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "house - warming party",
+    "ipa": "/ˈhaʊs wɔːrmɪŋ ˈpɑːrti/",
+    "pos": "n",
+    "meaning": "tiệc tân gia",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "decide",
+    "ipa": "/dɪˈsaɪd/",
+    "pos": "v",
+    "meaning": "quyết định",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "go out",
+    "ipa": "/gəʊ aʊt/",
+    "pos": "phr v",
+    "meaning": "ra ngoài (để đi chơi)",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "pass down",
+    "ipa": "/pɑ:s daʊn/",
+    "pos": "phr v",
+    "meaning": "truyền lại",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "cut down on",
+    "ipa": "/kʌt/",
+    "pos": "n",
+    "meaning": "/daʊn/ /ɒn/ (phr.v) cắt giảm",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "run out of",
+    "ipa": "/rʌn aʊt ɒv/",
+    "pos": "phr v",
+    "meaning": "cạn kiệt, hết",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "look around",
+    "ipa": "/lʊk əˈraʊnd/",
+    "pos": "phr v",
+    "meaning": "nhìn chung quanh",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "come back",
+    "ipa": "/kʌm bæk/",
+    "pos": "phr v",
+    "meaning": "quay trở lại, trở về",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "find out",
+    "ipa": "/faɪnd ˈaʊt/",
+    "pos": "phr v",
+    "meaning": "tìm kiếm",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "take care of",
+    "ipa": "/teɪk ker ɒv/",
+    "pos": "phr v",
+    "meaning": "chăm sóc",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "seagull",
+    "ipa": "/ˈsiːɡʌl/",
+    "pos": "n",
+    "meaning": "mòng biển (chim)",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "suitcase",
+    "ipa": "/ˈsuːtkeɪs/",
+    "pos": "n",
+    "meaning": "va li",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "pedestrian street",
+    "ipa": "/pəˈdestriən striːt/",
+    "pos": "n",
+    "meaning": "phố đi bộ",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "favourite place",
+    "ipa": "/ˈfeɪvərɪt pleɪs/",
+    "pos": "n",
+    "meaning": "nơi yêu thích",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "preserve",
+    "ipa": "/prɪˈzɜːv/",
+    "pos": "v",
+    "meaning": "gìn giữ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "shorten",
+    "ipa": "/ˈʃɔːrtən/",
+    "pos": "v",
+    "meaning": "rút ngắn lại",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "fragrance",
+    "ipa": "/ˈfreɪ.ɡrəns/",
+    "pos": "n",
+    "meaning": "mùi thơm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "original",
+    "ipa": "/əˈrɪdʒənl/",
+    "pos": "adj",
+    "meaning": "ban đầu, đầu tiên",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "function",
+    "ipa": "/ˈfʌŋkʃn/",
+    "pos": "n",
+    "meaning": "chức năng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "worldwide",
+    "ipa": "/ˌwɜːldˈwaɪd/",
+    "pos": "adv",
+    "meaning": "toàn cầu",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "symbolize",
+    "ipa": "/ˈsɪmbəlaɪz/",
+    "pos": "v",
+    "meaning": "biểu tượng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "traditional technique",
+    "ipa": "/trəˈdɪʃənl tekˈniːk/",
+    "pos": "n",
+    "meaning": "kỹ thuật truyền thống",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "consumer",
+    "ipa": "/kənˈsuːmər/",
+    "pos": "n",
+    "meaning": "người tiêu thụ, khách hàng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "importance",
+    "ipa": "/ɪmˈpɔːrtəns/",
+    "pos": "n",
+    "meaning": "tầm quan trọng",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "hard-working",
+    "ipa": "/ˌhɑːd ˈwɜːkɪŋ/",
+    "pos": "adj",
+    "meaning": "chăm chỉ",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "responsible",
+    "ipa": "/rɪˈspɒnsəbl/",
+    "pos": "adj",
+    "meaning": "có trách nhiệm",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "stop from",
+    "ipa": "/stɒp frəm/",
+    "pos": "phr v",
+    "meaning": "cản trở, ngăn chặn",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "paper fan",
+    "ipa": "/ˈpeɪpər fæn/",
+    "pos": "n",
+    "meaning": "quạt giấy",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "famous for",
+    "ipa": "/ˈfeɪməs fɔː/",
+    "pos": "adj",
+    "meaning": "nổi tiếng",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "sort rubbish",
+    "ipa": "/sɔːrtˈrʌbɪʃ/",
+    "pos": "v",
+    "meaning": "phân loại rác thải",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "improve",
+    "ipa": "/ɪmˈpruːv/",
+    "pos": "v",
+    "meaning": "cải thiện",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 2,
+  "title": "City life",
+  "words": [
+   {
+    "word": "city life",
+    "ipa": "/ˈsɪti laɪf/",
+    "pos": "n",
+    "meaning": "cuộc sống thành thị",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "pick sb up",
+    "ipa": "/pɪkˈsʌmbədi ʌp/",
+    "pos": "phr v",
+    "meaning": "đón",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "packed",
+    "ipa": "/pækt/",
+    "pos": "adj",
+    "meaning": "chật chội",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "terrible",
+    "ipa": "/ˈterəbl/",
+    "pos": "adj",
+    "meaning": "khủng kiếp",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "polluted",
+    "ipa": "/pəˈluːtɪd/",
+    "pos": "adj",
+    "meaning": "bị ô nhiễm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "unreliable",
+    "ipa": "/ˌʌnrɪˈlaɪəbl/",
+    "pos": "adj",
+    "meaning": "không đáng tin",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "ugly",
+    "ipa": "/ˈʌɡli/",
+    "pos": "adj",
+    "meaning": "xấu xí",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "pricey = expensive",
+    "ipa": "/ˈpraɪsi/",
+    "pos": "n",
+    "meaning": ",/ɪkˈspensɪv/ (adj) đắt đỏ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "modern",
+    "ipa": "/ˈmɒdn/",
+    "pos": "adj",
+    "meaning": "hiện đại",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "attractive",
+    "ipa": "/əˈtræktɪv/",
+    "pos": "adj",
+    "meaning": "hấp dẫn",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "traffic light",
+    "ipa": "/ˈtræf.ɪk ˌlaɪt/",
+    "pos": "n",
+    "meaning": "đèn giao thông",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "traffic safety",
+    "ipa": "/ˈtræfɪk ˈseɪfti/",
+    "pos": "n",
+    "meaning": "an toàn giao thông",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "traffic flow",
+    "ipa": "/ˈtræfɪk floʊ/",
+    "pos": "n",
+    "meaning": "dòng chảy giao thông",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "traffic jam = congestion",
+    "ipa": "/'træfɪk dʒæm/",
+    "pos": "n",
+    "meaning": "tắc nghẽn giao thông",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "entertainment centre",
+    "ipa": "/ˌentərˈteɪnmənt ˈsentər/",
+    "pos": "n",
+    "meaning": "trung tâm giải trí",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "itchy eyes",
+    "ipa": "/ˈɪtʃi aɪz/",
+    "pos": "n",
+    "meaning": "ngứa mắt",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "rush hour",
+    "ipa": "/ˈrʌʃ ˌaʊr/",
+    "pos": "n",
+    "meaning": "giờ cao điểm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "noisy",
+    "ipa": "/ˈnɔɪzi/",
+    "pos": "adj",
+    "meaning": "ồn ào",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "dusty",
+    "ipa": "/ˈdʌsti/",
+    "pos": "adj",
+    "meaning": "bụi",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "downtown",
+    "ipa": "/ˌdaʊnˈtaʊn/",
+    "pos": "adv",
+    "meaning": "ở trung tâm thành phố",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "sky train",
+    "ipa": "/skaɪ treɪn/",
+    "pos": "n",
+    "meaning": "tàu trên cao",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "metro",
+    "ipa": "/ˈmetrəʊ/",
+    "pos": "n",
+    "meaning": "tàu điện ngầm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "concrete jungle",
+    "ipa": "/ˈkɒnkriːt ˈdʒʌŋɡl/",
+    "pos": "n",
+    "meaning": "khu rừng bê-tông (thành phố)",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "public amenities",
+    "ipa": "/ˈpʌblɪk əˈmenətiz/",
+    "pos": "n",
+    "meaning": "tiện ích công cộng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "liveable",
+    "ipa": "/ˈlɪvəbl/",
+    "pos": "adj",
+    "meaning": "đáng sống",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "public transport",
+    "ipa": "/ˈpʌblɪk ˈtrænspɔːt/",
+    "pos": "n",
+    "meaning": "phương tiện công cộng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "high crime rate",
+    "ipa": "/haɪ kraɪm reɪt/",
+    "pos": "n",
+    "meaning": "tỷ lệ tội phạm cao",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "careful",
+    "ipa": "/ˈkeəfl/",
+    "pos": "adj",
+    "meaning": "cẩn thận",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "dangerous",
+    "ipa": "/ˈdeɪn.dʒɚ.əs/",
+    "pos": "adj",
+    "meaning": "nguy hiểm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "convenient",
+    "ipa": "/kənˈviːniənt/",
+    "pos": "adj",
+    "meaning": "thuận tiện",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "peaceful",
+    "ipa": "/ˈpiːsfᵊl/",
+    "pos": "adj",
+    "meaning": "bình yên",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "coastal city",
+    "ipa": "/ˈkoʊstlˈsɪti/",
+    "pos": "n",
+    "meaning": "thành phố ven biển",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "chairman",
+    "ipa": "/ˈtʃeərmən/",
+    "pos": "n",
+    "meaning": "chủ tịch, chủ tọa",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "come down with",
+    "ipa": "/kʌm daʊn wɪð/",
+    "pos": "phr v",
+    "meaning": "chịu đựng",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "hang out with",
+    "ipa": "/hæŋ aʊt wɪð/",
+    "pos": "phr v",
+    "meaning": "đi chơi",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "sore throat",
+    "ipa": "/sɔː θrəʊt/",
+    "pos": "n",
+    "meaning": "đau họng",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "air pollution",
+    "ipa": "/ˈeə pəˌluː.ʃən/",
+    "pos": "n",
+    "meaning": "ô nhiễm không khí",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "noise pollution",
+    "ipa": "/nɔɪz pəˈluːʃn/",
+    "pos": "n",
+    "meaning": "ô nhiễm tiếng ồn",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "immigrant",
+    "ipa": "/ˈɪmɪɡrənt/",
+    "pos": "n",
+    "meaning": "người nhập cư",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "bus line",
+    "ipa": "/bʌs laɪn/",
+    "pos": "n",
+    "meaning": "làn đường dành cho xe bus",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "means of transport",
+    "ipa": "/miːnz əv ˈtrænspɔːt/",
+    "pos": "n",
+    "meaning": "phương tiện giao thông",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "(get) stuck",
+    "ipa": "/stʌk/",
+    "pos": "n",
+    "meaning": "/ɡet stʌk/ (phr.v) kẹt xe",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "arrival",
+    "ipa": "/əˈraɪvl/",
+    "pos": "n",
+    "meaning": "điểm đến",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "food waste",
+    "ipa": "/fuːd weɪst/",
+    "pos": "n",
+    "meaning": "n) lãng phí thức ăn",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "learning space",
+    "ipa": "/ˈlɜːrnɪŋ speɪs/",
+    "pos": "n",
+    "meaning": "không gian học",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "leftover",
+    "ipa": "/ˈleftəʊvə(r)/",
+    "pos": "n",
+    "meaning": "thức ăn thừa",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "cafeteria",
+    "ipa": "/ˌkæfəˈtɪəriə/",
+    "pos": "n",
+    "meaning": "quán ăn tự phục vụ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "turn something into something",
+    "ipa": "/tɜːrn ˈsʌmθɪŋ ˈɪntu ˈsʌmθɪŋ/",
+    "pos": "v",
+    "meaning": "biến/ chuyển hoá cái gì thành cái gì",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "unsafe",
+    "ipa": "/ʌnˈseɪf/",
+    "pos": "adj",
+    "meaning": "không an toàn",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "city authority",
+    "ipa": "/ˈsɪtiɔːˈθɒrəti/",
+    "pos": "n",
+    "meaning": "chính quyền thành phố",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "drop-off and pick - up time",
+    "ipa": "/drɒp ɒf ænd pɪk ʌp taɪm/",
+    "pos": "n",
+    "meaning": "thời gian đưa đón",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "pavement",
+    "ipa": "/ˈpeɪvmənt/",
+    "pos": "n",
+    "meaning": "vỉa hè",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "green space",
+    "ipa": "/ɡriːn speɪs/",
+    "pos": "n",
+    "meaning": "không gian xanh",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "health service",
+    "ipa": "/helθˈsɜːrvɪ/",
+    "pos": "n",
+    "meaning": "dịch vụ chăm sóc sức khỏe",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "street food",
+    "ipa": "/ˈstriːt ˌfuːd/",
+    "pos": "n",
+    "meaning": "đồ ăn đường phố",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "throw away",
+    "ipa": "/θrəʊ əˈweɪ/",
+    "pos": "phr v",
+    "meaning": "vứt bỏ",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "carry out",
+    "ipa": "/'kæri 'aut/",
+    "pos": "phr v",
+    "meaning": "thực hiện",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "traffic rule",
+    "ipa": "/ˈtræf.ɪk ruːl/",
+    "pos": "n",
+    "meaning": "luật giao thông",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "heavy rain",
+    "ipa": "/ˈhev.i reɪn/",
+    "pos": "n",
+    "meaning": "mưa nặng hạt",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "construction site",
+    "ipa": "/ˈbɪl.dɪŋ ˌsaɪt/",
+    "pos": "n",
+    "meaning": "công trường xây dựng",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "future city",
+    "ipa": "/ˈfjuː.tʃɚcit/",
+    "pos": "n",
+    "meaning": "thành phố trong tương lai",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 3,
+  "title": "Healthy living for teens",
+  "words": [
+   {
+    "word": "healthy living",
+    "ipa": "/ˈhelθiˈlɪvɪŋ/",
+    "pos": "n",
+    "meaning": "lối sống lành mạnh",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "physical health",
+    "ipa": "/ˈfɪz.ɪ.kəl helθ/",
+    "pos": "n",
+    "meaning": "sức khỏe thể chất",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "mental health",
+    "ipa": "/ˈmentl helθ/",
+    "pos": "n",
+    "meaning": "sức khỏe tinh thần",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "maintain",
+    "ipa": "/meɪnˈteɪn/",
+    "pos": "v",
+    "meaning": "duy trì",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "healthy diet",
+    "ipa": "/ə ˈhelθi ˈdaɪət/",
+    "pos": "n",
+    "meaning": "chế độ ăn lành mạnh",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "do exercise",
+    "ipa": "/du: ek.sə.saɪz/",
+    "pos": "v",
+    "meaning": "tập thể dục",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "counsellor",
+    "ipa": "/ˈkaʊnsələ(r)/",
+    "pos": "n",
+    "meaning": "người cố vấn",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "reduce stress",
+    "ipa": "/rɪˈdjuːs strɛs/",
+    "pos": "v",
+    "meaning": "giảm căng thẳng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "look after",
+    "ipa": "/lʊk ˈɑːftə(r)/",
+    "pos": "phr v",
+    "meaning": "chăm sóc",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "well-balanced life",
+    "ipa": "/welˈbælənst laɪf/",
+    "pos": "n",
+    "meaning": "cuộc sống cân bằng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "balance",
+    "ipa": "/ˈbæləns/",
+    "pos": "n",
+    "meaning": "cân bằng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "priority",
+    "ipa": "/praɪˈɒrəti/",
+    "pos": "n",
+    "meaning": "ưu tiên",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "give priority",
+    "ipa": "/ɡɪv praɪˈɒrəti/",
+    "pos": "v",
+    "meaning": "ưu tiên, đặt lên hàng đầu",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "work out",
+    "ipa": "/wɜːk aʊt/",
+    "pos": "v",
+    "meaning": "tập thể dục",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "achieve",
+    "ipa": "/əˈtʃiːv/",
+    "pos": "v",
+    "meaning": "đạt được, hoàn thành",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "manage time",
+    "ipa": "/ˈmænɪdʒ taɪm/",
+    "pos": "v",
+    "meaning": "quản lý thời gian",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "try",
+    "ipa": "/traɪ/",
+    "pos": "v",
+    "meaning": "cố gắng, thử",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "accomplish",
+    "ipa": "/əˈkʌmplɪʃ/",
+    "pos": "v",
+    "meaning": "hoàn thành, đạt được",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "delay",
+    "ipa": "/dɪˈleɪ/",
+    "pos": "v",
+    "meaning": "trì hoãn, hoãn lại",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "due date",
+    "ipa": "/djuː deɪt/",
+    "pos": "n",
+    "meaning": "hạn chót, ngày đến hạn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "optimistic",
+    "ipa": "/ˌɒptɪˈmɪstɪk/",
+    "pos": "adj",
+    "meaning": "(adj) lạc quan",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "stressed out",
+    "ipa": "/strest aʊt/",
+    "pos": "adj",
+    "meaning": "căng thẳng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "distraction",
+    "ipa": "/dɪˈstrækʃn/",
+    "pos": "n",
+    "meaning": "sự xao nhãng, sự mất tập trung",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "intend",
+    "ipa": "/ɪnˈtend/",
+    "pos": "v",
+    "meaning": "có ý định, dự định",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "wait for",
+    "ipa": "/weɪt fɔːr/",
+    "pos": "phr v",
+    "meaning": "chờ đợi",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "gain weight",
+    "ipa": "/ɡeɪn weɪt/",
+    "pos": "v",
+    "meaning": "tăng cân",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "fast food",
+    "ipa": "/fɑːst fuːd/",
+    "pos": "n",
+    "meaning": "đồ ăn nhanh",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "stay up late",
+    "ipa": "/steɪ ʌp leɪt/",
+    "pos": "phr v",
+    "meaning": "ngủ muộn",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "awake",
+    "ipa": "/əˈweɪk/",
+    "pos": "adj",
+    "meaning": "tỉnh táo",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "complete",
+    "ipa": "/kəmˈpliːt/",
+    "pos": "v",
+    "meaning": "hoàn thành",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "get burnt",
+    "ipa": "/ɡet bɜːnt/",
+    "pos": "v",
+    "meaning": "bị cháy nắng",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "effectively",
+    "ipa": "/ɪˈfektɪvli/",
+    "pos": "adv",
+    "meaning": "có hiệu quả",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "train",
+    "ipa": "/treɪn/",
+    "pos": "v",
+    "meaning": "luyện tập",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "shoulder pain",
+    "ipa": "/ˈʃəʊldə peɪn/",
+    "pos": "n",
+    "meaning": "đau vai",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "punish",
+    "ipa": "/ˈpʌn.ɪʃ/",
+    "pos": "v",
+    "meaning": "trừng phạt",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "get through",
+    "ipa": "/gɛt/",
+    "pos": "n",
+    "meaning": "/θruː/ (v) vượt qua",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "lose weight",
+    "ipa": "/luːz weɪt/",
+    "pos": "v",
+    "meaning": "giảm cân",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "invite",
+    "ipa": "/ɪnˈvaɪt/",
+    "pos": "v",
+    "meaning": "mời",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "finish",
+    "ipa": "/ˈfɪnɪʃ/",
+    "pos": "v",
+    "meaning": "kết thúc",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "ingredient",
+    "ipa": "/ɪnˈɡriːdiənt/",
+    "pos": "n",
+    "meaning": "thành phần",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "praise",
+    "ipa": "/preɪz/",
+    "pos": "v",
+    "meaning": "tán dương, khen thưởng",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "encourage",
+    "ipa": "/ɪnˈkʌrɪdʒ/",
+    "pos": "v",
+    "meaning": "khuyến khích",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "difficulty",
+    "ipa": "/ˈdɪfɪkəlti/",
+    "pos": "n",
+    "meaning": "khó khăn",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "thankful",
+    "ipa": "/ˈθæŋkfl/",
+    "pos": "adj",
+    "meaning": "biết ơn",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "happiness",
+    "ipa": "/ˈhæpinəs/",
+    "pos": "n",
+    "meaning": "sự hạnh phúc",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "instead of",
+    "ipa": "/ɪnˈsted ˌəv/",
+    "pos": "adv",
+    "meaning": "thay vì",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "anxiety",
+    "ipa": "/æŋˈzaɪəti/",
+    "pos": "n",
+    "meaning": "sự lo âu",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "additional",
+    "ipa": "/əˈdɪʃənl/",
+    "pos": "adj",
+    "meaning": "thêm, bổ sung",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "appropriately",
+    "ipa": "/əˈprəʊpriətli/",
+    "pos": "adv",
+    "meaning": "phù hợp, thích đáng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "fattening",
+    "ipa": "/ˈfætnɪŋ/",
+    "pos": "adj",
+    "meaning": "gây béo",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "nervous",
+    "ipa": "/ˈnɜːvəs/",
+    "pos": "adj",
+    "meaning": "lo lắng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "suitable",
+    "ipa": "/ˈsuːtəbl/",
+    "pos": "adj",
+    "meaning": "(adj) phù hợp",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "teen celebrity",
+    "ipa": "/tiːnsəˈlebrəti/",
+    "pos": "n",
+    "meaning": "người nổi tiếng tuổi teen",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "communicate",
+    "ipa": "/kəˈmjuːnɪkeɪt/",
+    "pos": "v",
+    "meaning": "giao tiếp",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "take a break",
+    "ipa": "/teɪk/",
+    "pos": "n",
+    "meaning": "/ə/ /breɪk/ (v) nghỉ ngơi",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "urgent",
+    "ipa": "/ˈɜː.dʒənt/",
+    "pos": "adj",
+    "meaning": "khẩn cấp",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "concentrate on",
+    "ipa": "/ˈkɒn.sən.treɪt ɒn/",
+    "pos": "v",
+    "meaning": "tập trung",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "deal with",
+    "ipa": "/diːl wɪð/",
+    "pos": "v",
+    "meaning": "giải quyết",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "succeed in",
+    "ipa": "/səkˈsiːd/",
+    "pos": "v",
+    "meaning": "thành công",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "consult",
+    "ipa": "/kənˈsʌlt/",
+    "pos": "v",
+    "meaning": "(v) tham khảo (lời khuyên)",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "electric equipment",
+    "ipa": "/ɪˈlektrɪk ɪˈkwɪpmənt/",
+    "pos": "n",
+    "meaning": "thiết bị điện",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "turn off",
+    "ipa": "/tɜːn ɒf/",
+    "pos": "phr v",
+    "meaning": "tắt",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "take a training course",
+    "ipa": "/teɪk ə ˈtreɪnɪŋ kɔːs/",
+    "pos": "v",
+    "meaning": "tham gia khóa học đào tạo",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "time management",
+    "ipa": "/taɪmˈmænɪdʒmənt/",
+    "pos": "n",
+    "meaning": "quản lý thời gian",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 4,
+  "title": "Remembering the past",
+  "words": [
+   {
+    "word": "remember",
+    "ipa": "/rɪˈmembə(r)/",
+    "pos": "v",
+    "meaning": "nhớ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "a temple complex",
+    "ipa": "/ə ˈtempl ˈkɒmpleks/",
+    "pos": "n",
+    "meaning": "khu phức hợp đền",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "religious monument",
+    "ipa": "/rɪˈlɪdʒəs ˈmɒnjumənt/",
+    "pos": "n",
+    "meaning": "đài tưởng niệm tôn giáo",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "visitor",
+    "ipa": "/ˈvɪz.ɪ.tər/",
+    "pos": "n",
+    "meaning": "khách du lịch",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "World Heritage Site",
+    "ipa": "/wɜːld 'herɪtɪdʒ/",
+    "pos": "n",
+    "meaning": "Di sản Thế giới",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "communal house",
+    "ipa": "/ˈkɒmjʊnl/",
+    "pos": "n",
+    "meaning": "/haʊs/ (n) đình làng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "national historic site",
+    "ipa": "/ˈnæʃənəl hɪˈstɒrɪk saɪt/",
+    "pos": "n",
+    "meaning": "di sản quốc gia",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "magnificent",
+    "ipa": "/mæɡˈnɪfɪsnt/",
+    "pos": "adj",
+    "meaning": "tráng lệ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "castle",
+    "ipa": "/ˈkɑːsl/",
+    "pos": "n",
+    "meaning": "lâu đài",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "future generation",
+    "ipa": "/ˈfjuːtʃər ˌdʒenəˈreɪʃənz/",
+    "pos": "n",
+    "meaning": "thế hệ tương lai",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "occupy",
+    "ipa": "/ˈɒkjupaɪ/",
+    "pos": "v",
+    "meaning": "chiếm giữ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "thanks to",
+    "ipa": "/θæŋks tuː/",
+    "pos": "adv",
+    "meaning": "nhờ vào",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "dedicated",
+    "ipa": "/ˈdedɪkeɪtɪd/",
+    "pos": "adj",
+    "meaning": "tận tâm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "rebuild",
+    "ipa": "/ˌriːˈbɪld/",
+    "pos": "v",
+    "meaning": "xây dựng lại",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "damage",
+    "ipa": "/ˈdæmɪdʒ/",
+    "pos": "v",
+    "meaning": "phá hủy",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "natural disaster",
+    "ipa": "/'næt∫rəl di'zɑ:stə/",
+    "pos": "n",
+    "meaning": "thiên tai",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "worship",
+    "ipa": "/ˈwɜːʃɪp/",
+    "pos": "v",
+    "meaning": "thờ cúng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "contribution",
+    "ipa": "/ˌkɒntrɪˈbjuːʃn/",
+    "pos": "n",
+    "meaning": "sự đóng góp",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "decide",
+    "ipa": "/dɪˈsaɪd/",
+    "pos": "v",
+    "meaning": "quyết định",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "discover",
+    "ipa": "/dɪˈskʌvə(r)/",
+    "pos": "v",
+    "meaning": "phát hiện ra",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "promote",
+    "ipa": "/prəˈməʊt/",
+    "pos": "v",
+    "meaning": "thúc đẩy",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "recognise",
+    "ipa": "/ˈrek.əɡ.naɪz/",
+    "pos": "v",
+    "meaning": "công nhận, nhận ra",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "observe",
+    "ipa": "/əbˈzɜːv/",
+    "pos": "v",
+    "meaning": "quan sát",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "protect",
+    "ipa": "/prəˈtekt/",
+    "pos": "v",
+    "meaning": "bảo vệ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "culture festival",
+    "ipa": "/ˈkʌltʃər ˈfestɪvl/",
+    "pos": "n",
+    "meaning": "lễ hội văn hóa",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "relic",
+    "ipa": "/ˈrelɪk/",
+    "pos": "n",
+    "meaning": "di vật",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "friendship",
+    "ipa": "/ˈfrendʃɪp/",
+    "pos": "n",
+    "meaning": "tình bạn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "benefit",
+    "ipa": "/ˈbenɪfɪt/",
+    "pos": "v",
+    "meaning": "có lợi",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "seat belt",
+    "ipa": "/siːt belt/",
+    "pos": "n",
+    "meaning": "dây an toàn (phương tiện giao thông)",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "windmill",
+    "ipa": "/ˈwɪndmɪl/",
+    "pos": "n",
+    "meaning": "cối xay gió",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "safeguard",
+    "ipa": "/ˈseɪfɡɑːd/",
+    "pos": "v",
+    "meaning": "bảo vệ, canh gác",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "nightmare",
+    "ipa": "/ˈnaɪtmeə(r)/",
+    "pos": "n",
+    "meaning": "ác mộng",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "pagoda",
+    "ipa": "/pəˈɡəʊdə/",
+    "pos": "n",
+    "meaning": "chùa",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "weaving workshop",
+    "ipa": "/ˈwiːvɪŋ ˈwɜːkʃɒp/",
+    "pos": "n",
+    "meaning": "xưởng dệt",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "craft workshop",
+    "ipa": "/krɑːft ˈwɜːkʃɒp/",
+    "pos": "n",
+    "meaning": "xưởng thủ công",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "ancestor",
+    "ipa": "/ˈænsestə(r)/",
+    "pos": "n",
+    "meaning": "tổ tiên",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "take part in",
+    "ipa": "/teɪk pɑːt ɪn/",
+    "pos": "phr v",
+    "meaning": "tham gia",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "Mid-Autumn Festival",
+    "ipa": "/mɪd-ˈɔːtəm ˈfɛstɪvᵊl/",
+    "pos": "n",
+    "meaning": "Trung thu",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "Harvest Festival",
+    "ipa": "/ˈhɑːvɪst ˈfestɪvl/",
+    "pos": "n",
+    "meaning": "lễ hội thu hoạch",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "celebrate",
+    "ipa": "/ˈselɪbreɪt/",
+    "pos": "v",
+    "meaning": "tổ chức",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "deep-rooted",
+    "ipa": "/diːp ˈruːtɪd/",
+    "pos": "adj",
+    "meaning": "ăn sâu vào",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "appear",
+    "ipa": "/əˈpɪə(r)/",
+    "pos": "v",
+    "meaning": "xuất hiện",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "national dish",
+    "ipa": "/ˈnæʃnəl dɪʃ/",
+    "pos": "n",
+    "meaning": "món ăn quốc gia",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "basic",
+    "ipa": "/ˈbeɪsɪk/",
+    "pos": "n",
+    "meaning": "cơ bản",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "associated",
+    "ipa": "/əˈsəʊsieɪtɪd/",
+    "pos": "adj",
+    "meaning": "gắn liền (với)",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "take pride in",
+    "ipa": "/teɪk praɪd ɪn/",
+    "pos": "phr v",
+    "meaning": "tự hào về",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "vinegar",
+    "ipa": "/ˈvɪnɪɡə(r)/",
+    "pos": "n",
+    "meaning": "giấm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "ketchup",
+    "ipa": "/ˈketʃ.ʌp/",
+    "pos": "n",
+    "meaning": "tương cà",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "pancake",
+    "ipa": "/ˈpænkeɪk/",
+    "pos": "n",
+    "meaning": "bánh kếp",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "walk barefoot",
+    "ipa": "/wɔːk ˈbeəfʊt/",
+    "pos": "v",
+    "meaning": "đi chân trần",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "face to face",
+    "ipa": "/feɪs tʊ feɪs/",
+    "pos": "adj",
+    "meaning": "trực tiếp",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "traditional game",
+    "ipa": "/trəˈdɪʃ.ən.əl ɡeɪm/",
+    "pos": "n",
+    "meaning": "trò chơi truyền thống",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "five-coloured sticky rice",
+    "ipa": "/faɪv ˈkʌləd ˈstɪki raɪs/",
+    "pos": "n",
+    "meaning": "xôi ngũ sắc",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "valuable resource",
+    "ipa": "/ˈvæljuəbl rɪˈsɔːs/",
+    "pos": "n",
+    "meaning": "tài nguyên quý giá",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "home life",
+    "ipa": "/həʊm laɪf/",
+    "pos": "n",
+    "meaning": "đời sống gia đình",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "ancient",
+    "ipa": "/ˈeɪnʃənt/",
+    "pos": "adj",
+    "meaning": "cổ kính",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "antique",
+    "ipa": "/ænˈtiːk/",
+    "pos": "n",
+    "meaning": "đồ cổ",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "community service",
+    "ipa": "/kə'mju:nəti 'sɜːvɪs/",
+    "pos": "n",
+    "meaning": "dịch vụ công cộng",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 5,
+  "title": "Our experiences",
+  "words": [
+   {
+    "word": "local speciality",
+    "ipa": "/ˈləʊkl ˌspeʃiˈæləti/",
+    "pos": "n",
+    "meaning": "đặc sản địa phương",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "ride horses",
+    "ipa": "/raɪd ˈhɔːsɪz/",
+    "pos": "v",
+    "meaning": "cưỡi ngựa",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "take photos",
+    "ipa": "/teɪk foʊ.t̬oʊ/",
+    "pos": "v",
+    "meaning": "chụp ảnh",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "explore a site",
+    "ipa": "/ɪkˈsplɔːr ə saɪt/",
+    "pos": "v",
+    "meaning": "khám phá địa điểm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "ride a jeep",
+    "ipa": "/raɪd ə dʒiːp/",
+    "pos": "v",
+    "meaning": "đi xe jeep",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "dance with local people",
+    "ipa": "/dɑːns wɪð ˈləʊkl ˈpiːpl/",
+    "pos": "v",
+    "meaning": "khiêu vũ với người dân địa phương",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "take an eco-tour",
+    "ipa": "/teɪk ən ˈiːkəʊ tʊə/",
+    "pos": "v",
+    "meaning": "đi du lịch sinh thái",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "see a gong show",
+    "ipa": "/siː ə ɡɒŋ ʃəʊ/",
+    "pos": "v",
+    "meaning": "xem biểu diễn cồng chiêng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "climb a mountain",
+    "ipa": "/klaɪm ə ˈmaʊntən/",
+    "pos": "v",
+    "meaning": "leo núi",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "explore the seabed",
+    "ipa": "/ɪkˈsplɔː ðə ˈsiːbed/",
+    "pos": "v",
+    "meaning": "khám phá đáy biển",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "see a tribal dance show",
+    "ipa": "/siː ə ˈtraɪbl dɑːns ʃəʊ/",
+    "pos": "v",
+    "meaning": "xem biểu diễn múa múa dân tộc",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "stream",
+    "ipa": "/striːm/",
+    "pos": "n",
+    "meaning": "dòng suối",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "species",
+    "ipa": "/ˈspi·ʃiz/",
+    "pos": "n",
+    "meaning": "loài (sinh vật)",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "enjoyable",
+    "ipa": "/ɪnˈdʒɔɪəbl/",
+    "pos": "adj",
+    "meaning": "thú vị",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "thrilling",
+    "ipa": "/ˈθrɪlɪŋ/",
+    "pos": "n",
+    "meaning": "kích thích",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "amazing",
+    "ipa": "/əˈmeɪzɪŋ/",
+    "pos": "adj",
+    "meaning": "tuyệt vời",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "brilliant",
+    "ipa": "/ˈbrɪliənt/",
+    "pos": "adj",
+    "meaning": "xuất sắc, tuyệt vời",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "learn by rote",
+    "ipa": "/lɜːn baɪ rəʊt/",
+    "pos": "v",
+    "meaning": "học vẹt",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "tour a campus",
+    "ipa": "/tʊə(r) ə ˈkæmpəs/",
+    "pos": "n",
+    "meaning": "tham quan khuôn viên trường",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "give a performance",
+    "ipa": "/ɡɪv ə pəˈfɔːməns/",
+    "pos": "v",
+    "meaning": "biểu diễn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "put up tents",
+    "ipa": "/pʊt ʌp tents/",
+    "pos": "v",
+    "meaning": "dựng lều",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "go snorkeling",
+    "ipa": "/ɡəʊ ˈsnɔːkəlɪŋ/",
+    "pos": "v",
+    "meaning": "đi lặn với ống thở",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "helpless",
+    "ipa": "/ˈhelpləs/",
+    "pos": "adj",
+    "meaning": "bất lực",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "exhilarating",
+    "ipa": "/ɪɡˈzɪləreɪtɪŋ/",
+    "pos": "adj",
+    "meaning": "kích thích, mãn nhãn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "embarrassing",
+    "ipa": "/ɪmˈbærəsɪŋ/",
+    "pos": "adj",
+    "meaning": "xấu hổ, ngại ngùng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "unpleasant",
+    "ipa": "/ʌnˈpleznt/",
+    "pos": "adj",
+    "meaning": "khó chịu",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "coral reef",
+    "ipa": "/ˌkɔːr.əl ˈriːf/",
+    "pos": "n",
+    "meaning": "rạn san hô",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "by chance",
+    "ipa": "/baɪ - tʃɑːns/",
+    "pos": "adv",
+    "meaning": "tình cờ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "yearbook",
+    "ipa": "/ˈjɪəbʊk/",
+    "pos": "n",
+    "meaning": "niên giám",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "sail a yacht",
+    "ipa": "/seɪl ə jɒt/",
+    "pos": "v",
+    "meaning": "đi thuyền buồm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "wildlife",
+    "ipa": "/ˈwaɪldlaɪf/",
+    "pos": "n",
+    "meaning": "động vật hoang dã",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "ethnic",
+    "ipa": "/ˈeθnɪk/",
+    "pos": "adj",
+    "meaning": "dân tộc",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "tribal",
+    "ipa": "/ˈtraɪ.bəl/",
+    "pos": "adj",
+    "meaning": "bộ lạc",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "team building activity",
+    "ipa": "/tiːm ˈbɪldɪŋ ækˈtɪvəti/",
+    "pos": "n",
+    "meaning": "hoạt động nhóm, đồng đội",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "exciting",
+    "ipa": "/ɪkˈsaɪtɪŋ/",
+    "pos": "adj",
+    "meaning": "thú vị",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "campsite",
+    "ipa": "/ˈkæmpsaɪt/",
+    "pos": "n",
+    "meaning": "khu cắm trại",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "ankle",
+    "ipa": "/ˈæŋkl/",
+    "pos": "n",
+    "meaning": "mắt cá chân",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "put up",
+    "ipa": "/pʊt/",
+    "pos": "n",
+    "meaning": "/ʌp/ (phr.v) dựng lên",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "terrible",
+    "ipa": "/ˈterəbl/",
+    "pos": "adj",
+    "meaning": "khủng khiếp",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "attend",
+    "ipa": "/əˈtend/",
+    "pos": "v",
+    "meaning": "tham dự",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "army",
+    "ipa": "/ˈɑːmi/",
+    "pos": "n",
+    "meaning": "quân đội",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "theme of this year\\'s school festival is \\\"Sustainability and Innovation.\\\"",
+    "ipa": "",
+    "pos": "n",
+    "meaning": "",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "performance of \\\"Romeo and Juliet\\\"",
+    "ipa": "",
+    "pos": "n",
+    "meaning": "",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "unforgettable",
+    "ipa": "/ˌʌnfəˈɡetəbl/",
+    "pos": "adj",
+    "meaning": "khó quên",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "special",
+    "ipa": "/ˈspeʃl/",
+    "pos": "adj",
+    "meaning": "đặc biệt",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "receive",
+    "ipa": "/rɪˈsiːv/",
+    "pos": "v",
+    "meaning": "nhận",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "environment",
+    "ipa": "/ɪnˈvaɪrənmənt/",
+    "pos": "n",
+    "meaning": "môi trường",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "strict",
+    "ipa": "/strɪkt/",
+    "pos": "adj",
+    "meaning": "nghiêm khắc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "competition",
+    "ipa": "/kɑːm.pəˈtɪʃ.ən/",
+    "pos": "n",
+    "meaning": "cuộc thi, sự cạnh tranh",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "confidence",
+    "ipa": "/ˈkɒnfɪdəns/",
+    "pos": "n",
+    "meaning": "sự tự tin",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "soft skill",
+    "ipa": "/sɒft skɪl/",
+    "pos": "n",
+    "meaning": "kỹ năng mềm",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "bully",
+    "ipa": "/ˈbʊli/",
+    "pos": "v",
+    "meaning": "bắt nạt",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "aware",
+    "ipa": "/əˈweə(r)/",
+    "pos": "adj",
+    "meaning": "nhận thức (về)",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "join",
+    "ipa": "/dʒɔɪn/",
+    "pos": "v",
+    "meaning": "tham gia",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "prehistoric",
+    "ipa": "/ˌpriːhɪˈstɔːrɪk/",
+    "pos": "adj",
+    "meaning": "tiền sử",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "assignment",
+    "ipa": "/əˈsaɪnmənt/",
+    "pos": "n",
+    "meaning": "bài tập, nhiệm vụ",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "memorable experience",
+    "ipa": "/ˈmemərəbl ɪkˈspɪəriəns/",
+    "pos": "n",
+    "meaning": "trải nghiệm đáng nhớ",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 6,
+  "title": "Vietnamese lifestyles: then and now",
+  "words": [
+   {
+    "word": "lifestyle",
+    "ipa": "/laɪfstaɪl/",
+    "pos": "n",
+    "meaning": "phong cách sống, lối sống",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "different",
+    "ipa": "/ˈdɪfrənt/",
+    "pos": "adj",
+    "meaning": "khác biệt (so với)",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "play outdoors",
+    "ipa": "/pleɪ aʊtˈdɔːrz/",
+    "pos": "v",
+    "meaning": "chơi ngoài trời",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "natural material",
+    "ipa": "/ˈnæʧrəl məˈtɪərɪəl/",
+    "pos": "n",
+    "meaning": "chất liệu tự nhiên",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "depend on",
+    "ipa": "/dɪˈpend ɑːn/",
+    "pos": "v",
+    "meaning": "phụ thuộc (vào)",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "electronic device",
+    "ipa": "/ˌel.ekˈtrɒn.ɪk dɪˈvaɪs/",
+    "pos": "n",
+    "meaning": "thiết bị điện tử",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "traditional game",
+    "ipa": "/trəˈdɪʃ.ən.əl ɡeɪm/",
+    "pos": "n",
+    "meaning": "trò chơi truyền thống",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "leave school",
+    "ipa": "/liːv skuːl/",
+    "pos": "v",
+    "meaning": "rời trường học",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "support",
+    "ipa": "/səˈpɔːt/",
+    "pos": "v",
+    "meaning": "hỗ trợ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "living condition",
+    "ipa": "/'liviη kən'di∫n/",
+    "pos": "n",
+    "meaning": "điều kiện sống",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "(be) made from",
+    "ipa": "/meɪd frəm/",
+    "pos": "v",
+    "meaning": "được làm từ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "opportunity",
+    "ipa": "/ˌɒpəˈtjuːnəti/",
+    "pos": "n",
+    "meaning": "cơ hội",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "freedom",
+    "ipa": "/ˈfriːdəm/",
+    "pos": "n",
+    "meaning": "sự tự do",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "dye",
+    "ipa": "/daɪ/",
+    "pos": "v",
+    "meaning": "nhuộm (tóc)",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "generation",
+    "ipa": "/ˌdʒenəˈreɪʃn/",
+    "pos": "n",
+    "meaning": "thế hệ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "pursue",
+    "ipa": "/pəˈsjuː/",
+    "pos": "v",
+    "meaning": "theo đuổi",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "previous",
+    "ipa": "/'pri:viəs/",
+    "pos": "adj",
+    "meaning": "trước đây",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "take note",
+    "ipa": "/teɪk nəʊt/",
+    "pos": "phr v",
+    "meaning": "ghi chú",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "memorise",
+    "ipa": "/ˈmeməraɪz/",
+    "pos": "v",
+    "meaning": "ghi nhớ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "replace",
+    "ipa": "/rɪˈpleɪs/",
+    "pos": "v",
+    "meaning": "thay thế",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "democratic",
+    "ipa": "/ˌdeməˈkrætɪk/",
+    "pos": "adj",
+    "meaning": "dân chủ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "various",
+    "ipa": "/ˈveəriəs/",
+    "pos": "adj",
+    "meaning": "khác nhau, đa dạng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "family-oriented",
+    "ipa": "/ˈfæməli ˈɔːrientɪd/",
+    "pos": "adj",
+    "meaning": "định hướng gia đình",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "personal",
+    "ipa": "/ˈpɜːsənl/",
+    "pos": "adj",
+    "meaning": "cá nhân",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "extended family",
+    "ipa": "/ɪkˈstendɪd ˈfæməli/",
+    "pos": "adj",
+    "meaning": "đại gia đình",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "independent",
+    "ipa": "/ˌɪndɪˈpendənt/",
+    "pos": "adj",
+    "meaning": "độc lập, tự chủ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "give up",
+    "ipa": "/gɪv ʌp/",
+    "pos": "phr v",
+    "meaning": "từ bỏ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "hi-tech appliance",
+    "ipa": "/ˌhaɪ ˈtek əˈplaɪənsɪz/",
+    "pos": "n",
+    "meaning": "thiết bị công nghệ cao",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "use for",
+    "ipa": "/juːz fɔː/",
+    "pos": "phr v",
+    "meaning": "sử dụng cho",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "private",
+    "ipa": "/'praivit/",
+    "pos": "adj",
+    "meaning": "riêng tư",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "design",
+    "ipa": "/dɪˈzaɪn/",
+    "pos": "v",
+    "meaning": "thiết kế (cho)",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "ride a buffalo",
+    "ipa": "/raɪd ə ˈbʌfələʊ/",
+    "pos": "v",
+    "meaning": "cưỡi trâu",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "traditional farming tools",
+    "ipa": "/trəˈdɪʃənl ˈfɑːmɪŋ tuːlz/",
+    "pos": "n",
+    "meaning": "dụng cụ làm nông truyền thống",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "promise",
+    "ipa": "/ˈprɒmɪs/",
+    "pos": "v",
+    "meaning": "hứa",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "transportation",
+    "ipa": "/ˌtrænspɔːˈteɪʃn/",
+    "pos": "n",
+    "meaning": "vận tải",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "education",
+    "ipa": "/ˌedʒuˈkeɪʃn/",
+    "pos": "n",
+    "meaning": "giáo dục",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "performance",
+    "ipa": "/pəˈfɔːməns/",
+    "pos": "n",
+    "meaning": "màn trình diễn",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "professional training",
+    "ipa": "/prəˈfeʃənlˈtreɪnɪŋ/",
+    "pos": "n",
+    "meaning": "đào tạo chuyên nghiệp",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "traditional costume",
+    "ipa": "/trəˈdɪʃənlˈkɒstjuːm/",
+    "pos": "n",
+    "meaning": "trang phục truyền thống",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "eating habit",
+    "ipa": "/ˈiːtɪŋ ˈhæbɪt/",
+    "pos": "n",
+    "meaning": "thói quen ăn uống",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "learning style",
+    "ipa": "/ˈlɜːnɪŋ staɪl/",
+    "pos": "n",
+    "meaning": "phong cách học",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "textbook",
+    "ipa": "/ˈtekstbʊk/",
+    "pos": "n",
+    "meaning": "sách giáo khoa",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "active",
+    "ipa": "/ˈæktɪv/",
+    "pos": "adj",
+    "meaning": "chủ động",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "oil lamp",
+    "ipa": "/ɔɪllæm/",
+    "pos": "n",
+    "meaning": "đèn dầu",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "convenient",
+    "ipa": "/kənˈviːniənt/",
+    "pos": "adj",
+    "meaning": "thuận tiện",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "learning facility",
+    "ipa": "/ˈlɜːnɪŋ fəˈsɪləti/",
+    "pos": "n",
+    "meaning": "thiết bị học tập",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "provide",
+    "ipa": "/prəˈvaɪd/",
+    "pos": "v",
+    "meaning": "cung cấp",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "allow",
+    "ipa": "/əˈlaʊ/",
+    "pos": "v",
+    "meaning": "cho phép",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "working place",
+    "ipa": "/ˈwɜːkɪŋ pleɪs/",
+    "pos": "n",
+    "meaning": "nơi làm việc",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "family type",
+    "ipa": "/ˈfæməli taɪp/",
+    "pos": "n",
+    "meaning": "loại gia đình",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "parents-children relation",
+    "ipa": "/ˈpeərənts ˈtʃɪldrən rɪˈleɪʃn/",
+    "pos": "n",
+    "meaning": "mối quan hệ giữa cha mẹ và con cái",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "turn down",
+    "ipa": "/tɜːn/",
+    "pos": "n",
+    "meaning": "/daʊn/ (phr.v) vặn nhỏ (âm thanh)",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "avoid",
+    "ipa": "/əˈvɔɪd/",
+    "pos": "v",
+    "meaning": "tránh",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "difference",
+    "ipa": "/ˈdɪfrəns/",
+    "pos": "n",
+    "meaning": "sự khác biệt",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "exhibition",
+    "ipa": "/ˌeksɪˈbɪʃn/",
+    "pos": "n",
+    "meaning": "sự trưng bày, triển lãm",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "family value",
+    "ipa": "/ˈfæməli ˈvæljuː/",
+    "pos": "n",
+    "meaning": "giá trị gia đình",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "make a promise",
+    "ipa": "/meɪk ə ˈprɒmɪs/",
+    "pos": "v",
+    "meaning": "hứa",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 7,
+  "title": "Natural wonders of the world",
+  "words": [
+   {
+    "word": "natural wonder",
+    "ipa": "/ˈnætʃ.ɚ.ə ˈwʌn.dɚ/",
+    "pos": "n",
+    "meaning": "kỳ quan thiên nhiên",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "explore",
+    "ipa": "/ɪkˈsplɔː(r)/",
+    "pos": "v",
+    "meaning": "khám phá",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "landscape",
+    "ipa": "/ˈlændskeɪp/",
+    "pos": "n",
+    "meaning": "phong cảnh",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "support",
+    "ipa": "/səˈpɔːt/",
+    "pos": "v",
+    "meaning": "ủng hộ, hỗ trợ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "development",
+    "ipa": "/dɪˈveləpmənt/",
+    "pos": "n",
+    "meaning": "sự phát triển",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "mention",
+    "ipa": "/'men∫n/",
+    "pos": "v",
+    "meaning": "đề cập",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "sustainable",
+    "ipa": "/səˈsteɪnəbl/",
+    "pos": "adj",
+    "meaning": "bền vững",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "destroy",
+    "ipa": "/di'strɔi/",
+    "pos": "v",
+    "meaning": "phá hủy",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "charming",
+    "ipa": "/ˈtʃɑːmɪŋ/",
+    "pos": "adj",
+    "meaning": "quyến rũ, duyên dáng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "wonderful",
+    "ipa": "/ˈwʌndəfl/",
+    "pos": "adj",
+    "meaning": "tuyệt vời",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "contest",
+    "ipa": "/ˈkɒntest/",
+    "pos": "n",
+    "meaning": "cuộc thi",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "discover",
+    "ipa": "/dɪˈskʌvə(r)/",
+    "pos": "v",
+    "meaning": "khám phá",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "contribute",
+    "ipa": "/kənˈtrɪbjuːt/",
+    "pos": "v",
+    "meaning": "đóng góp",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "especially",
+    "ipa": "/ɪˈspeʃəli/",
+    "pos": "adv",
+    "meaning": "đặc biệt",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "risky",
+    "ipa": "/ˈrɪski/",
+    "pos": "adj",
+    "meaning": "nguy hiểm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "environmentalist",
+    "ipa": "/ɪnˌvaɪ.rənˈmen.təl.ɪst/",
+    "pos": "n",
+    "meaning": "nhà môi trường",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "heritage",
+    "ipa": "/ˈherɪtɪdʒ/",
+    "pos": "n",
+    "meaning": "di sản",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "permit",
+    "ipa": "/pəˈmɪt/",
+    "pos": "v",
+    "meaning": "cho phép",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "paradise",
+    "ipa": "/ˈpærədaɪs/",
+    "pos": "n",
+    "meaning": "thiên đường",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "annual",
+    "ipa": "/ˈænjuəl/",
+    "pos": "adj",
+    "meaning": "hằng năm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "diversity",
+    "ipa": "/daɪˈvɜːsəti/",
+    "pos": "n",
+    "meaning": "đa dạng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "access",
+    "ipa": "/ˈækses/",
+    "pos": "n",
+    "meaning": "sự tiếp cận",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "urgent",
+    "ipa": "/ˈɜː.dʒənt/",
+    "pos": "adj",
+    "meaning": "khẩn cấp",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "extremely",
+    "ipa": "/ɪkˈstriːmli/",
+    "pos": "adv",
+    "meaning": "cực kỳ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "locate",
+    "ipa": "/ləʊˈkeɪt/",
+    "pos": "v",
+    "meaning": "định vị, xác định vị trí",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "possess",
+    "ipa": "/pəˈzes/",
+    "pos": "v",
+    "meaning": "sở hữu",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "admire",
+    "ipa": "/ədˈmaɪə(r)/",
+    "pos": "v",
+    "meaning": "ngưỡng mộ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "government",
+    "ipa": "/ˈɡʌvənmənt/",
+    "pos": "n",
+    "meaning": "chính phủ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "encourage",
+    "ipa": "/ɪnˈkʌrɪdʒ/",
+    "pos": "v",
+    "meaning": "khuyến khích",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "protect",
+    "ipa": "/prəˈtekt/",
+    "pos": "v",
+    "meaning": "bảo vệ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "snowstorm",
+    "ipa": "/ˈsnəʊstɔːm/",
+    "pos": "n",
+    "meaning": "bão tuyết",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "aquarium",
+    "ipa": "/əˈkweəriəm/",
+    "pos": "n",
+    "meaning": "bể cá",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "national park",
+    "ipa": "/ˈnæʃənəl pɑrk/",
+    "pos": "n",
+    "meaning": "công viên quốc gia",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "endanger",
+    "ipa": "/in'deindʒə(r)/",
+    "pos": "v",
+    "meaning": "gây nguy hiểm, đe dọa",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "coast",
+    "ipa": "/kəʊst/",
+    "pos": "n",
+    "meaning": "bờ biển",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "rank",
+    "ipa": "/ræŋk/",
+    "pos": "v",
+    "meaning": "xếp hạng",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "nomadic",
+    "ipa": "/nəʊˈmædɪk/",
+    "pos": "adj",
+    "meaning": "du mục",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "camel",
+    "ipa": "/ˈkæml/",
+    "pos": "n",
+    "meaning": "lạc đà",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "magnificent",
+    "ipa": "/mæɡˈnɪfɪsnt/",
+    "pos": "adj",
+    "meaning": "tráng lệ",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "permission",
+    "ipa": "/pəˈmɪʃn/",
+    "pos": "n",
+    "meaning": "sự cho phép",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "consider",
+    "ipa": "/kənˈsɪdərɪŋ/",
+    "pos": "v",
+    "meaning": "cân nhắc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "peak",
+    "ipa": "/piːk/",
+    "pos": "n",
+    "meaning": "đỉnh",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "majestic",
+    "ipa": "/məˈdʒestɪk/",
+    "pos": "adj",
+    "meaning": "hùng vĩ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "occur",
+    "ipa": "/əˈkɜː(r)/",
+    "pos": "v",
+    "meaning": "xảy ra",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "indecisive",
+    "ipa": "/ˌɪndɪˈsaɪsɪv/",
+    "pos": "adj",
+    "meaning": "do dự",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "coral watching",
+    "ipa": "/ˈkɔːrəl ˈwɒtʃɪŋ/",
+    "pos": "n",
+    "meaning": "ngắm san hô",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "scuba diving",
+    "ipa": "/'sku:bə/",
+    "pos": "n",
+    "meaning": "/'daiviɳ/ (n) lặn có bình dưỡng khí",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "sailing",
+    "ipa": "/ˈseɪlɪŋ/",
+    "pos": "n",
+    "meaning": "chèo thuyền buồm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "valley",
+    "ipa": "/ˈvæl.i/",
+    "pos": "n",
+    "meaning": "thung lũng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "rainforest",
+    "ipa": "/ˈreɪnfɒrɪst/",
+    "pos": "n",
+    "meaning": "rừng nhiệt đới",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "flora",
+    "ipa": "/ˈflɔːrə/",
+    "pos": "n",
+    "meaning": "(n) thực vật",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "fauna",
+    "ipa": "/ˈfɔːnə/",
+    "pos": "n",
+    "meaning": "(n) động vật",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "manage",
+    "ipa": "/ˈmænɪdʒ/",
+    "pos": "v",
+    "meaning": "quản lý",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "interested",
+    "ipa": "/ˈɪntrəstɪd/",
+    "pos": "adj",
+    "meaning": "quan tâm đến",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "virtual",
+    "ipa": "/ˈvɜːtʃuəl/",
+    "pos": "adj",
+    "meaning": "ảo",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "afraid",
+    "ipa": "/əˈfreɪd/",
+    "pos": "v",
+    "meaning": "e sợ",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "conserve",
+    "ipa": "/kənˈsɜːv/",
+    "pos": "v",
+    "meaning": "bảo tồn",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "a travel destination",
+    "ipa": "/ˈtrævl ˌdestɪˈneɪʃn/",
+    "pos": "n",
+    "meaning": "một điểm đến du lịch",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 8,
+  "title": "Tourism",
+  "words": [
+   {
+    "word": "tourism",
+    "ipa": "/ˈtʊərɪzəm/",
+    "pos": "n",
+    "meaning": "du lịch",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "sports tourism",
+    "ipa": "/spɔːrts ˈtʊrɪzəm/",
+    "pos": "n",
+    "meaning": "du lịch thể thao",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "online apps",
+    "ipa": "/ˈɒnlaɪn æps/",
+    "pos": "n",
+    "meaning": "ứng dụng trực tuyến",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "destination",
+    "ipa": "/ˌdestɪˈneɪʃn/",
+    "pos": "n",
+    "meaning": "điểm đến",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "cheap",
+    "ipa": "/tʃiːp/",
+    "pos": "adj",
+    "meaning": "rẻ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "safari",
+    "ipa": "/səˈfɑːri/",
+    "pos": "n",
+    "meaning": "chuyến đi thám hiểm động vật hoang dã",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "ticket",
+    "ipa": "/ˈtɪk.ɪt/",
+    "pos": "n",
+    "meaning": "vé",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "accommodation",
+    "ipa": "/əˌkɒməˈdeɪʃn/",
+    "pos": "n",
+    "meaning": "chỗ ở",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "natural habitat",
+    "ipa": "/ˈnætʃrəlˈhæbɪtæt/",
+    "pos": "n",
+    "meaning": "môi trường sống tự nhiên",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "well-known",
+    "ipa": "/ˌwel ˈnəʊn/",
+    "pos": "adj",
+    "meaning": "nổi tiếng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "holiday maker",
+    "ipa": "/ˈhɒlədeɪˌmeɪkər/",
+    "pos": "n",
+    "meaning": "người đi nghỉ mát",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "shopping tourism",
+    "ipa": "/ˈʃɒpɪŋ ˈtʊrɪzəm/",
+    "pos": "n",
+    "meaning": "du lịch mua sắm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "destination",
+    "ipa": "/ˌdestɪˈneɪʃn/",
+    "pos": "n",
+    "meaning": "địa điểm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "food tourist",
+    "ipa": "/ˈterəst fiːldz/",
+    "pos": "n",
+    "meaning": "khách du lịch ẩm thực",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "terraced field",
+    "ipa": "/ˈterəst fiːld/",
+    "pos": "n",
+    "meaning": "ruộng bậc thang",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "international",
+    "ipa": "/ˌɪntəˈnæʃnəl/",
+    "pos": "adj",
+    "meaning": "quốc tế",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "domestic",
+    "ipa": "/dəˈmestɪk/",
+    "pos": "adj",
+    "meaning": "nội địa",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "package holiday",
+    "ipa": "/ˈpækɪdʒˈhɒlədeɪ/",
+    "pos": "n",
+    "meaning": "kỳ nghỉ trọn gói",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "self-guided tour",
+    "ipa": "/ˌself ˈɡaɪdɪd tʊr/",
+    "pos": "n",
+    "meaning": "tour tự hướng dẫn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "trip itinerary",
+    "ipa": "/trɪp aɪˈtɪnərəri/",
+    "pos": "n",
+    "meaning": "lịch trình chuyến đi",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "homestay",
+    "ipa": "/ˈhəʊmsteɪ/",
+    "pos": "n",
+    "meaning": "ở nhà dân",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "ruinous site",
+    "ipa": "/ˈruːɪnəs saɪt/",
+    "pos": "adj",
+    "meaning": "tàn tích",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "smooth",
+    "ipa": "/smuːð/",
+    "pos": "adj",
+    "meaning": "suôn sẻ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "travel agency",
+    "ipa": "/ˈtrævl ˈeɪdʒənsi/",
+    "pos": "n",
+    "meaning": "công ty du lịch",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "entrance ticket",
+    "ipa": "/ˈentrəns ˈtɪkɪt/",
+    "pos": "n",
+    "meaning": "vé vào cửa",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "fixed itinerary",
+    "ipa": "/fɪkst aɪˈtɪnərəri/",
+    "pos": "n",
+    "meaning": "lịch trình cố định",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "take care of",
+    "ipa": "/teɪk ker ɒv/",
+    "pos": "phr v",
+    "meaning": "chăm sóc",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "condition",
+    "ipa": "/kənˈdɪʃn/",
+    "pos": "n",
+    "meaning": "điều kiện, tình trạng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "reference",
+    "ipa": "/ˈref.ər.əns/",
+    "pos": "n",
+    "meaning": "tài liệu tham khảo",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "download",
+    "ipa": "/ˌdaʊnˈləʊd/",
+    "pos": "v",
+    "meaning": "tải xuống",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "useful",
+    "ipa": "/ˈjuːs.fəl/",
+    "pos": "adj",
+    "meaning": "hữu ích",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "tour list",
+    "ipa": "/tʊr lɪst/",
+    "pos": "n",
+    "meaning": "danh sách tour",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "travel guide",
+    "ipa": "/ˈtrævl gaɪd/",
+    "pos": "n",
+    "meaning": "hướng dẫn du lịch",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "hurry up",
+    "ipa": "/hʌ·ri/",
+    "pos": "phr v",
+    "meaning": "nhanh lên",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "necessary",
+    "ipa": "/ˈnesəsəri/",
+    "pos": "adj",
+    "meaning": "cần thiết",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "seafood",
+    "ipa": "/ˈsiːfuːd/",
+    "pos": "n",
+    "meaning": "hải sản",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "cruise",
+    "ipa": "/kruːz/",
+    "pos": "n",
+    "meaning": "chuyến đi tàu biển",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "historical place",
+    "ipa": "/hɪˈstɔːrɪkl pleɪs/",
+    "pos": "n",
+    "meaning": "địa điểm lịch sử",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "afford",
+    "ipa": "/əˈfɔːd/",
+    "pos": "v",
+    "meaning": "có đủ khả năng (tài chính)",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "save",
+    "ipa": "/seɪv/",
+    "pos": "v",
+    "meaning": "tiết kiệm, bảo vệ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "require",
+    "ipa": "/rɪˈkwaɪə(r)/",
+    "pos": "v",
+    "meaning": "yêu cầu",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "estimate",
+    "ipa": "/ˈestɪmeɪt/",
+    "pos": "v",
+    "meaning": "ước tính",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "flexible",
+    "ipa": "/ˈfleksəbl/",
+    "pos": "adj",
+    "meaning": "linh hoạt, dẻo dai",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "hunt for",
+    "ipa": "/hʌnt fɔːr/",
+    "pos": "v",
+    "meaning": "săn tìm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "advantage",
+    "ipa": "/ədˈvɑːntɪdʒ/",
+    "pos": "n",
+    "meaning": "ưu điểm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "disadvantage",
+    "ipa": "/ˌdɪsədˈvɑːntɪdʒ/",
+    "pos": "n",
+    "meaning": "nhược điểm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "mention",
+    "ipa": "/'men∫n/",
+    "pos": "v",
+    "meaning": "đề cập",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "witness",
+    "ipa": "/ˈwɪtnəs/",
+    "pos": "v",
+    "meaning": "chứng kiến",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "central",
+    "ipa": "/ˈsentrəl/",
+    "pos": "adj",
+    "meaning": "trung tâm",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "altar",
+    "ipa": "/ˈɔːltə(r)/",
+    "pos": "n",
+    "meaning": "bàn thờ",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "product",
+    "ipa": "/ˈprɒdʌkt/",
+    "pos": "n",
+    "meaning": "sản phẩm",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "ecotourism",
+    "ipa": "/ˈiːkəʊtʊərɪzəm/",
+    "pos": "n",
+    "meaning": "du lịch sinh thái",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "unique",
+    "ipa": "/juˈniːk/",
+    "pos": "adj",
+    "meaning": "độc đáo",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "helpful",
+    "ipa": "/ˈhelpfl/",
+    "pos": "adj",
+    "meaning": "hữu ích",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "culture",
+    "ipa": "/ˈkʌltʃə(r)/",
+    "pos": "n",
+    "meaning": "văn hóa",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "participate",
+    "ipa": "/pɑːˈtɪsɪpeɪt/",
+    "pos": "v",
+    "meaning": "tham gia",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "make a plan",
+    "ipa": "/meɪk ə plæn/",
+    "pos": "v",
+    "meaning": "lên kế hoạch",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 9,
+  "title": "World Englishes",
+  "words": [
+   {
+    "word": "introduce",
+    "ipa": "/ˌɪntrəˈdjuːs/",
+    "pos": "v",
+    "meaning": "giới thiệu",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "come from",
+    "ipa": "/kʌm frɒm/",
+    "pos": "v",
+    "meaning": "đến từ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "school uniform",
+    "ipa": "/skuːl ˈjuːnɪfɔːrm/",
+    "pos": "n",
+    "meaning": "đồng phục trường",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "pants",
+    "ipa": "/pænts/",
+    "pos": "n",
+    "meaning": "quần dài",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "T-shirt",
+    "ipa": "/ti-ʃɜːt/",
+    "pos": "n",
+    "meaning": "áo phông",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "exchange student",
+    "ipa": "/ɪksˈtʃeɪndʒ ˈstuːdnt/",
+    "pos": "n",
+    "meaning": "học sinh trao đổi",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "mean",
+    "ipa": "/miːn/",
+    "pos": "v",
+    "meaning": "có nghĩa là",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "vocabulary",
+    "ipa": "/vəˈkæbjələri/",
+    "pos": "n",
+    "meaning": "từ vựng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "immigrant",
+    "ipa": "/ˈɪmɪɡrənt/",
+    "pos": "n",
+    "meaning": "người nhập cư",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "first language",
+    "ipa": "/fɜːrst ˈlæŋɡwɪdʒ/",
+    "pos": "n",
+    "meaning": "tiếng mẹ đẻ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "translate",
+    "ipa": "/trænzˈleɪt/",
+    "pos": "v",
+    "meaning": "dịch",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "fluent",
+    "ipa": "/ˈfluːənt/",
+    "pos": "adj",
+    "meaning": "trôi chảy",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "look up",
+    "ipa": "/ˈlʊk ʌp/",
+    "pos": "phr v",
+    "meaning": "tra cứu",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "bilingual",
+    "ipa": "/ˌbaɪˈlɪŋɡwəl/",
+    "pos": "adj",
+    "meaning": "song ngữ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "permanently",
+    "ipa": "/ˈpɜːmənəntli/",
+    "pos": "adv",
+    "meaning": "vĩnh viễn",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "foreign",
+    "ipa": "/ˈfɒrən/",
+    "pos": "adj",
+    "meaning": "nước ngoài",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "borrow",
+    "ipa": "/ˈbɒrəʊ/",
+    "pos": "v",
+    "meaning": "mượn",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "variety",
+    "ipa": "/vəˈraɪəti/",
+    "pos": "n",
+    "meaning": "sự đa dạng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "concentric",
+    "ipa": "/kənˈsen.trɪk/",
+    "pos": "adj",
+    "meaning": "đồng tâm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "official language",
+    "ipa": "/əˈfɪʃəl ˈlæŋgwɪʤ/",
+    "pos": "n",
+    "meaning": "ngôn ngữ chính thức",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "notebook",
+    "ipa": "/ˈnəʊtbʊk/",
+    "pos": "n",
+    "meaning": "quyển sổ tay",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "community",
+    "ipa": "/kəˈmjuːnəti/",
+    "pos": "n",
+    "meaning": "cộng đồng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "relation",
+    "ipa": "/rɪˈleɪʃn/",
+    "pos": "n",
+    "meaning": "mối quan hệ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "operation",
+    "ipa": "/ˌɒpəˈreɪʃn/",
+    "pos": "n",
+    "meaning": "hoạt động, cuộc phẫu thuật (y học)",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "quality",
+    "ipa": "/ˈkwɒləti/",
+    "pos": "n",
+    "meaning": "chất lượng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "charity",
+    "ipa": "/ˈtʃærəti/",
+    "pos": "n",
+    "meaning": "từ thiện",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "clarity",
+    "ipa": "/ˈklærəti/",
+    "pos": "n",
+    "meaning": "sự rõ ràng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "education",
+    "ipa": "/ˌedʒuˈkeɪʃn/",
+    "pos": "n",
+    "meaning": "sự giáo dục",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "decision",
+    "ipa": "/dɪˈsɪʒn/",
+    "pos": "n",
+    "meaning": "quyết định",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "obesity",
+    "ipa": "/əʊˈbiːsəti/",
+    "pos": "n",
+    "meaning": "béo phì",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "position",
+    "ipa": "/pəˈzɪʃn/",
+    "pos": "n",
+    "meaning": "vị trí",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "common language",
+    "ipa": "/ˈkɒmənˈlæŋɡwɪdʒ/",
+    "pos": "n",
+    "meaning": "ngôn ngữ chung",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "effectively",
+    "ipa": "/ɪˈfektɪvli/",
+    "pos": "adv",
+    "meaning": "hiệu quả",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "global language",
+    "ipa": "/ˈɡloʊbl ˈlæŋɡwɪdʒ/",
+    "pos": "n",
+    "meaning": "ngôn ngữ toàn cầu",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "complicated",
+    "ipa": "/ˈkɒmplɪkeɪtɪd/",
+    "pos": "adj",
+    "meaning": "phức tạp",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "travel agency",
+    "ipa": "/ˈtrævl ˈeɪdʒənsi/",
+    "pos": "n",
+    "meaning": "công ty du lịch",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "praise",
+    "ipa": "/preɪz/",
+    "pos": "v",
+    "meaning": "khen ngợi",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "linguist",
+    "ipa": "/ˈlɪŋɡwɪst/",
+    "pos": "n",
+    "meaning": "nhà ngôn ngữ học",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "entrance exam",
+    "ipa": "/ˈen.trəns ɪɡˌzæm/",
+    "pos": "n",
+    "meaning": "kỳ thi tuyển sinh, bài kiểm tra đầu vào",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "study further",
+    "ipa": "/ˈstʌdi ˈfɜːrðər/",
+    "pos": "v",
+    "meaning": "học lên cao",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "professor",
+    "ipa": "/prəˈfesə(r)/",
+    "pos": "n",
+    "meaning": "giáo sư",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "invent",
+    "ipa": "/ɪnˈvent/",
+    "pos": "v",
+    "meaning": "phát minh",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "standard",
+    "ipa": "/ˈstændəd/",
+    "pos": "n",
+    "meaning": "tiêu chuẩn",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "establish",
+    "ipa": "/ɪˈstæblɪʃ/",
+    "pos": "v",
+    "meaning": "thành lập, thiết lập",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "refer",
+    "ipa": "/rɪˈfɜː(r)/",
+    "pos": "v",
+    "meaning": "ngụ ý",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "provide",
+    "ipa": "/prəˈvaɪd/",
+    "pos": "v",
+    "meaning": "cung cấp",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "improve",
+    "ipa": "/ɪmˈpruːv/",
+    "pos": "v",
+    "meaning": "cải thiện",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "development",
+    "ipa": "/dɪˈveləpmənt/",
+    "pos": "n",
+    "meaning": "sự phát triển",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "excellent",
+    "ipa": "/ˈeksələnt/",
+    "pos": "adj",
+    "meaning": "xuất sắc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "challenging",
+    "ipa": "/ˈtʃælɪndʒɪŋ/",
+    "pos": "adj",
+    "meaning": "thách thức",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "face",
+    "ipa": "/feɪs/",
+    "pos": "v",
+    "meaning": "đối mặt",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "increase",
+    "ipa": "/ˈɪŋkriːs/",
+    "pos": "v",
+    "meaning": "tăng",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "French",
+    "ipa": "/frentʃ/",
+    "pos": "n",
+    "meaning": "tiếng Pháp",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "Singaporean",
+    "ipa": "/ˌsɪŋəˈpɔːriən/",
+    "pos": "adj",
+    "meaning": "(thuộc) Singapore",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "dictionary",
+    "ipa": "/ˈdɪkʃənri/",
+    "pos": "n",
+    "meaning": "từ điển",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "recommend",
+    "ipa": "/ˌrekəˈmend/",
+    "pos": "v",
+    "meaning": "đề xuất",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "official language",
+    "ipa": "/əˈfɪʃəl ˈlæŋgwɪʤ/",
+    "pos": "n",
+    "meaning": "ngôn ngữ chính thức",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 10,
+  "title": "Planet Earth",
+  "words": [
+   {
+    "word": "Venus",
+    "ipa": "/ˈviːnəs/",
+    "pos": "n",
+    "meaning": "sao Kim",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "Mercury",
+    "ipa": "/ˈmɜːkjəri/",
+    "pos": "n",
+    "meaning": "sao Thủy",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "solar system",
+    "ipa": "/ˈsəʊlər sɪstəm/",
+    "pos": "n",
+    "meaning": "hệ mặt trời",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "Earth",
+    "ipa": "/ɝːθ/",
+    "pos": "n",
+    "meaning": "Trái Đất",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "outer space",
+    "ipa": "/ˈaʊtər speɪs/",
+    "pos": "n",
+    "meaning": "không gian vũ trụ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "scientist",
+    "ipa": "/ˈsaɪ.ən.tɪst/",
+    "pos": "n",
+    "meaning": "nhà khoa học",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "planet",
+    "ipa": "/ˈplæn.ɪt/",
+    "pos": "n",
+    "meaning": "hành tinh",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "science club",
+    "ipa": "/ˈsaɪəns klʌb/",
+    "pos": "n",
+    "meaning": "câu lạc bộ khoa học",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "liquid",
+    "ipa": "/ˈlɪk.wɪd/",
+    "pos": "n",
+    "meaning": "chất lỏng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "human",
+    "ipa": "/ˈhjuːmən/",
+    "pos": "n",
+    "meaning": "con người",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "destroy",
+    "ipa": "/di'strɔi/",
+    "pos": "v",
+    "meaning": "phá hủy",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "pollution",
+    "ipa": "/pəˈluːʃn/",
+    "pos": "n",
+    "meaning": "sự ô nhiễm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "landform",
+    "ipa": "/ˈlændfɔːrm/",
+    "pos": "n",
+    "meaning": "địa hình",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "water body",
+    "ipa": "/ˈwɔːtər ˈbɑːdiz/",
+    "pos": "n",
+    "meaning": "vùng nước",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "ocean",
+    "ipa": "/ˈoʊ.ʃən/",
+    "pos": "n",
+    "meaning": "đại dương",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "continent",
+    "ipa": "/ˈkɒntɪnənt/",
+    "pos": "n",
+    "meaning": "lục địa",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "essential",
+    "ipa": "/ɪˈsenʃl/",
+    "pos": "adj",
+    "meaning": "thiết yếu",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "launch",
+    "ipa": "/lɔːntʃ/",
+    "pos": "v",
+    "meaning": "phóng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "grassland",
+    "ipa": "/ˈɡrɑːslænd/",
+    "pos": "n",
+    "meaning": "đồng cỏ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "food chain",
+    "ipa": "/ˈfuːd ˌtʃeɪn/",
+    "pos": "n",
+    "meaning": "chuỗi thức ăn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "nature reserve",
+    "ipa": "/ˈneɪtʃər rɪˈzɜːrv/",
+    "pos": "n",
+    "meaning": "khu bảo tồn thiên nhiên",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "pole",
+    "ipa": "/pəʊl/",
+    "pos": "n",
+    "meaning": "vùng cực (Bắc Cực, Nam Cực)",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "ecological balance",
+    "ipa": "/ˌiːkəˈlɒdʒɪkl ˈbæləns/",
+    "pos": "n",
+    "meaning": "cân bằng sinh thái",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "global warming",
+    "ipa": "/ˈgləʊbəl ˈwɔːmɪŋ/",
+    "pos": "n",
+    "meaning": "sự nóng lên toàn cầu",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "climate change",
+    "ipa": "/ˈklaɪmət tʃeɪndʒ/",
+    "pos": "n",
+    "meaning": "biến đổi khí hậu",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "habitat loss",
+    "ipa": "/ˈhæbɪtæt lɒs/",
+    "pos": "n",
+    "meaning": "mất môi trường sống",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "bamboo forest",
+    "ipa": "/ˌbæmˈbuː ˈfɒrɪst/",
+    "pos": "n",
+    "meaning": "rừng tre",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "moonquake",
+    "ipa": "/ˈmuːnkweɪk/",
+    "pos": "n",
+    "meaning": "động đất trên Mặt Trăng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "cut down",
+    "ipa": "/kʌt daʊn/",
+    "pos": "phr v",
+    "meaning": "chặt hạ, đốn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "natural environment",
+    "ipa": "/ˈnætʃrəlɪnˈvaɪrənmənt/",
+    "pos": "n",
+    "meaning": "môi trường tự nhiên",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "Mother Earth",
+    "ipa": "/ˈmʌðər ɜːrθ/",
+    "pos": "n",
+    "meaning": "Mẹ Trái Đất",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "gorgeous",
+    "ipa": "/ˈɡɔːrdʒəs/",
+    "pos": "adj",
+    "meaning": "tuyệt đẹp",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "giant",
+    "ipa": "/ˈdʒaɪənt/",
+    "pos": "adj",
+    "meaning": "khổng lồ",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "best-known",
+    "ipa": "/ˌbest ˈnoʊn/",
+    "pos": "adj",
+    "meaning": "nổi tiếng nhất",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "coastline",
+    "ipa": "/ˈkəʊstlaɪn/",
+    "pos": "n",
+    "meaning": "đường bờ biển",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "make a contribution",
+    "ipa": "/meɪk ə ˌkɑːntrɪˈbjuːʃn/",
+    "pos": "v",
+    "meaning": "đóng góp",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "persuade",
+    "ipa": "/pəˈsweɪd/",
+    "pos": "v",
+    "meaning": "thuyết phục",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "Mediterranean Sea",
+    "ipa": "/ˌmedɪtəˈreɪniən siː/",
+    "pos": "n",
+    "meaning": "biển Địa Trung Hải",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "fresh water",
+    "ipa": "/fre∫ 'wɔ:tə/",
+    "pos": "n",
+    "meaning": "nước ngọt",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "surface",
+    "ipa": "/ˈsɜːfɪs/",
+    "pos": "n",
+    "meaning": "bề mặt",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "crucial",
+    "ipa": "/ˈkruːʃl/",
+    "pos": "adj",
+    "meaning": "quan trọng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "livestock",
+    "ipa": "/ˈlaɪvstɒk/",
+    "pos": "n",
+    "meaning": "gia súc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "polar region",
+    "ipa": "/ˈpoʊlər ˈriːdʒən/",
+    "pos": "n",
+    "meaning": "vùng cực",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "zebra",
+    "ipa": "/ˈzebrə/",
+    "pos": "n",
+    "meaning": "ngựa vằn",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "giraffe",
+    "ipa": "/dʒɪˈræf/",
+    "pos": "n",
+    "meaning": "hươu cao cổ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "adjust",
+    "ipa": "/əˈdʒʌst/",
+    "pos": "v",
+    "meaning": "điều chỉnh",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "significance",
+    "ipa": "/sɪɡˈnɪf.ɪ.kəns/",
+    "pos": "n",
+    "meaning": "ý nghĩa",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "appreciate",
+    "ipa": "/əˈpriːʃieɪt/",
+    "pos": "v",
+    "meaning": "đánh giá cao",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "role",
+    "ipa": "/roul/",
+    "pos": "n",
+    "meaning": "vai trò",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "polluted",
+    "ipa": "/pəˈluːtɪd/",
+    "pos": "adj",
+    "meaning": "bị ô nhiễm",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "save from",
+    "ipa": "/seɪv frəm/",
+    "pos": "phr v",
+    "meaning": "cứu (khỏi)",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "effect",
+    "ipa": "/ɪˈfekt/",
+    "pos": "n",
+    "meaning": "tác động",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "beaver",
+    "ipa": "/ˈbiːvər/",
+    "pos": "n",
+    "meaning": "con hải ly",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "pesticide",
+    "ipa": "/ˈpestɪsaɪd/",
+    "pos": "n",
+    "meaning": "thuốc trừ sâu",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "various",
+    "ipa": "/ˈveəriəs/",
+    "pos": "adj",
+    "meaning": "khác nhau",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "threaten",
+    "ipa": "/ˈθretn/",
+    "pos": "v",
+    "meaning": "đe dọa",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "maintain",
+    "ipa": "/meɪnˈteɪn/",
+    "pos": "v",
+    "meaning": "duy trì",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "endangered",
+    "ipa": "/ɪnˈdeɪndʒəd/",
+    "pos": "n",
+    "meaning": "",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "geology",
+    "ipa": "/dʒiˈɒlədʒi/",
+    "pos": "n",
+    "meaning": "",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "flora & fauna",
+    "ipa": "/ˈflɔːrə ənd ˈfɔːnə/",
+    "pos": "n",
+    "meaning": "hệ động thực vật",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 11,
+  "title": "Electronic devices",
+  "words": [
+   {
+    "word": "electronic device",
+    "ipa": "/ˌel.ekˈtrɒn.ɪk dɪˈvaɪs/",
+    "pos": "n",
+    "meaning": "thiết bị điện tử",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "aluminium",
+    "ipa": "/ˌæljəˈmɪniəm/",
+    "pos": "n",
+    "meaning": "nhôm",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "portable",
+    "ipa": "/ˈpɔːtəbl/",
+    "pos": "adj",
+    "meaning": "có thể mang theo được",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "touchscreen",
+    "ipa": "/ˈtʌtʃskriːn/",
+    "pos": "n",
+    "meaning": "màn hình cảm ứng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "wireless",
+    "ipa": "/ˈwaɪə.ləs/",
+    "pos": "adj",
+    "meaning": "không dây",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "virtual",
+    "ipa": "/ˈvɜːtʃuəl/",
+    "pos": "adj",
+    "meaning": "ảo",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "lightweight",
+    "ipa": "/ˈlaɪt.weɪt/",
+    "pos": "adj",
+    "meaning": "nhẹ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "navigate",
+    "ipa": "/ˈnævɪɡeɪt/",
+    "pos": "v",
+    "meaning": "điều hướng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "interact",
+    "ipa": "/ˌɪntərˈækt/",
+    "pos": "v",
+    "meaning": "tương tác",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "keyboard",
+    "ipa": "/ˈkiːbɔːd/",
+    "pos": "n",
+    "meaning": "bàn phím",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "screen",
+    "ipa": "/skriːn/",
+    "pos": "n",
+    "meaning": "màn hình",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "music player",
+    "ipa": "/ˈmjuːzɪkˈpleɪə(r)/",
+    "pos": "n",
+    "meaning": "máy nghe nhạc",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "entertainment",
+    "ipa": "/ˌentəˈteɪnmənt/",
+    "pos": "n",
+    "meaning": "giải trí",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "take note",
+    "ipa": "/teɪk nəʊt/",
+    "pos": "phr v",
+    "meaning": "ghi chú",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "customer",
+    "ipa": "/ˈkʌstəmə(r)/",
+    "pos": "n",
+    "meaning": "khách hàng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "assistant",
+    "ipa": "/əˈsɪstənt/",
+    "pos": "n",
+    "meaning": "trợ lý, người hỗ trợ",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "use for",
+    "ipa": "/juːz fɔː/",
+    "pos": "v",
+    "meaning": "sử dụng cho",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "robotic vacuum rəʊˈbɒtɪkˈvækjuːm/",
+    "ipa": "",
+    "pos": "n",
+    "meaning": "robot hút bụi",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "e-reader",
+    "ipa": "/ˈiː riːdə(r)/",
+    "pos": "n",
+    "meaning": "thiết bị đọc sách điện tử",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "smartwatch",
+    "ipa": "/ˈsmɑːtwɒtʃ/",
+    "pos": "n",
+    "meaning": "đồng hồ thông minh",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "3D printer",
+    "ipa": "/θriː diː ˈprɪntə(r)/",
+    "pos": "n",
+    "meaning": "máy in 3D",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "camcorder",
+    "ipa": "/ˈkæmˌkɔː.dər/",
+    "pos": "n",
+    "meaning": "máy quay video",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "rubber",
+    "ipa": "/ˈrʌbə(r)/",
+    "pos": "n",
+    "meaning": "cao su",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "iron",
+    "ipa": "/ˈaɪən/",
+    "pos": "adj",
+    "meaning": "sắt",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "plastic",
+    "ipa": "/ˈplæstɪk/",
+    "pos": "adj",
+    "meaning": "nhựa",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "steel",
+    "ipa": "/stiːl/",
+    "pos": "adj",
+    "meaning": "thép",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "cereal",
+    "ipa": "/ˈsɪəriəl/",
+    "pos": "n",
+    "meaning": "ngũ cốc",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "harmful",
+    "ipa": "/ˈhɑːmfl/",
+    "pos": "adj",
+    "meaning": "có hại",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "cardboard",
+    "ipa": "/ˈkɑːdbɔːd/",
+    "pos": "n",
+    "meaning": "bìa cứng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "medical",
+    "ipa": "/ˈmedɪkl/",
+    "pos": "adj",
+    "meaning": "thuộc về y tế",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "break down",
+    "ipa": "/breɪk daʊn/",
+    "pos": "phr v",
+    "meaning": "phá vỡ",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "suggest",
+    "ipa": "/səˈdʒest/",
+    "pos": "v",
+    "meaning": "gợi ý",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "flexibility",
+    "ipa": "/ˌfleksəˈbɪləti/",
+    "pos": "n",
+    "meaning": "sự linh hoạt",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "social media",
+    "ipa": "/ˈsəʊʃəl ˈmiːdiə/",
+    "pos": "n",
+    "meaning": "mạng xã hội",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "digital textbook",
+    "ipa": "/ˈdɪdʒɪtl ˈtekstbʊk/",
+    "pos": "n",
+    "meaning": "sách giáo khoa kỹ thuật số",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "educational software",
+    "ipa": "/ˌedjʊˈkeɪʃənl ˈsɒftweə(r)/",
+    "pos": "n",
+    "meaning": "phần mềm giáo dục",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "collaborate",
+    "ipa": "/kəˈlæbəreɪt/",
+    "pos": "v",
+    "meaning": "cộng tác",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "lead to",
+    "ipa": "/liːd tuː/",
+    "pos": "v",
+    "meaning": "dẫn đến",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "health problem",
+    "ipa": "/helθ ˈprɒbləm/",
+    "pos": "n",
+    "meaning": "vấn đề sức khỏe",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "stylish",
+    "ipa": "/ˈstaɪ.lɪʃ/",
+    "pos": "n",
+    "meaning": "phong cách",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "self-portrait",
+    "ipa": "/ˌself ˈpɔːtrət/",
+    "pos": "n",
+    "meaning": "chân dung",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "privacy",
+    "ipa": "/ˈprɪvəsi/",
+    "pos": "n",
+    "meaning": "quyền riêng tư",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "window shade",
+    "ipa": "/ˈwɪndəʊ ʃeɪd/",
+    "pos": "n",
+    "meaning": "rèm cửa sổ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "immediately",
+    "ipa": "/ɪˈmiːdiətli/",
+    "pos": "adv",
+    "meaning": "ngay lập tức",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "connect",
+    "ipa": "/kəˈnekt/",
+    "pos": "v",
+    "meaning": "kết nối",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "high-quality",
+    "ipa": "/ˌhaɪ ˈkwɒləti/",
+    "pos": "adj",
+    "meaning": "chất lượng cao",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "temperature",
+    "ipa": "/ˈtemprətʃə(r)/",
+    "pos": "n",
+    "meaning": "nhiệt độ",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "block out",
+    "ipa": "/blɒk aʊt/",
+    "pos": "phr v",
+    "meaning": "ngăn chặn",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "excellent",
+    "ipa": "/ˈeksələnt/",
+    "pos": "adj",
+    "meaning": "tuyệt vời, xuất sắc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "prevent",
+    "ipa": "/prɪˈvent/",
+    "pos": "v",
+    "meaning": "ngăn ngừa",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "technology",
+    "ipa": "/tekˈnɒlədʒi/",
+    "pos": "n",
+    "meaning": "công nghệ",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "recognise",
+    "ipa": "/ˈrek.əɡ.naɪz/",
+    "pos": "v",
+    "meaning": "nhận ra",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "pattern",
+    "ipa": "/ˈpæt.ən/",
+    "pos": "n",
+    "meaning": "mô hình, mẫu",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "submit",
+    "ipa": "/səbˈmɪt/",
+    "pos": "v",
+    "meaning": "nộp",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "on time",
+    "ipa": "/ɒn taɪm/",
+    "pos": "adv",
+    "meaning": "đúng giờ",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "heart rate",
+    "ipa": "/hɑːt reɪt/",
+    "pos": "n",
+    "meaning": "nhịp tim",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "durable",
+    "ipa": "/ˈdjʊərəbl/",
+    "pos": "adj",
+    "meaning": "bền",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "mold",
+    "ipa": "/məʊld/",
+    "pos": "v",
+    "meaning": "đúc",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "leaflet",
+    "ipa": "/ˈliːflət/",
+    "pos": "n",
+    "meaning": "tờ rơi",
+    "section": "LOOKING BACK"
+   }
+  ]
+ },
+ {
+  "unit": 12,
+  "title": "Career choices",
+  "words": [
+   {
+    "word": "career choice",
+    "ipa": "/kəˈrɪə ˈʧɔɪsɪ/",
+    "pos": "n",
+    "meaning": "lựa chọn nghề nghiệp",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "bartender",
+    "ipa": "/ˈbɑːˌten.dər/",
+    "pos": "n",
+    "meaning": "người pha chế",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "fashion designer",
+    "ipa": "/ˈfæʃn dɪˈzaɪnə(r)/",
+    "pos": "n",
+    "meaning": "nhà thiết kế thời trang",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "garment worker",
+    "ipa": "/ˈɡɑːməntˈwɜːkə(r)/",
+    "pos": "n",
+    "meaning": "công nhân may mặc",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "hairdresser",
+    "ipa": "/ˈheədresə(r)/",
+    "pos": "n",
+    "meaning": "thợ làm tóc",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "mechanic",
+    "ipa": "/məˈkænɪk/",
+    "pos": "adj",
+    "meaning": "thợ máy",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "vocational college",
+    "ipa": "/vəʊˈkeɪʃənlˈkɒlɪdʒ/",
+    "pos": "n",
+    "meaning": "trường cao đẳng nghề",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "training course",
+    "ipa": "/ˈtreɪnɪŋ kɔːs/",
+    "pos": "n",
+    "meaning": "khóa học đào tạo",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "complete",
+    "ipa": "/kəmˈpliːt/",
+    "pos": "v",
+    "meaning": "hoàn thành",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "informative",
+    "ipa": "/ɪnˈfɔːmətɪv/",
+    "pos": "adj",
+    "meaning": "có tính thông tin",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "academic subject",
+    "ipa": "/ˌækəˈdemɪk ˈsʌbdʒɪkt/",
+    "pos": "n",
+    "meaning": "môn học thuật",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "prepare",
+    "ipa": "/prɪˈpeə(r)/",
+    "pos": "v",
+    "meaning": "chuẩn bị cho",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "earn living",
+    "ipa": "/ɜːn ˈlɪvɪŋ/",
+    "pos": "v",
+    "meaning": "kiếm sống",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "skillful",
+    "ipa": "/ˈskɪlfl/",
+    "pos": "adj",
+    "meaning": "có kỹ năng",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "achieve",
+    "ipa": "/əˈtʃiːv/",
+    "pos": "v",
+    "meaning": "đạt được",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "passion",
+    "ipa": "/ˈpæʃn/",
+    "pos": "n",
+    "meaning": "(n) đam mê",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "business management",
+    "ipa": "/ˈbɪznəs ˈmænɪdʒmənt/",
+    "pos": "n",
+    "meaning": "quản trị kinh doanh",
+    "section": "GETTING STARTED"
+   },
+   {
+    "word": "tailor",
+    "ipa": "/ˈteɪlə(r)/",
+    "pos": "n",
+    "meaning": "thợ may",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "surgeon",
+    "ipa": "/ˈsɜːdʒən/",
+    "pos": "n",
+    "meaning": "bác sĩ phẫu thuật",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "dentist",
+    "ipa": "/ˈdentɪst/",
+    "pos": "n",
+    "meaning": "nha sĩ",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "cashier",
+    "ipa": "/kæˈʃɪə(r)/",
+    "pos": "n",
+    "meaning": "nhân viên thu ngân",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "software engineer",
+    "ipa": "/ˈsɒftweə(r) ˌendʒɪˈnɪə(r)/",
+    "pos": "n",
+    "meaning": "kỹ sư phần mềm",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "demanding",
+    "ipa": "/dɪˈmɑːndɪŋ/",
+    "pos": "adj",
+    "meaning": "đòi hỏi cao",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "repetitive",
+    "ipa": "/rɪˈpetətɪv/",
+    "pos": "adj",
+    "meaning": "lặp đi lặp lại",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "well-paid",
+    "ipa": "/ˌwel ˈpeɪd/",
+    "pos": "adj",
+    "meaning": "có thu nhập cao",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "successful",
+    "ipa": "/səkˈsesfl/",
+    "pos": "adj",
+    "meaning": "thành công",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "decisive",
+    "ipa": "/dɪˈsaɪsɪv/",
+    "pos": "adj",
+    "meaning": "quyết đoán",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "creative",
+    "ipa": "/kriˈeɪtɪv/",
+    "pos": "adj",
+    "meaning": "sáng tạo",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "stress-free",
+    "ipa": "/stres - friː/",
+    "pos": "adj",
+    "meaning": "(adj) không căng thẳng",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "difficult",
+    "ipa": "/ˈdɪf.ə.kəlt/",
+    "pos": "adj",
+    "meaning": "khó khăn",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "reasonable",
+    "ipa": "/ˈriːznəbl/",
+    "pos": "adj",
+    "meaning": "hợp lý",
+    "section": "CLOSER LOOK 1"
+   },
+   {
+    "word": "mathematician",
+    "ipa": "/ˌmæθəməˈtɪʃn/",
+    "pos": "n",
+    "meaning": "nhà toán học",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "put off",
+    "ipa": "/pʊt ɒf/",
+    "pos": "phr v",
+    "meaning": "trì hoãn",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "traffic jam",
+    "ipa": "/'træfɪk dʒæm/",
+    "pos": "n",
+    "meaning": "tắc đường",
+    "section": "CLOSER LOOK 2"
+   },
+   {
+    "word": "hand-eye coordination",
+    "ipa": "/ˌhænd ˈaɪkəʊˌɔːdɪˈneɪʃn/",
+    "pos": "n",
+    "meaning": "phối hợp tay và mắt",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "patient",
+    "ipa": "/ˈpeɪʃnt/",
+    "pos": "adj",
+    "meaning": "kiên nhẫn",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "calm",
+    "ipa": "/kɑːm/",
+    "pos": "adj",
+    "meaning": "bình tĩnh",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "surgical team",
+    "ipa": "/ˈsɜːdʒɪkl tiːm/",
+    "pos": "n",
+    "meaning": "đội ngũ phẫu thuật",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "suitable",
+    "ipa": "/ˈsuːtəbl/",
+    "pos": "adj",
+    "meaning": "(adj) phù hợp",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "medical university",
+    "ipa": "/ˈmedɪklˌjuːnɪˈvɜːsəti/",
+    "pos": "n",
+    "meaning": "trường đại học y",
+    "section": "COMMUNICATION"
+   },
+   {
+    "word": "seriously",
+    "ipa": "/ˈsɪəriəsli/",
+    "pos": "adv",
+    "meaning": "một cách nghiêm túc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "worker",
+    "ipa": "/ˈwɝː.kɚ/",
+    "pos": "n",
+    "meaning": "công nhân",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "ticket seller",
+    "ipa": "/ˈtɪkɪt ˈselə(r)/",
+    "pos": "n",
+    "meaning": "người bán vé",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "computer skill",
+    "ipa": "/kəmˈpjuː.tər skɪl/",
+    "pos": "n",
+    "meaning": "kỹ năng máy tính",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "collaborate",
+    "ipa": "/kəˈlæbəreɪt/",
+    "pos": "v",
+    "meaning": "hợp tác (với)",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "confident",
+    "ipa": "/ˈkɒnfɪdənt/",
+    "pos": "adj",
+    "meaning": "tự tin",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "career path",
+    "ipa": "/kəˈrɪə(r) pɑːθ/",
+    "pos": "n",
+    "meaning": "con đường nghề nghiệp",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "fashionable",
+    "ipa": "/ˈfæʃnəbl/",
+    "pos": "adj",
+    "meaning": "thời thượng",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "good",
+    "ipa": "/ɡʊd/",
+    "pos": "adj",
+    "meaning": "giỏi (về)",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "persuade",
+    "ipa": "/pəˈsweɪd/",
+    "pos": "v",
+    "meaning": "thuyết phục",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "hair salon",
+    "ipa": "/heə(r) səˈlɒn/",
+    "pos": "n",
+    "meaning": "tiệm làm tóc",
+    "section": "SKILL 1"
+   },
+   {
+    "word": "family tradition",
+    "ipa": "/ˈfæməlitrəˈdɪʃn/",
+    "pos": "n",
+    "meaning": "truyền thống gia đình",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "certificate",
+    "ipa": "/səˈtɪfɪkət/",
+    "pos": "n",
+    "meaning": "chứng chỉ",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "solving problem",
+    "ipa": "/ˈsɒlvɪŋ ˈprɒbləm/",
+    "pos": "n",
+    "meaning": "giải quyết vấn đề",
+    "section": "SKILL 2"
+   },
+   {
+    "word": "theoretical subject",
+    "ipa": "/θɪəˈretɪklˈsʌbdʒɪkt/",
+    "pos": "n",
+    "meaning": "môn lý thuyết",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "insist",
+    "ipa": "/ɪnˈsɪst/",
+    "pos": "v",
+    "meaning": "khăng khăng",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "salary",
+    "ipa": "/ˈsæləri/",
+    "pos": "n",
+    "meaning": "lương",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "painful",
+    "ipa": "/ˈpeɪnfl/",
+    "pos": "adj",
+    "meaning": "đau đớn",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "overestimate",
+    "ipa": "/ˌəʊvərˈestɪmeɪt/",
+    "pos": "v",
+    "meaning": "đánh giá cao",
+    "section": "LOOKING BACK"
+   },
+   {
+    "word": "future job",
+    "ipa": "/ˈfjuːtʃə(r) dʒɒb/",
+    "pos": "n",
+    "meaning": "nghề nghiệp tương lai",
+    "section": "LOOKING BACK"
+   }
+  ]
+ }
+]
