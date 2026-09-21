@@ -511,7 +511,7 @@
         if (id === "speaking-lab") mountSpeaking();
         if (id === "listening-lab") mountListening();
         if (id === "tests") mountExams();
-        if (id === "overview") bindOverview();
+        if (id === "student-home" || id === "results") bindOverview();
       } catch (e) { console.error("[ENGO units-ui]", e); }
     },
     pushError(code) {
