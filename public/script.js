@@ -94,27 +94,31 @@ document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("cli
 
 
 const ROUTE_MAP = {
-  "student-home": "/dashboard", "results": "/results", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
+  "student-home": "/dashboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
   "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
   "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin"
 };
 const REVERSE_ROUTE_MAP = {
-  "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "results", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
+  "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
   "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
   "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin"
 };
-const STUDENT_VIEWS = new Set(["student-home", "results", "quiz", "achievements", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
+const STUDENT_VIEWS = new Set(["student-home", "quiz", "achievements", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
 const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
 
 function switchView(id, pushHistory = true) {
+  // "results" đã gộp vào Dashboard: chuyển về dashboard rồi cuộn tới phần kết quả
+  const scrollToResults = id === "results";
+  if (scrollToResults) id = "student-home";
   if (!id || !document.getElementById(id)) return;
   
   if (currentUser && currentUser.role !== "student" && STUDENT_VIEWS.has(id)) id = ROLE_HOME[currentUser.role] || id;
   views.forEach(v => v.classList.toggle("active", v.id === id));
   document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.view === id));
   sidebar.classList.remove("open");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (scrollToResults) setTimeout(() => document.getElementById("resultsAnchor")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+  else window.scrollTo({ top: 0, behavior: "smooth" });
   const targetPath = ROUTE_MAP[id] || ("/" + id);
   if (pushHistory && window.location.pathname !== targetPath) window.history.pushState({ viewId: id }, "", targetPath);
 
@@ -123,8 +127,7 @@ function switchView(id, pushHistory = true) {
   if (chatWidget) { chatWidget.style.display = isQuiz ? "none" : "block"; if (isQuiz) document.getElementById("capybaraChatWindow")?.classList.add("hidden"); }
 
   if (!currentUser) return;
-  if (id === "student-home") renderStudentDashboard();
-  if (id === "results") renderStudentResults();
+  if (id === "student-home") { renderStudentDashboard(); renderStudentResults(); }
   if (id === "tests") renderTestsPage();
   if (id === "errorHealing") renderHealingRoom();
   if (id === "speaking-lab") renderSpeakingLab();
@@ -613,7 +616,7 @@ async function renderStudentDashboard(force = false) {
   document.getElementById("dashboardTodoList").innerHTML = todos.map(t => `<div class="notice notice-link" data-view="${t.view}"><strong>${escapeHTML(t.title)}</strong><p>${escapeHTML(t.desc)}</p></div>`).join("");
   document.querySelectorAll("#dashboardTodoList [data-view]").forEach(el => el.addEventListener("click", () => switchView(el.dataset.view)));
 }
-document.getElementById("refreshDashboardBtn")?.addEventListener("click", () => { renderStudentDashboard(true); showToast("Đã làm mới dashboard."); });
+document.getElementById("refreshDashboardBtn")?.addEventListener("click", () => { renderStudentDashboard(true); renderStudentResults(); showToast("Đã làm mới dashboard."); });
 
 
 
@@ -909,10 +912,9 @@ async function renderStudentResults() {
     const data = await apiRequest("/api/student/results");
     studentSubmissionsCache = data.submissions || [];
     const stats = data.stats || {};
-    document.getElementById("studentAvgScore").textContent = stats.avgScore ? `${stats.avgScore}/10` : "--";
-    document.getElementById("studentAccuracy").textContent = stats.accuracy ? `${stats.accuracy}%` : "--%";
-    document.getElementById("studentTotalTests").textContent = stats.totalTests || 0;
-    document.getElementById("studentPendingWriting").textContent = stats.pendingWriting || 0;
+    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setTxt("studentAvgScore", stats.avgScore ? `${stats.avgScore}/10` : "--"); setTxt("studentAccuracy", stats.accuracy ? `${stats.accuracy}%` : "--%");
+    setTxt("studentTotalTests", stats.totalTests || 0); setTxt("studentPendingWriting", stats.pendingWriting || 0);
     tbody.innerHTML = studentSubmissionsCache.length ? studentSubmissionsCache.map(item => {
       const isPending = item.status === "pending_manual";
       const writing = item.manualScore !== null ? `<strong style="color:#059669">${Number(item.manualScore).toFixed(2)} đ</strong>${item.teacherFeedback ? `<div class="small" style="color:#64748b;font-style:italic">"${escapeHTML(item.teacherFeedback)}"</div>` : ""}` : '<span class="badge orange">Chờ GV chấm</span>';
@@ -931,7 +933,6 @@ async function renderStudentResults() {
     vocBody.innerHTML = others.length ? others.slice(0, 15).map(e => `<tr><td><strong>${escapeHTML(e.title)}</strong><div class="small muted">${e.type === "vocab" ? "Từ vựng" : "Chữa lỗi"}</div></td><td>${e.type === "vocab" ? `<span class="score-pill">${e.maxScore ? Math.round((e.score / e.maxScore) * 100) : e.score}%</span>` : '<span class="badge green">Đã chữa</span>'}</td><td class="small muted">${fmtDate(e.createdAt, true)}</td></tr>`).join("") : '<tr><td colspan="3" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr>';
   }
 }
-document.getElementById("refreshStudentResultsBtn")?.addEventListener("click", () => { renderStudentResults(); showToast("Đã làm mới kết quả học tập."); });
 
 
 

@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-  <link rel="stylesheet" href="./styles.css?v=6" />
+  <link rel="stylesheet" href="./styles.css?v=7" />
 </head>
 <body>
 
@@ -108,9 +108,6 @@
         <button class="nav-btn" data-view="achievements">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span> Thành tích
         </button>
-        <button class="nav-btn" data-view="results">
-          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span> Kết quả
-        </button>
       </nav>
 
       <div class="nav-label role-nav-group hidden" id="roleNavLabel">Quản lý</div>
@@ -159,8 +156,8 @@
         <section class="view active" id="student-home">
 <div class="page-heading">
             <div>
-              <h2 id="welcomeHeading">Dashboard đánh giá</h2>
-              <p>Toàn cảnh năng lực của bạn qua số liệu, biểu đồ và tiến bộ theo thời gian.</p>
+              <h2 id="welcomeHeading">Dashboard & kết quả</h2>
+              <p>Toàn cảnh năng lực qua số liệu, biểu đồ, cùng lịch sử kết quả từng bài kiểm tra và bài luyện.</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-light" id="refreshDashboardBtn">Làm mới</button>
@@ -277,6 +274,32 @@
             <div class="card panel">
               <div class="section-head"><h3>Việc cần làm</h3></div>
               <div class="notice-list" id="dashboardTodoList"><div class="notice"><strong>Đang tải...</strong></div></div>
+            </div>
+          </div>
+
+          <!-- ===================== KẾT QUẢ HỌC TẬP (gộp vào Dashboard) ===================== -->
+          <div class="section" id="resultsAnchor">
+            <div class="page-heading" style="margin-bottom:12px">
+              <div><h2 style="font-size:1.35rem">Kết quả học tập</h2><p>Ghi nhận từng lần kiểm tra, từng bài luyện nói và bộ từ vựng bạn đã hoàn thành.</p></div>
+            </div>
+          </div>
+          <div class="section card panel">
+            <div class="section-head"><h3>Lịch sử bài kiểm tra & nhận xét của giáo viên</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Bài kiểm tra</th><th>Trắc nghiệm + Speaking</th><th>Writing & Nhận xét</th><th>Tổng điểm</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody id="studentResultsTableBody"><tr><td colspan="6" class="small muted" style="text-align:center;padding:24px">Đang tải lịch sử bài làm...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="section grid two-col-even">
+            <div class="card panel">
+              <div class="section-head"><h3>Lịch sử luyện nói</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>Bài</th><th>Giai đoạn</th><th>Độ chuẩn</th><th>Ngày</th></tr></thead><tbody id="studentSpeakingHistoryBody"><tr><td colspan="4" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
+            </div>
+            <div class="card panel">
+              <div class="section-head"><h3>Lịch sử từ vựng & chữa lỗi</h3></div>
+              <div class="table-wrap"><table><thead><tr><th>Hoạt động</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody id="studentVocabHistoryBody"><tr><td colspan="3" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
             </div>
           </div>
         </section>
@@ -734,39 +757,6 @@
           </div>
         </section>
 
-        <!-- ===================== TỔNG KẾT & ĐÁNH GIÁ (gộp Dashboard + Kết quả) ===================== -->
-        <!-- ===================== KẾT QUẢ ===================== -->
-        <section class="view" id="results">
-<div class="page-heading">
-            <div><h2>Kết quả học tập</h2><p>Ghi nhận từng lần kiểm tra, từng bài luyện nói và bộ từ vựng bạn đã hoàn thành.</p></div>
-            <button class="btn btn-light" id="refreshStudentResultsBtn">Làm mới</button>
-          </div>
-          <div class="grid stats-grid">
-            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div><div><strong id="studentAvgScore">--</strong><span>Điểm trung bình</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5"><svg viewBox="0 0 24 24" style="stroke:#059669"><polyline points="20 6 9 17 4 12"/></svg></div><div><strong id="studentAccuracy">--%</strong><span>Tỷ lệ chính xác</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg></div><div><strong id="studentTotalTests">0</strong><span>Bài kiểm tra đã nộp</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2"><svg viewBox="0 0 24 24" style="stroke:#dc2626"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div><div><strong id="studentPendingWriting">0</strong><span>Bài chờ chấm Writing</span></div></div>
-          </div>
-          <div class="section card panel">
-            <div class="section-head"><h3>Lịch sử bài kiểm tra & nhận xét của giáo viên</h3></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Bài kiểm tra</th><th>Trắc nghiệm + Speaking</th><th>Writing & Nhận xét</th><th>Tổng điểm</th><th>Trạng thái</th><th></th></tr></thead>
-                <tbody id="studentResultsTableBody"><tr><td colspan="6" class="small muted" style="text-align:center;padding:24px">Đang tải lịch sử bài làm...</td></tr></tbody>
-              </table>
-            </div>
-          </div>
-          <div class="section grid two-col-even">
-            <div class="card panel">
-              <div class="section-head"><h3>Lịch sử luyện nói</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>Bài</th><th>Giai đoạn</th><th>Độ chuẩn</th><th>Ngày</th></tr></thead><tbody id="studentSpeakingHistoryBody"><tr><td colspan="4" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
-            </div>
-            <div class="card panel">
-              <div class="section-head"><h3>Lịch sử từ vựng & chữa lỗi</h3></div>
-              <div class="table-wrap"><table><thead><tr><th>Hoạt động</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody id="studentVocabHistoryBody"><tr><td colspan="3" class="small muted" style="text-align:center;padding:16px">Chưa có dữ liệu.</td></tr></tbody></table></div>
-            </div>
-          </div>
-        </section>
 
         <!-- ===================== LUYỆN NGHE THEO UNIT ===================== -->
         <section class="view" id="listening-lab">
@@ -1053,7 +1043,7 @@
   <script src="./data/listening-units.js?v=5"></script>
   <script src="./data/listening-sets.js?v=5"></script>
   <script src="./data/exam-bank.js?v=5"></script>
-  <script src="./script.js?v=6" defer></script>
-  <script src="./units-ui.js?v=6" defer></script>
+  <script src="./script.js?v=7" defer></script>
+  <script src="./units-ui.js?v=7" defer></script>
 </body>
 </html>
