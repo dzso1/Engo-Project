@@ -1870,16 +1870,18 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
     if (!targetText && mode !== "free") return res.status(400).json({ success: false, message: "Thiếu câu mẫu để chấm." });
 
     let result, bestTranscript;
+    let freeJudge = null;
     if (mode === "free") {
-      // Nói tự do (trả lời câu hỏi): chấm theo độ dài + từ khoá của đề bài
+      // Nói tự do (trả lời câu hỏi): AI chấm mức bám đề + nội dung + ngữ pháp (chống nói lạc đề / đọc linh tinh)
       bestTranscript = String(alts[0] || "").trim();
       const words = speakingScorer.normalizeWords(bestTranscript);
-      const keyWords = speakingScorer.normalizeWords(targetText).filter(w => w.length > 3);
-      const hit = keyWords.filter(k => words.some(w => speakingScorer.wordSimilarity(k, w) >= 0.8)).length;
-      const lengthScore = Math.min(100, Math.round((words.length / 15) * 100));
-      const relevance = keyWords.length ? Math.round((hit / keyWords.length) * 100) : lengthScore;
-      const accuracy = words.length < 3 ? Math.min(20, lengthScore) : Math.round(lengthScore * 0.6 + relevance * 0.4);
-      result = { accuracy, breakdown: words.map(w => ({ word: w, status: "correct", similarity: 1, heard: w })), errors: [] };
+      freeJudge = await Promise.race([
+        aiService.judgeFreeSpeaking({ prompt: targetText, transcript: bestTranscript }),
+        new Promise(resolve => setTimeout(() => resolve(null), 16000))
+      ]);
+      if (!freeJudge) freeJudge = await aiService.judgeFreeSpeaking({ prompt: "", transcript: "" });
+      const grammarErrors = (freeJudge.grammarIssues || []).map(g => ({ type: "grammar", subtype: "free", word: String(g.correct || ""), heard: String(g.wrong || ""), note: g.note }));
+      result = { accuracy: freeJudge.score, breakdown: words.map(w => ({ word: w, status: "correct", similarity: 1, heard: w })), errors: grammarErrors };
     } else {
       const picked = speakingScorer.pickBestTranscript(targetText, alts);
       bestTranscript = picked.transcript;
@@ -1888,15 +1890,15 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
 
     const verdict = speakingScorer.verdictFor(result.accuracy);
     // Nhận xét AI (giới hạn 9s để không làm học sinh chờ lâu)
-    let tip = "";
-    try {
+    let tip = freeJudge && freeJudge.tip ? freeJudge.tip : "";
+    if (!tip) try {
       const fb = await Promise.race([
         aiService.speakingFeedback({ target: targetText, transcript: bestTranscript, accuracy: result.accuracy, errors: result.errors }),
         new Promise(resolve => setTimeout(() => resolve(null), 9000))
       ]);
       tip = fb && fb.tip ? fb.tip : "";
     } catch (e) {}
-    if (!tip) {
+    if (!tip && mode !== "free") {
       const fb = await aiService.speakingFeedback({ target: "", transcript: "", accuracy: result.accuracy, errors: result.errors });
       tip = fb.tip;
     }

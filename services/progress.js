@@ -177,40 +177,48 @@ async function getEventProgress(studentId) {
   };
 }
 
+// Năng lực = chất lượng (điểm trung bình) x mức hoàn thiện (đã làm bao nhiêu so với mục tiêu)
+// -> làm 1 bài chỉ cộng một phần nhỏ, không nhảy thẳng lên 100%
+const COVERAGE_TARGETS = { tests: 8, speakingAttempts: 40, listening: 24, grammar: 12, vocab: 12, writing: 6 };
+function coverage(done, target) { return Math.min(1, (Number(done) || 0) / target); }
+function skill(quality, cov) { return Math.max(0, Math.min(100, Math.round((Number(quality) || 0) * cov))); }
 function buildSkillScores({ tests, speaking, eventsInfo }) {
-  const testPct = tests.count ? Math.round(tests.avgScore * 10) : 0;
-  const speakingPct = speaking.totalAttempts ? speaking.avgAccuracy : 0;
-  const vocabPct = eventsInfo.vocab.sessions ? eventsInfo.vocab.avgQuizPercent : 0;
-  const grammarSignal = speaking.totalAttempts ? Math.max(0, 100 - Object.values(speaking.grammarErrors || {}).reduce((s, n) => s + n, 0) * 4) : 0;
-  const grammarPractice = eventsInfo.grammar.sessions ? eventsInfo.grammar.avgPercent : 0;
-  const grammarParts = [tests.count ? testPct : null, grammarPractice || null, grammarSignal || null].filter(v => v !== null);
-  const grammar = grammarParts.length ? Math.round(grammarParts.reduce((s, v) => s + v, 0) / grammarParts.length) : 0;
+  const testPct = tests.count ? tests.avgScore * 10 : 0;
+  const testCov = coverage(tests.count, COVERAGE_TARGETS.tests);
+  const speakCov = coverage(speaking.totalAttempts, COVERAGE_TARGETS.speakingAttempts);
+  const listenCov = coverage(eventsInfo.listening.sessions, COVERAGE_TARGETS.listening);
+  const gramCov = coverage(eventsInfo.grammar.sessions, COVERAGE_TARGETS.grammar);
+  const vocabCov = coverage(eventsInfo.vocab.sessions, COVERAGE_TARGETS.vocab);
   const writingScored = tests.history.filter(h => h.status === "graded");
-  const writing = writingScored.length ? Math.round(writingScored.reduce((s, h) => s + h.scoreOnTen, 0) / writingScored.length * 10) : (tests.count ? Math.round(testPct * 0.8) : 0);
-  const listening = eventsInfo.listening.sessions ? eventsInfo.listening.avgPercent : (speaking.totalAttempts ? Math.round(speakingPct * 0.7) : 0);
+  const writingPct = writingScored.length ? writingScored.reduce((s, h) => s + h.scoreOnTen, 0) / writingScored.length * 10 : 0;
+  // Ngữ pháp: trung bình có trọng số của bài tập ngữ pháp theo unit và bài kiểm tra
+  const gramParts = [];
+  if (eventsInfo.grammar.sessions) gramParts.push({ q: eventsInfo.grammar.avgPercent, w: gramCov });
+  if (tests.count) gramParts.push({ q: testPct, w: testCov });
+  const grammar = gramParts.length ? gramParts.reduce((s, x) => s + x.q * x.w, 0) / gramParts.reduce((s, x) => s + x.w, 0) * Math.min(1, gramCov + testCov) : 0;
   return {
-    Listening: Math.min(100, listening),
-    Speaking: Math.min(100, speakingPct),
-    Vocabulary: Math.min(100, vocabPct),
-    Grammar: Math.min(100, grammar),
-    Writing: Math.min(100, writing),
-    Reading: Math.min(100, testPct)
+    Listening: skill(eventsInfo.listening.sessions ? eventsInfo.listening.avgPercent : 0, listenCov),
+    Speaking: skill(speaking.avgAccuracy, speakCov),
+    Vocabulary: skill(eventsInfo.vocab.avgQuizPercent, vocabCov),
+    Grammar: Math.round(grammar),
+    Writing: skill(writingPct, coverage(writingScored.length, COVERAGE_TARGETS.writing)),
+    Reading: skill(testPct, testCov)
   };
 }
 
 function computeTitles({ tests, speaking, eventsInfo }) {
   const titles = [];
   const push = (id, name, icon, desc, earned) => titles.push({ id, name, icon, desc, earned: Boolean(earned) });
-  push("pron_king", "Vua Phát Âm", "🎙️", "Trung bình phát âm ≥ 85% với ít nhất 15 lượt luyện", speaking.totalAttempts >= 15 && speaking.avgAccuracy >= 85);
-  push("pron_rising", "Ngôi Sao Phát Âm", "🌟", "Đạt ít nhất một lượt ≥ 95%", speaking.bestAccuracy >= 95);
-  push("dialogue_master", "Bậc Thầy Hội Thoại", "💬", "Hoàn thành giai đoạn 2 với trung bình ≥ 80%", (speaking.stages[2]?.attempts || 0) >= 8 && (speaking.stages[2]?.avgAccuracy || 0) >= 80);
-  push("grammar_king", "Vua Ngữ Pháp", "📘", "Điểm kiểm tra TB ≥ 8.5 (≥ 3 bài) hoặc bài tập ngữ pháp ≥ 85% ở 6 unit", (tests.count >= 3 && tests.avgScore >= 8.5) || (eventsInfo.grammar.unitsDone >= 6 && eventsInfo.grammar.avgPercent >= 85));
-  push("listening_king", "Vua Nghe", "🎧", "Luyện nghe ≥ 6 bài với trung bình ≥ 85%", eventsInfo.listening.sessions >= 6 && eventsInfo.listening.avgPercent >= 85);
-  push("test_ace", "Chiến Binh Phòng Thi", "🛡️", "Hoàn thành 5 bài kiểm tra không vi phạm", tests.count >= 5 && tests.history.every(h => !h.tabViolations));
-  push("vocab_king", "Vua Từ Vựng", "🔤", "Hoàn thành 5 bộ từ vựng với điểm ≥ 80%", eventsInfo.vocab.setsCompleted >= 5 && eventsInfo.vocab.avgQuizPercent >= 80);
-  push("healer", "Bác Sĩ Ngữ Pháp", "🩺", "Chữa khỏi 10 lỗi trong Phòng chữa lỗi", eventsInfo.healing.healed >= 10);
-  push("rising_star", "Tiến Bộ Vượt Bậc", "🚀", "Điểm kiểm tra tăng ≥ 1.5 điểm so với lúc bắt đầu", tests.improvement >= 1.5);
-  push("diligent", "Học Sinh Chăm Chỉ", "🔥", "Hoạt động học tập trong 10 ngày khác nhau", eventsInfo.activeDays >= 10);
+  push("pron_king", "Vua Phát Âm", "mic", "Trung bình phát âm ≥ 85% với ít nhất 15 lượt luyện", speaking.totalAttempts >= 15 && speaking.avgAccuracy >= 85);
+  push("pron_rising", "Ngôi Sao Phát Âm", "star", "Đạt ít nhất một lượt ≥ 95%", speaking.bestAccuracy >= 95);
+  push("dialogue_master", "Bậc Thầy Hội Thoại", "forum", "Hoàn thành giai đoạn 2 với trung bình ≥ 80%", (speaking.stages[2]?.attempts || 0) >= 8 && (speaking.stages[2]?.avgAccuracy || 0) >= 80);
+  push("grammar_king", "Vua Ngữ Pháp", "menu_book", "Điểm kiểm tra TB ≥ 8.5 (≥ 3 bài) hoặc bài tập ngữ pháp ≥ 85% ở 6 unit", (tests.count >= 3 && tests.avgScore >= 8.5) || (eventsInfo.grammar.unitsDone >= 6 && eventsInfo.grammar.avgPercent >= 85));
+  push("listening_king", "Vua Nghe", "headphones", "Luyện nghe ≥ 6 bài với trung bình ≥ 85%", eventsInfo.listening.sessions >= 6 && eventsInfo.listening.avgPercent >= 85);
+  push("test_ace", "Chiến Binh Phòng Thi", "shield", "Hoàn thành 5 bài kiểm tra không vi phạm", tests.count >= 5 && tests.history.every(h => !h.tabViolations));
+  push("vocab_king", "Vua Từ Vựng", "abc", "Hoàn thành 5 bộ từ vựng với điểm ≥ 80%", eventsInfo.vocab.setsCompleted >= 5 && eventsInfo.vocab.avgQuizPercent >= 80);
+  push("healer", "Bác Sĩ Ngữ Pháp", "stethoscope", "Chữa khỏi 10 lỗi trong Phòng chữa lỗi", eventsInfo.healing.healed >= 10);
+  push("rising_star", "Tiến Bộ Vượt Bậc", "rocket_launch", "Điểm kiểm tra tăng ≥ 1.5 điểm so với lúc bắt đầu", tests.improvement >= 1.5);
+  push("diligent", "Học Sinh Chăm Chỉ", "local_fire_department", "Hoạt động học tập trong 10 ngày khác nhau", eventsInfo.activeDays >= 10);
   return titles;
 }
 

@@ -49,7 +49,7 @@
     body{
       margin:0;
       min-height:100vh;
-      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family:"Roboto", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color:var(--ink);
       background:
         radial-gradient(circle at 10% 0%, rgba(16,185,129,.14), transparent 28%),
@@ -2147,3 +2147,96 @@
   .unit-word-grid { grid-template-columns: 1fr; }
   .unit-gap { width: 100%; }
 }
+
+    /* ==================== v3: Roboto + Material Symbols ==================== */
+    body,button,input,select,textarea{font-family:"Roboto",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    .mi{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;font-size:1.2em;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;vertical-align:-0.22em;-webkit-font-smoothing:antialiased;font-variation-settings:"FILL" 0,"wght" 500,"GRAD" 0,"opsz" 24}
+    .btn .mi,.nav-btn .mi,.badge .mi,.healing-tab .mi{font-size:1.15em;margin-right:2px}
+    .icon-btn .mi{font-size:20px;vertical-align:middle}
+    h1 .mi,h2 .mi,h3 .mi{font-size:1em}
+    .achievement-icon .mi{font-size:38px;color:#b45309}
+    .achievement-card:not(.unlocked) .achievement-icon .mi{color:#94a3b8}
+    .stat-card .mi{font-size:22px}
+    .streak-hero-icon-wrap .mi{font-size:38px;color:#ea580c}
+    .streak-day-item .reward-icon .mi{font-size:18px}
+    .capybara-chat-badge{font-family:"Roboto"}
+    .ico-carrot{display:inline-block;width:1.15em;height:1.15em;vertical-align:-0.2em;background:no-repeat center/contain url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23f97316' d='M4.5 19.5 3 21l1.5-1.5zM14 8l2 2-9.2 9.2c-.6.6-1.4.8-2.2.7L3 21l1.1-1.6c-.1-.8.1-1.6.7-2.2z'/><path fill='%23f97316' d='M13.5 2.3c.4 1.4.2 2.7-.5 3.9l1.4.9c1.3-.7 2.7-.8 4-.2-1.2.6-2.2 1.6-2.9 2.8l1 1.1c1.6.4 3 .1 4.3-1-.8 1.7-2.2 2.7-4 2.9l-4.9-4.9c.2-1.8 1.2-3.2 2.9-4-1.1 1.3-1.4 2.7-1 4.3l1.1 1c1.2-.7 2.2-1.7 2.8-2.9.6 1.3.5 2.7-.2 4l.9 1.4c1.2-.7 2.5-.9 3.9-.5-1.5-.5-2.9-.4-4.2.3l-.9-1.4c.7-1.2.8-2.6.2-3.9-.6 1.2-1.6 2.2-2.8 2.8l-1.1-1c-.4-1.6-.1-3 1-4.3-1.7.8-2.7 2.2-2.9 4L5 19.3 4.7 19z'/><path fill='%2322c55e' d='M14.2 1.5c.3 1.6-.2 3.1-1.4 4.2l1.2 1.2c1.2-1.2 2.7-1.7 4.3-1.4-.9 1-1.6 2.2-1.9 3.6l1.3 1.3c1.4-.3 2.6-1 3.6-1.9.3 1.6-.2 3.1-1.4 4.3l-.8-.8c.6-1.1.8-2.3.6-3.5l-1.2-1.2c-1.2.2-2.4 0-3.5-.6l-.8-.8c-.6-1.1-.8-2.3-.6-3.5L12.4 1.2c1.2-.2 2.4 0 3.5.6z'/></svg>")}
+    .ico-carrot.lg{width:1.6em;height:1.6em}
+    .role-pick{display:inline-flex;align-items:center;gap:6px;margin-right:10px;text-transform:none;letter-spacing:0;font-weight:700;color:var(--muted)}
+    .role-now{display:inline-block;padding:4px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:800;text-transform:none;letter-spacing:0}
+    .role-now.tts{background:#fef3c7;color:#92400e}
+    .dialogue-line.machine{opacity:.75;font-style:italic}
+    .katex{font-size:1.05em}
+    .chat-bubble .katex-display{margin:6px 0;overflow-x:auto}
+
+    /* ==================== v3: MOBILE ==================== */
+    @media (max-width:760px){
+      .topbar{height:auto;padding:8px 10px;gap:8px;flex-wrap:wrap}
+      .top-actions{gap:6px;margin-left:auto}
+      .role-select{display:none}
+      .streak-top-btn{padding:6px 10px;font-size:12px}
+      .content{padding:12px}
+      .page-heading{gap:10px;margin-bottom:14px}
+      .page-heading h2{font-size:21px}
+      .page-heading>div:last-child,.page-heading .data-toolbar{width:100%;display:flex;flex-wrap:wrap;gap:8px}
+      .page-heading .btn{flex:1 1 auto;padding:9px 10px;font-size:13px}
+      .stats-grid,.stats-grid-6{grid-template-columns:1fr 1fr;gap:10px}
+      .stat-card{padding:12px;gap:10px}.stat-card strong{font-size:19px}.stat-icon{width:40px;height:40px;border-radius:12px}
+      .card{border-radius:14px}.panel{padding:14px}
+      .section-head{flex-wrap:wrap;gap:8px}.section-head h3{font-size:16px}
+      .results-controls{width:100%}.results-controls .role-select{display:block;flex:1 1 45%;min-width:0!important;padding:8px 28px 8px 10px;font-size:12px}
+      table{min-width:560px}th,td{padding:9px 8px;font-size:12px}
+      .table-wrap{margin:0 -14px;padding:0 14px;-webkit-overflow-scrolling:touch}
+      .capybara-companion-main{grid-template-columns:1fr}
+      .capybara-actions-row .btn{flex:1 1 100%}
+      .learning-overview-grid,.two-col,.two-col-even,.grammar-page-layout,.flashcard-layout,.quiz-layout{grid-template-columns:1fr}
+      .radar-chart{width:min(100%,300px)}
+      .stage-grid,.stage-grid-3,.stage-mini-grid{grid-template-columns:1fr}
+      .stage-metrics{grid-template-columns:repeat(2,1fr)}
+      .speaking-practice{padding:14px;gap:12px}
+      .speaking-target-text{font-size:20px}
+      .speaking-controls{gap:8px}.speaking-controls .btn{flex:1 1 100%;justify-content:center}
+      .speaking-actions{flex-wrap:wrap;gap:8px}.speaking-actions>div{width:100%;display:flex;gap:8px}.speaking-actions .btn{flex:1}
+      .speaking-practice-head{flex-direction:column}
+      .flash-word{font-size:34px}.flash-face{padding:18px}.flash-examples li{font-size:13px}
+      .flash-controls .btn{flex:1 1 30%;padding:9px 6px;font-size:12px}
+      .flash-finish{flex-direction:column;align-items:stretch}
+      .healing-tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-bottom:4px}.healing-tab{white-space:nowrap;padding:8px 12px;font-size:12px}
+      .healing-stats,.healing-stats-4{grid-template-columns:1fr 1fr}
+      .unit-chip-row{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-bottom:4px}
+      .unit-word-grid{grid-template-columns:1fr}
+      .match-grid{grid-template-columns:1fr 1fr;gap:8px}.match-item{padding:8px;font-size:12px}
+      .modal{padding:8px}.modal-card{padding:16px;border-radius:16px;max-height:94vh}.modal-card.modal-lg{width:100%}
+      .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}
+      .achievement-summary{grid-template-columns:1fr;text-align:center}.level-badge{width:120px;height:120px}
+      .achievement-grid{grid-template-columns:1fr 1fr}
+      .capybara-chat-widget{bottom:14px;right:14px}.capybara-chat-trigger{width:54px;height:54px}.capybara-chat-btn-img{width:40px;height:40px}
+      .capybara-chat-window{width:calc(100vw - 28px);height:min(540px,calc(100vh - 100px))}
+      .quiz-head{flex-wrap:wrap}.question-box h4{font-size:16px}
+      .q-grid{grid-template-columns:repeat(8,1fr)}
+      .notification-panel{right:8px;width:calc(100vw - 16px)}
+      .toast{left:12px;right:12px;bottom:80px;text-align:center}
+      .streak-modal-card{padding:16px}
+      .sidebar{width:min(280px,86vw)}
+    }
+    @media (max-width:420px){
+      .stats-grid,.stats-grid-6,.healing-stats,.healing-stats-4,.achievement-grid{grid-template-columns:1fr}
+      .flash-word{font-size:30px}
+      .match-grid{grid-template-columns:1fr}
+    }
+
+    /* dark mode cho học liệu theo Unit */
+    body.dark-mode .unit-panel,body.dark-mode .unit-word,body.dark-mode .unit-line,body.dark-mode .unit-rule,body.dark-mode .unit-q,body.dark-mode .unit-sec,body.dark-mode .unit-quiz,body.dark-mode .unit-script,body.dark-mode .unit-bank-row{background:#111827;border-color:#334155;color:#e2e8f0}
+    body.dark-mode .unit-word b,body.dark-mode .unit-line b,body.dark-mode .unit-rule h4,body.dark-mode .unit-sec-title,body.dark-mode .unit-q p,body.dark-mode .unit-focus{color:#f1f5f9}
+    body.dark-mode .unit-vi{color:#a7f3d0}
+    body.dark-mode .unit-say{background:#1f2937;border-color:#334155;color:#e2e8f0}
+    body.dark-mode .unit-opt{background:#0f172a;border-color:#334155;color:#e2e8f0}
+    body.dark-mode .unit-opt.picked{background:#1e1b4b;border-color:#6366f1}
+    body.dark-mode .unit-opt.right{background:#064e3b;border-color:#22c55e}
+    body.dark-mode .unit-opt.wrong{background:#3b171b;border-color:#ef4444}
+    body.dark-mode .unit-chip{background:#111827;border-color:#334155;color:#cbd5e1}
+    body.dark-mode .unit-chip.active{background:#059669;color:#fff}
+    body.dark-mode .unit-form{background:#25244b;color:#d8d5ff}
+    body.dark-mode .unit-ok{color:#86efac}body.dark-mode .unit-no{color:#fca5a5}
+    body.dark-mode .unit-code,body.dark-mode .unit-pos{background:#1f2937;color:#c7d2fe}
+    body.dark-mode .unit-gap{background:#0f172a;border-color:#334155;color:#e2e8f0}

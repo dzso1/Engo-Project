@@ -62,7 +62,7 @@ function applyTheme(theme) {
   document.querySelectorAll(".theme-toggle").forEach(button => {
     button.setAttribute("aria-pressed", String(dark));
     button.title = dark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối";
-    const icon = button.querySelector(".theme-icon"); if (icon) icon.textContent = dark ? "☀" : "☾";
+ const icon = button.querySelector(".theme-icon"); if (icon) icon.innerHTML = dark ? "<i class=mi>light_mode</i>" : "<i class=mi>dark_mode</i>";
   });
 }
 function getPreferredTheme() {
@@ -207,11 +207,81 @@ function updateUserUI(user) {
   }
   loadClassNames();
   if (user.role === "student") {
+    migrateLocalData();
     renderCapybaraCompanion();
     updateStreakTopbarUI();
     setTimeout(() => renderDailyStreakModal(false), 800);
   }
 }
+// ---------- CHUYỂN ĐỔI ĐỊNH DẠNG DỮ LIỆU CỤC BỘ (giữ XP / cà rốt / lỗi đang chữa khi cập nhật phiên bản) ----------
+const LOCAL_DATA_VERSION = 4;
+const USER_KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoNotificationsReadV3"];
+function migrateLocalData() {
+  if (!currentUser || !currentUser.id) return;
+  const vKey = getUserStorageKey("engoDataVersion");
+  const cur = Number(localStorage.getItem(vKey) || 0);
+  if (cur >= LOCAL_DATA_VERSION) return;
+  try {
+    // v1: thống kê cũ chưa gắn theo tài khoản -> chuyển sang khóa của tài khoản này
+    const statsKey = getUserStorageKey("engoLearningStatsV3");
+    if (!localStorage.getItem(statsKey)) {
+      const legacy = localStorage.getItem("engoLearningStatsV3") || localStorage.getItem("engoLearningStats");
+      if (legacy) localStorage.setItem(statsKey, legacy);
+    }
+    // v2: phòng chữa lỗi cũ (V2: pendingErrors/healedHistory) -> V3 phân mục
+    const h3 = getUserStorageKey("engoHealingProfileV3");
+    if (!localStorage.getItem(h3)) {
+      const oldRaw = localStorage.getItem(getUserStorageKey("engoHealingProfileV2")) || localStorage.getItem("engoHealingProfileV2");
+      if (oldRaw) {
+        const old = JSON.parse(oldRaw);
+        const next = JSON.parse(JSON.stringify(defaultHealingProfile));
+        next.grammar = (old.pendingErrors || []).map(e => ({ id: e.id, code: e.code, triggerQuestion: e.triggerQuestion, selected: e.selected, correct: e.correct, source: "test", createdAt: e.createdAt }));
+        next.healedHistory = (old.healedHistory || []).map(e => ({ ...e, category: "grammar" }));
+        next.heatmapStatus = old.heatmapStatus || {};
+        next.healingStreak = old.healingStreak || 0;
+        localStorage.setItem(h3, JSON.stringify(next));
+      }
+    }
+    // v3: bổ sung trường mới cho thống kê (mặc định) để không lỗi khi đọc
+    const st = getLearningStats(); setLearningStats({ ...defaultLearningStats, ...st });
+    // v4: điểm danh cũ (engoStreak) -> engoStreakCheckinV2
+    const skKey = getUserStorageKey("engoStreakCheckinV2");
+    if (!localStorage.getItem(skKey)) { const old = localStorage.getItem("engoStreakCheckin") || localStorage.getItem("engoStreakCheckinV2"); if (old) localStorage.setItem(skKey, old); }
+    localStorage.setItem(vKey, String(LOCAL_DATA_VERSION));
+  } catch (e) { console.warn("migrateLocalData:", e); }
+}
+function exportMyData() {
+  const data = { app: "ENGO", version: LOCAL_DATA_VERSION, userId: currentUser?.id, email: currentUser?.email, exportedAt: new Date().toISOString(), data: {} };
+  USER_KEYS.forEach(k => { const v = localStorage.getItem(getUserStorageKey(k)); if (v) { try { data.data[k] = JSON.parse(v); } catch { data.data[k] = v; } } });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `engo-hoc-tap-${currentUser?.id || "user"}-${dateKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  showToast("Đã tải bản sao dữ liệu học tập.");
+}
+function importMyData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (!parsed || parsed.app !== "ENGO" || !parsed.data) throw new Error("File không đúng định dạng sao lưu ENGO.");
+      // Hợp nhất: giữ giá trị lớn hơn cho XP / cà rốt, gộp danh sách lỗi & lịch sử
+      const cur = getLearningStats(); const inc = parsed.data.engoLearningStatsV3 || {};
+      setLearningStats({ ...defaultLearningStats, ...cur, ...inc, points: Math.max(cur.points || 0, inc.points || 0), carrots: Math.max(cur.carrots || 0, inc.carrots || 0), fedCarrots: Math.max(cur.fedCarrots || 0, inc.fedCarrots || 0), bestSpeakingScore: Math.max(cur.bestSpeakingScore || 0, inc.bestSpeakingScore || 0) });
+      ["engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1"].forEach(k => { if (parsed.data[k] && !localStorage.getItem(getUserStorageKey(k))) localStorage.setItem(getUserStorageKey(k), JSON.stringify(parsed.data[k])); });
+      if (parsed.data.engoHealingProfileV3 && localStorage.getItem(getUserStorageKey("engoHealingProfileV3"))) {
+        const a = getHealingProfile(), b = parsed.data.engoHealingProfileV3;
+        ["pronunciation", "grammar", "test", "healedHistory", "unitGrammar"].forEach(list => { const ids = new Set((a[list] || []).map(x => x.id)); a[list] = [...(a[list] || []), ...((b[list] || []).filter(x => !ids.has(x.id)))]; });
+        a.heatmapStatus = { ...(b.heatmapStatus || {}), ...(a.heatmapStatus || {}) }; saveHealingProfile(a);
+      }
+      localStorage.setItem(getUserStorageKey("engoDataVersion"), String(LOCAL_DATA_VERSION));
+      renderCapybaraCompanion(); showToast("Đã khôi phục dữ liệu học tập."); renderStudentDashboard(true);
+    } catch (e) { showToast(e.message); }
+  };
+  reader.readAsText(file);
+}
+document.getElementById("exportMyDataBtn")?.addEventListener("click", exportMyData);
+document.getElementById("importMyDataBtn")?.addEventListener("click", () => document.getElementById("importMyDataInput").click());
+document.getElementById("importMyDataInput")?.addEventListener("change", e => { const f = e.target.files[0]; if (f) importMyData(f); e.target.value = ""; });
+
 function completeLogin(user) { updateUserUI(user); authScreen.classList.add("hidden"); applyRole(user.role); showToast(`Xin chào, ${user.fullName}`); }
 
 document.querySelectorAll("[data-auth-tab]").forEach(tab => tab.addEventListener("click", () => {
@@ -302,15 +372,15 @@ function gainRewards(xp = 0, carrots = 0, reason = "") {
   stats.carrots = (stats.carrots || 0) + (Number(carrots) || 0);
   updateStudyStreak(stats); setLearningStats(stats);
   renderCapybaraCompanion();
-  if (reason) showToast(`+${gainedXp} XP${carrots ? `, +${carrots} 🥕` : ""} · ${reason}`);
+ if (reason) showToast(`+${gainedXp} XP${carrots ?`, +${carrots}`:""} · ${reason}`);
 }
 function gainCarrots(amount, reason) { gainRewards(0, amount, reason); }
 function gainXP(amount) { gainRewards(amount, 0, ""); }
 
 
 const STREAK_CHECKIN_REWARDS = [
-  { day: 1, carrots: 2, xp: 20, icon: "🥕" }, { day: 2, carrots: 3, xp: 30, icon: "🥕" }, { day: 3, carrots: 4, xp: 40, icon: "🥕" },
-  { day: 4, carrots: 5, xp: 50, icon: "🥕" }, { day: 5, carrots: 6, xp: 60, icon: "🥕" }, { day: 6, carrots: 8, xp: 80, icon: "🥕" }, { day: 7, carrots: 10, xp: 100, icon: "👑" }
+  { day: 1, carrots: 2, xp: 20, icon: "<i class=ico-carrot></i>" }, { day: 2, carrots: 3, xp: 30, icon: "<i class=ico-carrot></i>" }, { day: 3, carrots: 4, xp: 40, icon: "<i class=ico-carrot></i>" },
+  { day: 4, carrots: 5, xp: 50, icon: "<i class=ico-carrot></i>" }, { day: 5, carrots: 6, xp: 60, icon: "<i class=ico-carrot></i>" }, { day: 6, carrots: 8, xp: 80, icon: "<i class=ico-carrot></i>" }, { day: 7, carrots: 10, xp: 100, icon: "<i class=mi>workspace_premium</i>" }
 ];
 function getStreakCheckinData() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoStreakCheckinV2")) || "") || { streak: 1, lastClaimDate: "", totalClaimed: 0 }; } catch { return { streak: 1, lastClaimDate: "", totalClaimed: 0 }; } }
 function setStreakCheckinData(data) { localStorage.setItem(getUserStorageKey("engoStreakCheckinV2"), JSON.stringify(data)); }
@@ -329,7 +399,7 @@ function calculateStreakInfo() {
 function updateStreakTopbarUI() {
   const info = calculateStreakInfo();
   const top = document.getElementById("topStreakCount"); if (top) top.textContent = info.streak;
-  const capy = document.getElementById("capybaraStreakCount"); if (capy) capy.innerHTML = `🔥 <strong>${info.streak}</strong> ngày streak`;
+  const capy = document.getElementById("capybaraStreakCount"); if (capy) capy.innerHTML = `<i class=mi>local_fire_department</i> <strong>${info.streak}</strong> ngày streak`;
   const dash = document.getElementById("dashboardStreak"); if (dash) dash.textContent = `${info.streak} ngày`;
 }
 function renderDailyStreakModal(forceOpen = false) {
@@ -338,22 +408,22 @@ function renderDailyStreakModal(forceOpen = false) {
   if (!forceOpen && info.alreadyClaimed) { updateStreakTopbarUI(); return; }
   document.getElementById("streakHeroCount").textContent = info.streak;
   document.getElementById("streakHeroDesc").textContent = info.alreadyClaimed ? `Bạn đã điểm danh hôm nay (chuỗi ${info.streak} ngày)! Quay lại vào ngày mai nhé.` : `Bạn đang có chuỗi ${info.streak} ngày học liên tiếp! Nhận quà hôm nay để giữ chuỗi nhé!`;
-  document.getElementById("streakTrackStatus").textContent = info.alreadyClaimed ? "Đã nhận hôm nay ✅" : `Hôm nay: Ngày ${info.cycleDay}/7`;
+ document.getElementById("streakTrackStatus").textContent = info.alreadyClaimed ?"Đã nhận hôm nay":`Hôm nay: Ngày ${info.cycleDay}/7`;
   const grid = document.getElementById("streakDaysGrid");
   grid.innerHTML = STREAK_CHECKIN_REWARDS.map(r => {
     let cls = "locked";
     if (r.day < info.cycleDay || (r.day === info.cycleDay && info.alreadyClaimed)) cls = "claimed"; else if (r.day === info.cycleDay) cls = "today";
-    return `<div class="streak-day-item ${cls}"><span class="day-label">Ngày ${r.day}</span><span class="reward-icon">${r.icon}</span><span class="reward-amount">${cls === "claimed" ? "✓ Đã nhận" : `+${r.carrots} 🥕`}</span></div>`;
+    return `<div class="streak-day-item ${cls}"><span class="day-label">Ngày ${r.day}</span><span class="reward-icon">${r.icon}</span><span class="reward-amount">${cls === "claimed" ? "<i class=mi>check</i> Đã nhận" : `+${r.carrots} <i class=ico-carrot></i>`}</span></div>`;
   }).join("");
-  document.getElementById("streakCapySpeech").textContent = info.alreadyClaimed ? "Hôm nay bạn đã nhận thưởng rồi! Cùng học thật vui và quay lại điểm danh ngày mai nha! 🦫" : `Oa, bạn chăm chỉ quá! Nhận ngay +${info.reward.carrots} Cà rốt để Capybara nạp năng lượng cùng bạn nha! 🥕`;
+ document.getElementById("streakCapySpeech").textContent = info.alreadyClaimed ?"Hôm nay bạn đã nhận thưởng rồi! Cùng học thật vui và quay lại điểm danh ngày mai nha!":`Oa, bạn chăm chỉ quá! Nhận ngay +${info.reward.carrots} Cà rốt để Capybara nạp năng lượng cùng bạn nha!`;
   const claimBtn = document.getElementById("streakClaimBtn"), claimText = document.getElementById("streakClaimBtnText");
   claimBtn.disabled = info.alreadyClaimed;
-  claimText.textContent = info.alreadyClaimed ? "Đã Nhận Thưởng Hôm Nay ✅" : `Nhận Thưởng (+${info.reward.carrots} 🥕, +${info.reward.xp} XP)`;
+ claimText.textContent = info.alreadyClaimed ? "Đã Nhận Thưởng Hôm Nay" : `Nhận Thưởng (+${info.reward.carrots} cà rốt, +${info.reward.xp} XP)`;
   updateStreakTopbarUI(); modal.classList.remove("hidden");
 }
 function claimDailyStreakReward() {
   const info = calculateStreakInfo();
-  if (info.alreadyClaimed) { showToast("Hôm nay bạn đã nhận thưởng rồi! Hãy quay lại vào ngày mai 🥕"); return; }
+ if (info.alreadyClaimed) { showToast("Hôm nay bạn đã nhận thưởng rồi! Hãy quay lại vào ngày mai"); return; }
   const { data, stats, reward, today, streak } = info;
   data.streak = streak; data.lastClaimDate = today; data.totalClaimed = (data.totalClaimed || 0) + 1; setStreakCheckinData(data);
   stats.streak = streak; stats.lastStudyDate = today; setLearningStats(stats);
@@ -369,11 +439,11 @@ document.getElementById("capybaraStreakCount")?.addEventListener("click", () => 
 
 
 const capybaraQuotesByLevel = {
-  1: ["Chào bạn mới! Cùng mình bắt đầu từ những câu đơn giản nhé! 🌱", "Đừng ngại phát âm chưa chuẩn, mình luôn lắng nghe bạn! 🎙️", "Mỗi ngày học 5 từ vựng mới là bạn đã giỏi hơn hôm qua! ✨"],
-  2: ["Bạn đang duy trì chuỗi học rất tốt, tiếp tục phát huy nào! 🎒", "Luyện nói 5 phút mỗi ngày giúp bạn tự tin hơn nhiều! 🗣️"],
-  3: ["Bạn đã nắm vững nhiều cấu trúc rồi, thử sức với hội thoại giai đoạn 2 nhé! 🎓", "Kỹ năng phát âm của bạn đang tiến bộ vượt bậc! 🎧"],
-  4: ["Sắp chạm tới đỉnh cao Bậc Thầy rồi! 🌟", "Chú ý các bẫy ngữ pháp: đuôi -s, -ed nhé! 🔍"],
-  5: ["👑 Xin chào Bậc Thầy ENGO! Bạn đã mở khóa toàn bộ đặc quyền!", "Đỉnh cao ngữ pháp và phát âm! Điểm 9-10 trong tầm tay! 💯"]
+ 1: ["Chào bạn mới! Cùng mình bắt đầu từ những câu đơn giản nhé!","Đừng ngại phát âm chưa chuẩn, mình luôn lắng nghe bạn!","Mỗi ngày học 5 từ vựng mới là bạn đã giỏi hơn hôm qua!"],
+ 2: ["Bạn đang duy trì chuỗi học rất tốt, tiếp tục phát huy nào!","Luyện nói 5 phút mỗi ngày giúp bạn tự tin hơn nhiều!"],
+ 3: ["Bạn đã nắm vững nhiều cấu trúc rồi, thử sức với hội thoại giai đoạn 2 nhé!","Kỹ năng phát âm của bạn đang tiến bộ vượt bậc!"],
+ 4: ["Sắp chạm tới đỉnh cao Bậc Thầy rồi!","Chú ý các bẫy ngữ pháp: đuôi -s, -ed nhé!"],
+ 5: ["Xin chào Bậc Thầy ENGO! Bạn đã mở khóa toàn bộ đặc quyền!","Đỉnh cao ngữ pháp và phát âm! Điểm 9-10 trong tầm tay!"]
 };
 function getCapybaraProgress(fed = 0) {
   let remaining = Number(fed) || 0;
@@ -403,17 +473,17 @@ function renderCapybaraCompanion() {
   const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   set("capybaraBadgeLv", `Lv.${progress.lv}`);
   set("capybaraSubtitle", `Cấp độ ${progress.lv}: ${progress.name}`);
-  set("capybaraCarrotCount", `🥕 <strong>${stats.carrots || 0}</strong> Cà rốt`);
-  set("capybaraLevelNextLabel", progress.isMax ? `👑 <strong>Đã đạt cấp độ Bậc Thầy!</strong>` : `Tiến hóa lên Lv.${progress.lv + 1} (${progress.nextName}): <strong>${progress.currentInLevel} / ${progress.neededForNext} 🥕</strong>`);
+  set("capybaraCarrotCount", `<i class=ico-carrot></i> <strong>${stats.carrots || 0}</strong> Cà rốt`);
+  set("capybaraLevelNextLabel", progress.isMax ? `<i class=mi>workspace_premium</i> <strong>Đã đạt cấp độ Bậc Thầy!</strong>` : `Tiến hóa lên Lv.${progress.lv + 1} (${progress.nextName}): <strong>${progress.currentInLevel} / ${progress.neededForNext} <i class=ico-carrot></i></strong>`);
   set("capybaraLevelPercent", `${progress.percent}%`);
   const fill = document.getElementById("capybaraLevelProgressFill"); if (fill) fill.style.width = `${progress.percent}%`;
-  set("capybaraLevelHint", progress.isMax ? "Bạn và Capybara đã chinh phục đỉnh cao! ✨" : `Cần thêm ${progress.neededForNext - progress.currentInLevel} Cà rốt để tiến hóa`);
+  set("capybaraLevelHint", progress.isMax ? "Bạn và Capybara đã chinh phục đỉnh cao!" : `Cần thêm ${progress.neededForNext - progress.currentInLevel} Cà rốt để tiến hóa`);
   document.getElementById("capybaraCompanionCard")?.classList.toggle("capybara-master-tier", progress.isMax);
   const perks = document.getElementById("capybaraMasterPerks"); if (perks) perks.style.display = progress.isMax ? "block" : "none";
   const feedBtn = document.getElementById("feedCapybaraBtn");
-  if (feedBtn) { const c = stats.carrots || 0; feedBtn.textContent = c >= 5 ? "🥕 Cho ăn Cà rốt (-5 🥕)" : c > 0 ? `🥕 Cho ăn Cà rốt (-${c} 🥕)` : "🥕 Hết Cà rốt (luyện tập để kiếm)"; }
-  set("speakingCarrotBadge", `🥕 ${stats.carrots || 0} Cà rốt`);
-  set("speakingScoreBadge", `★ Điểm cao nhất: ${stats.bestSpeakingScore || 0}%`);
+ if (feedBtn) { const c = stats.carrots || 0; feedBtn.textContent = c >= 5 ?"Cho ăn Cà rốt (-5)": c > 0 ?`Cho ăn Cà rốt (-${c})`:"Hết Cà rốt (luyện tập để kiếm)"; }
+  set("speakingCarrotBadge", `<i class=ico-carrot></i> ${stats.carrots || 0} Cà rốt`);
+  set("speakingScoreBadge", `<i class=mi>star</i> Điểm cao nhất: ${stats.bestSpeakingScore || 0}%`);
   set("progressPoints", `${stats.points || 0} XP`);
   updateStreakTopbarUI();
 }
@@ -425,14 +495,14 @@ document.getElementById("talkToCapybaraBtn")?.addEventListener("click", () => {
 });
 document.getElementById("feedCapybaraBtn")?.addEventListener("click", () => {
   const stats = getLearningStats();
-  if ((stats.carrots || 0) <= 0) { showToast("🥕 Bạn đã hết Cà rốt! Luyện nói hoặc làm bài kiểm tra để kiếm thêm nhé!"); return; }
+ if ((stats.carrots || 0) <= 0) { showToast("Bạn đã hết Cà rốt! Luyện nói hoặc làm bài kiểm tra để kiếm thêm nhé!"); return; }
   const feed = Math.min(5, stats.carrots);
   const old = getCapybaraProgress(stats.fedCarrots || 0);
   stats.carrots -= feed; stats.fedCarrots = (stats.fedCarrots || 0) + feed; stats.points = (stats.points || 0) + feed * 5;
   updateStudyStreak(stats); setLearningStats(stats); renderCapybaraCompanion();
   const next = getCapybaraProgress(stats.fedCarrots);
-  if (next.lv > old.lv) { playSuccessSound(); showToast(`🎉 Capybara đã thăng cấp lên Lv.${next.lv} ${next.name}!`); capybaraSpeak(`Chúc mừng! Mình đã tiến hóa lên cấp ${next.lv} ${next.name} rồi!`); }
-  else { showToast(`🥕 Yum! Đã cho Capybara ăn ${feed} củ (+${feed * 5} XP)`); capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt!"); }
+ if (next.lv > old.lv) { playSuccessSound(); showToast(`Capybara đã thăng cấp lên Lv.${next.lv} ${next.name}!`); capybaraSpeak(`Chúc mừng! Mình đã tiến hóa lên cấp ${next.lv} ${next.name} rồi!`); }
+ else { showToast(`Yum! Đã cho Capybara ăn ${feed} củ (+${feed * 5} XP)`); capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt!"); }
 });
 
 
@@ -450,11 +520,12 @@ async function loadStudentProgress(force = false) {
   }
   return studentProgress;
 }
-const SKILL_LABELS = { Listening: "🎧 Nghe", Speaking: "🗣️ Nói", Vocabulary: "🔤 Từ vựng", Grammar: "📘 Ngữ pháp", Writing: "✍️ Viết", Reading: "📖 Đọc" };
+const SKILL_TEXT = { Listening: "Nghe", Speaking: "Nói", Vocabulary: "Từ vựng", Grammar: "Ngữ pháp", Writing: "Viết", Reading: "Đọc" };
+const SKILL_LABELS = { Listening: "<i class=mi>headphones</i> Nghe", Speaking: "<i class=mi>record_voice_over</i> Nói", Vocabulary: "<i class=mi>abc</i> Từ vựng", Grammar: "<i class=mi>menu_book</i> Ngữ pháp", Writing: "<i class=mi>edit</i> Viết", Reading: "<i class=mi>book_2</i> Đọc" };
 
 function renderRadar(scores) {
   const order = ["Listening", "Speaking", "Vocabulary", "Grammar", "Writing", "Reading"];
-  const center = { x: 160, y: 134 }, radius = 92;
+  const center = { x: 180, y: 160 }, radius = 100;
   const hasData = order.some(k => (scores[k] || 0) > 0);
   const points = order.map((name, index) => {
     const angle = (-90 + index * 60) * Math.PI / 180;
@@ -473,7 +544,7 @@ function barChart(container, items, { max = 100, suffix = "", height = 100 } = {
     return `<div class="bar-wrap" title="${escapeHTML(it.title || it.label)}"><div class="bar ${it.cls || ""}" data-value="${escapeHTML(String(it.value))}${suffix}" style="height:${pct}%"></div>${escapeHTML(it.label)}</div>`;
   }).join("");
 }
-function titleChip(t) { return `<span class="title-chip" title="${escapeHTML(t.desc || "")}">${t.icon} ${escapeHTML(t.name)}</span>`; }
+function titleChip(t) { return `<span class="title-chip" title="${escapeHTML(t.desc || "")}"><i class=mi>${escapeHTML(t.icon || "workspace_premium")}</i> ${escapeHTML(t.name)}</span>`; }
 
 async function renderStudentDashboard(force = false) {
   if (!currentUser || currentUser.role !== "student") return;
@@ -498,8 +569,8 @@ async function renderStudentDashboard(force = false) {
   set("overallProgress", `${p.overall}%`);
   document.querySelector(".score-orbit")?.style.setProperty("--overall-progress", `${p.overall}%`);
   set("overallLevel", p.overall >= 80 ? "Người học vững vàng" : p.overall >= 50 ? "Đang tiến bộ tốt" : hasData ? "Người học khởi động" : "Chưa có dữ liệu");
-  set("overallHint", hasData ? `Điểm mạnh hiện tại: ${SKILL_LABELS[strongest[0]]} (${strongest[1]}%).` : "Hoàn thành bài kiểm tra hoặc bài nói đầu tiên để mở thống kê.");
-  set("competencyMessage", hasData ? `Nổi bật: ${SKILL_LABELS[strongest[0]]} đang ở mức ${strongest[1]}%.` : "Tổng hợp từ bài kiểm tra, luyện nói và từ vựng.");
+  set("overallHint", hasData ? `Điểm mạnh hiện tại: ${SKILL_TEXT[strongest[0]]} (${strongest[1]}%).` : "Hoàn thành bài kiểm tra hoặc bài nói đầu tiên để mở thống kê.");
+  set("competencyMessage", hasData ? `Nổi bật: ${SKILL_TEXT[strongest[0]]} đang ở mức ${strongest[1]}%.` : "Tổng hợp từ bài kiểm tra, luyện nói và từ vựng.");
   set("progressStatus", p.overall >= 80 ? "Năng lực tốt" : p.overall >= 50 ? "Đang tiến bộ" : hasData ? "Đang khởi động" : "Chưa đánh giá");
   document.getElementById("skillStatList").innerHTML = Object.keys(SKILL_LABELS).map(name => `<div class="skill-stat"><div class="skill-stat-head"><span>${SKILL_LABELS[name]}</span><b>${p.skills[name] || 0}%</b></div><div class="progress"><span style="width:${p.skills[name] || 0}%"></span></div></div>`).join("");
   document.getElementById("dashboardTitleChips").innerHTML = p.earnedTitles.length ? p.earnedTitles.map(titleChip).join("") : "";
@@ -520,7 +591,7 @@ async function renderStudentDashboard(force = false) {
   const recent = p.events.slice(0, 6);
   const typeLabel = { test: "Bài kiểm tra", speaking: "Luyện nói", vocab: "Từ vựng", healing: "Chữa lỗi" };
   document.getElementById("recentHomeSubmissionsBody").innerHTML = recent.length ? recent.map(e => {
-    const result = e.type === "test" ? `${e.maxScore ? ((e.score / e.maxScore) * 10).toFixed(1) : e.score}/10` : e.type === "vocab" ? `${e.maxScore ? Math.round((e.score / e.maxScore) * 100) : e.score}%` : e.type === "speaking" ? `${e.score}%` : "✓";
+    const result = e.type === "test" ? `${e.maxScore ? ((e.score / e.maxScore) * 10).toFixed(1) : e.score}/10` : e.type === "vocab" ? `${e.maxScore ? Math.round((e.score / e.maxScore) * 100) : e.score}%` : e.type === "speaking" ? `${e.score}%` : "<i class=mi>check</i>";
     return `<tr><td><strong>${escapeHTML(e.title || typeLabel[e.type])}</strong></td><td>${fmtDate(e.createdAt)}</td><td><span class="score-pill">${result}</span></td><td><span class="badge">${typeLabel[e.type] || e.type}</span></td></tr>`;
   }).join("") : '<tr><td colspan="4" class="small muted" style="text-align:center;padding:20px">Chưa có hoạt động nào. Hãy bắt đầu với một bài luyện nói!</td></tr>';
 
@@ -700,11 +771,11 @@ function renderSpeakingQuestion(q) {
     <div class="quiz-speaking">
       <p class="small muted">${isFree ? "Hãy trả lời / nói về chủ đề trên bằng tiếng Anh (ít nhất 3 câu). AI chấm theo độ dài và mức bám sát đề bài." : "Đọc to câu trên. AI chấm độ chuẩn phát âm, chấp nhận giọng đọc chưa hoàn hảo."}</p>
       <div class="speaking-controls">
-        ${isFree ? "" : `<button type="button" class="btn btn-soft" id="quizSpeakPlay">🔊 Nghe mẫu</button>`}
-        <button type="button" class="btn btn-primary speaking-mic-btn" id="quizSpeakMic">🎙️ <span id="quizSpeakMicLabel">${done ? "Đọc lại" : "Bắt đầu nói"}</span></button>
+        ${isFree ? "" : `<button type="button" class="btn btn-soft" id="quizSpeakPlay"><i class=mi>volume_up</i> Nghe mẫu</button>`}
+        <button type="button" class="btn btn-primary speaking-mic-btn" id="quizSpeakMic"><i class=mi>mic</i> <span id="quizSpeakMicLabel">${done ? "Đọc lại" : "Bắt đầu nói"}</span></button>
       </div>
       <div class="speaking-live hidden" id="quizSpeakLive"></div>
-      <div id="quizSpeakResult">${done ? `<div class="quiz-speaking-result"><strong>Độ chuẩn: ${done.accuracy}%</strong><div class="small muted">AI nghe được: "${escapeHTML(done.transcript)}"</div>${done.tip ? `<div class="small" style="margin-top:4px">💡 ${escapeHTML(done.tip)}</div>` : ""}</div>` : ""}</div>
+      <div id="quizSpeakResult">${done ? `<div class="quiz-speaking-result"><strong>Độ chuẩn: ${done.accuracy}%</strong><div class="small muted">AI nghe được: "${escapeHTML(done.transcript)}"</div>${done.tip ? `<div class="small" style="margin-top:4px"><i class=mi>lightbulb</i> ${escapeHTML(done.tip)}</div>` : ""}</div>` : ""}</div>
     </div>`;
   document.getElementById("quizSpeakPlay")?.addEventListener("click", () => speakEnglishText(q.target || q.prompt));
   const mic = document.getElementById("quizSpeakMic"), label = document.getElementById("quizSpeakMicLabel"), live = document.getElementById("quizSpeakLive"), resultEl = document.getElementById("quizSpeakResult");
@@ -722,7 +793,7 @@ function renderSpeakingQuestion(q) {
           const res = await apiRequest("/api/speaking/evaluate", { method: "POST", body: JSON.stringify({ target: q.target || q.prompt, alternatives, context: "test", mode: q.mode || "read" }) });
           speakingAnswers[q.id] = { transcript: res.transcript, accuracy: res.accuracy, tip: res.tip };
           saveAnswers();
-          resultEl.innerHTML = `<div class="quiz-speaking-result"><strong>Độ chuẩn: ${res.accuracy}% · ${escapeHTML(res.verdict?.label || "")}</strong><div class="small muted">AI nghe được: "${escapeHTML(res.transcript)}"</div>${res.tip ? `<div class="small" style="margin-top:4px">💡 ${escapeHTML(res.tip)}</div>` : ""}</div>`;
+          resultEl.innerHTML = `<div class="quiz-speaking-result"><strong>Độ chuẩn: ${res.accuracy}% · ${escapeHTML(res.verdict?.label || "")}</strong><div class="small muted">AI nghe được: "${escapeHTML(res.transcript)}"</div>${res.tip ? `<div class="small" style="margin-top:4px"><i class=mi>lightbulb</i> ${escapeHTML(res.tip)}</div>` : ""}</div>`;
           renderQuestionGrid();
         } catch (e) { resultEl.innerHTML = `<div class="small" style="color:red">${escapeHTML(e.message)}</div>`; }
       }
@@ -791,7 +862,7 @@ async function submitQuiz() {
     document.getElementById("attemptCount").textContent = examTabSwitches > 0 ? `${examTabSwitches} vi phạm (-${penalty}đ)` : "Nghiêm túc";
     applyResultScoreUI(scoreOnTen, result.status === "pending_manual");
     lastTestReview = result.review || [];
-    document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.slice(0, 12).map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}</div><div>${escapeHTML(r.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(r.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(r.correctAnswer || ""))}</b></div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px">🎉 Không có câu trắc nghiệm nào sai!</div>';
+    document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.slice(0, 12).map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}</div><div>${escapeHTML(r.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(r.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(r.correctAnswer || ""))}</b></div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px"><i class=mi>celebration</i> Không có câu trắc nghiệm nào sai!</div>';
     recordTestErrorsForHealing(wrong, activeImportedTest.title);
     const st = getLearningStats(); st.quizCount = (st.quizCount || 0) + 1; st.bestScore = Math.max(st.bestScore || 0, scoreOnTen); setLearningStats(st);
     gainRewards(scoreOnTen >= 8 ? 40 : 25, scoreOnTen >= 8 ? 3 : 1, "Hoàn thành bài kiểm tra");
@@ -816,16 +887,16 @@ function handleAntiCheatViolation() {
   const modal = document.getElementById("antiCheatModal");
   document.getElementById("modalViolationCount").textContent = examTabSwitches;
   const titleEl = document.getElementById("antiCheatModalTitle"), penaltyEl = document.getElementById("modalPenaltyText"), descEl = document.getElementById("antiCheatModalDesc"), dismissBtn = document.getElementById("dismissAntiCheatModal");
-  if (examTabSwitches === 1) { titleEl.textContent = "⚠️ CẢNH BÁO VI PHẠM PHÒNG THI (LẦN 1)"; penaltyEl.textContent = "Bị trừ phạt: -0.50 điểm"; descEl.textContent = "Hệ thống phát hiện bạn vừa chuyển tab hoặc rời khỏi màn hình bài thi!"; dismissBtn.textContent = "Tôi đã hiểu, tiếp tục làm bài"; dismissBtn.disabled = false; }
-  else if (examTabSwitches === 2) { titleEl.textContent = "⚠️ CẢNH BÁO NGHIÊM TRỌNG (LẦN 2)"; penaltyEl.textContent = "Bị trừ phạt: -1.25 điểm"; descEl.textContent = "Nếu rời tab thêm 1 lần nữa, bài thi sẽ bị TỰ ĐỘNG THU!"; dismissBtn.textContent = "Tôi cam kết không chuyển tab nữa"; dismissBtn.disabled = false; }
-  else { titleEl.textContent = "⛔ ĐÃ ĐẠT GIỚI HẠN VI PHẠM (LẦN 3)"; penaltyEl.textContent = "Bị trừ -2.25 điểm & HỆ THỐNG ĐANG THU BÀI!"; descEl.textContent = "Bạn đã vi phạm 3 lần. Hệ thống tự động nộp bài ngay bây giờ."; dismissBtn.textContent = "Đang nộp bài tự động..."; dismissBtn.disabled = true; modal.classList.remove("hidden"); setTimeout(() => { modal.classList.add("hidden"); submitQuiz(); }, 1200); return; }
+ if (examTabSwitches === 1) { titleEl.textContent ="CẢNH BÁO VI PHẠM PHÒNG THI (LẦN 1)"; penaltyEl.textContent ="Bị trừ phạt: -0.50 điểm"; descEl.textContent ="Hệ thống phát hiện bạn vừa chuyển tab hoặc rời khỏi màn hình bài thi!"; dismissBtn.textContent ="Tôi đã hiểu, tiếp tục làm bài"; dismissBtn.disabled = false; }
+ else if (examTabSwitches === 2) { titleEl.textContent ="CẢNH BÁO NGHIÊM TRỌNG (LẦN 2)"; penaltyEl.textContent ="Bị trừ phạt: -1.25 điểm"; descEl.textContent ="Nếu rời tab thêm 1 lần nữa, bài thi sẽ bị TỰ ĐỘNG THU!"; dismissBtn.textContent ="Tôi cam kết không chuyển tab nữa"; dismissBtn.disabled = false; }
+ else { titleEl.textContent ="ĐÃ ĐẠT GIỚI HẠN VI PHẠM (LẦN 3)"; penaltyEl.textContent ="Bị trừ -2.25 điểm & HỆ THỐNG ĐANG THU BÀI!"; descEl.textContent ="Bạn đã vi phạm 3 lần. Hệ thống tự động nộp bài ngay bây giờ."; dismissBtn.textContent ="Đang nộp bài tự động..."; dismissBtn.disabled = true; modal.classList.remove("hidden"); setTimeout(() => { modal.classList.add("hidden"); submitQuiz(); }, 1200); return; }
   modal.classList.remove("hidden");
 }
 document.addEventListener("visibilitychange", () => { if (document.hidden) handleAntiCheatViolation(); });
 window.addEventListener("blur", handleAntiCheatViolation);
 document.getElementById("dismissAntiCheatModal")?.addEventListener("click", () => { if (examTabSwitches < 3) closeModal("antiCheatModal"); });
 const quizCardEl = document.getElementById("quizExamCard");
-["copy", "contextmenu"].forEach(evt => quizCardEl?.addEventListener(evt, e => { if (document.getElementById("quiz").classList.contains("active")) { e.preventDefault(); showToast("⛔ Thao tác này bị khóa trong phòng thi!"); } }));
+["copy","contextmenu"].forEach(evt => quizCardEl?.addEventListener(evt, e => { if (document.getElementById("quiz").classList.contains("active")) { e.preventDefault(); showToast("Thao tác này bị khóa trong phòng thi!"); } }));
 
 
 
@@ -865,14 +936,14 @@ document.getElementById("refreshStudentResultsBtn")?.addEventListener("click", (
 
 
 const achievementDefs = [
-  { icon: "🎯", name: "Bước đầu tiên", desc: "Hoàn thành bài kiểm tra đầu tiên", rule: (s, p) => (p?.tests.count || 0) >= 1 || s.quizCount >= 1 },
-  { icon: "⭐", name: "Điểm số nổi bật", desc: "Đạt ít nhất 8 điểm", rule: (s, p) => (p?.tests.bestScore || s.bestScore) >= 8 },
-  { icon: "💯", name: "Bài làm hoàn hảo", desc: "Đạt điểm 10", rule: (s, p) => (p?.tests.bestScore || s.bestScore) >= 10 },
-  { icon: "🎙️", name: "Giọng nói tự tin", desc: "Hoàn thành 10 lượt luyện nói", rule: (s, p) => (p?.speaking.totalAttempts || 0) >= 10 },
-  { icon: "📚", name: "Kho từ vựng", desc: "Hoàn thành 3 bộ từ vựng", rule: (s, p) => (p?.vocab.setsCompleted || 0) >= 3 },
-  { icon: "🩹", name: "Tự chữa lành", desc: "Chữa khỏi 3 lỗi", rule: (s, p) => (p?.healing.healed || 0) >= 3 },
-  { icon: "⚡", name: "Tích lũy 100 XP", desc: "Đạt tổng cộng 100 XP", rule: s => s.points >= 100 },
-  { icon: "🏆", name: "Chuỗi 7 ngày", desc: "Học liên tục trong 7 ngày", rule: s => calculateStreakInfo().streak >= 7 }
+ { icon:"target", name:"Bước đầu tiên", desc:"Hoàn thành bài kiểm tra đầu tiên", rule: (s, p) => (p?.tests.count || 0) >= 1 || s.quizCount >= 1 },
+ { icon:"star", name:"Điểm số nổi bật", desc:"Đạt ít nhất 8 điểm", rule: (s, p) => (p?.tests.bestScore || s.bestScore) >= 8 },
+ { icon:"verified", name:"Bài làm hoàn hảo", desc:"Đạt điểm 10", rule: (s, p) => (p?.tests.bestScore || s.bestScore) >= 10 },
+ { icon:"mic", name:"Giọng nói tự tin", desc:"Hoàn thành 10 lượt luyện nói", rule: (s, p) => (p?.speaking.totalAttempts || 0) >= 10 },
+ { icon:"auto_stories", name:"Kho từ vựng", desc:"Hoàn thành 3 bộ từ vựng", rule: (s, p) => (p?.vocab.setsCompleted || 0) >= 3 },
+ { icon:"healing", name:"Tự chữa lành", desc:"Chữa khỏi 3 lỗi", rule: (s, p) => (p?.healing.healed || 0) >= 3 },
+ { icon:"bolt", name:"Tích lũy 100 XP", desc:"Đạt tổng cộng 100 XP", rule: s => s.points >= 100 },
+ { icon:"emoji_events", name:"Chuỗi 7 ngày", desc:"Học liên tục trong 7 ngày", rule: s => calculateStreakInfo().streak >= 7 }
 ];
 async function renderAchievements() {
   const stats = getLearningStats();
@@ -887,9 +958,9 @@ async function renderAchievements() {
   const earned = titles.filter(t => t.earned);
   document.getElementById("achievementTitleLine").innerHTML = earned.length ? `Danh hiệu của bạn: ${earned.map(titleChip).join(" ")}` : "Chưa có danh hiệu. Hãy luyện nói, làm bài kiểm tra và học từ vựng để mở khóa!";
   document.getElementById("titleCount").textContent = `${earned.length}/${titles.length || 9} đã đạt`;
-  document.getElementById("titleGrid").innerHTML = titles.length ? titles.map(t => `<article class="card achievement-card ${t.earned ? "unlocked" : ""}"><div class="achievement-icon">${t.icon}</div><h4>${escapeHTML(t.name)}</h4><p>${escapeHTML(t.desc)}</p><span class="achievement-state">${t.earned ? "Đã đạt" : "Chưa đạt"}</span></article>`).join("") : '<div class="empty-state">Không tải được danh hiệu (kiểm tra kết nối).</div>';
+  document.getElementById("titleGrid").innerHTML = titles.length ? titles.map(t => `<article class="card achievement-card ${t.earned ? "unlocked" : ""}"><div class="achievement-icon"><i class=mi>${escapeHTML(t.icon)}</i></div><h4>${escapeHTML(t.name)}</h4><p>${escapeHTML(t.desc)}</p><span class="achievement-state">${t.earned ? "Đã đạt" : "Chưa đạt"}</span></article>`).join("") : '<div class="empty-state">Không tải được danh hiệu (kiểm tra kết nối).</div>';
   let unlocked = 0;
-  document.getElementById("achievementGrid").innerHTML = achievementDefs.map(a => { const ok = a.rule(stats, p); if (ok) unlocked++; return `<article class="card achievement-card ${ok ? "unlocked" : ""}"><div class="achievement-icon">${a.icon}</div><h4>${a.name}</h4><p>${a.desc}</p><span class="achievement-state">${ok ? "Đã mở khóa" : "Chưa mở khóa"}</span></article>`; }).join("");
+  document.getElementById("achievementGrid").innerHTML = achievementDefs.map(a => { const ok = a.rule(stats, p); if (ok) unlocked++; return `<article class="card achievement-card ${ok ? "unlocked" : ""}"><div class="achievement-icon"><i class=mi>${a.icon}</i></div><h4>${a.name}</h4><p>${a.desc}</p><span class="achievement-state">${ok ? "Đã mở khóa" : "Chưa mở khóa"}</span></article>`; }).join("");
   document.getElementById("achievementCount").textContent = `${unlocked}/${achievementDefs.length} đã mở khóa`;
 }
 
@@ -908,7 +979,7 @@ function renderVocabDecks() {
   const records = getVocabRecords();
   list.innerHTML = Object.entries(flashDecks).map(([key, deck]) => {
     const rec = records[key];
-    return `<button class="deck-item ${key === activeDeck ? "active" : ""}" data-deck="${key}"><div><strong>${escapeHTML(deck.name)}</strong><span>${deck.cards.length} từ${rec ? ` · Tốt nhất ${rec.best}%` : ""}</span></div><b>${rec && rec.best >= 80 ? "✓" : "→"}</b></button>`;
+    return `<button class="deck-item ${key === activeDeck ? "active" : ""}" data-deck="${key}"><div><strong>${escapeHTML(deck.name)}</strong><span>${deck.cards.length} từ${rec ? ` · Tốt nhất ${rec.best}%` : ""}</span></div><b>${rec && rec.best >= 80 ? "<i class=mi>check</i>" : "→"}</b></button>`;
   }).join("");
   list.querySelectorAll("[data-deck]").forEach(btn => btn.addEventListener("click", () => { activeDeck = btn.dataset.deck; exitVocabQuiz(); resetFlashOrder(); renderVocabDecks(); }));
 }
@@ -924,7 +995,7 @@ function renderFlashcard() {
   document.getElementById("flashPos").textContent = card.pos; document.getElementById("flashPos").title = POS_LABEL[card.pos] || card.pos;
   document.getElementById("flashPosBack").textContent = `${card.pos} · ${POS_LABEL[card.pos] || ""}`;
   document.getElementById("flashMeaning").textContent = card.meaning;
-  document.getElementById("flashExamples").innerHTML = (card.examples || []).map(ex => `<li><span>${escapeHTML(ex).replace(new RegExp(`(${card.word.split(" ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\w*)`, "i"), "<mark>$1</mark>")}</span><button type="button" class="flash-tts-mini" data-tts="${escapeHTML(ex)}" title="Nghe câu ví dụ">🔊</button></li>`).join("");
+  document.getElementById("flashExamples").innerHTML = (card.examples || []).map(ex => `<li><span>${escapeHTML(ex).replace(new RegExp(`(${card.word.split(" ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\w*)`, "i"), "<mark>$1</mark>")}</span><button type="button" class="flash-tts-mini" data-tts="${escapeHTML(ex)}" title="Nghe câu ví dụ"><i class=mi>volume_up</i></button></li>`).join("");
   document.querySelectorAll("#flashExamples [data-tts]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); speakEnglishText(b.dataset.tts, { rate: 0.9 }); }));
   flashViewed.add(flashOrder[flashIndex]);
   const viewedAll = flashViewed.size >= deck.cards.length;
@@ -967,7 +1038,7 @@ function renderVocabMcQuestion() {
   const distractors = shuffleArray(q.deck.cards.filter(c => c !== card)).slice(0, 3);
   const options = shuffleArray([card, ...distractors]);
   body.innerHTML = `<div class="small muted">Câu ${q.index + 1}/${q.total}</div>
-    <h3 style="margin:8px 0 14px;font-size:22px">${askMeaning ? `"${escapeHTML(card.word)}" <span class="flash-pos">${card.pos}</span> nghĩa là gì?` : `Từ nào có nghĩa "${escapeHTML(card.meaning)}"?`} <button type="button" class="btn btn-soft btn-sm" id="vqTts">🔊</button></h3>
+    <h3 style="margin:8px 0 14px;font-size:22px">${askMeaning ? `"${escapeHTML(card.word)}" <span class="flash-pos">${card.pos}</span> nghĩa là gì?` : `Từ nào có nghĩa "${escapeHTML(card.meaning)}"?`} <button type="button" class="btn btn-soft btn-sm" id="vqTts"><i class=mi>volume_up</i></button></h3>
     <div class="option-list">${options.map((o, i) => `<div class="option" data-word="${escapeHTML(o.word)}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${escapeHTML(askMeaning ? o.meaning : o.word)}</span></div>`).join("")}</div>
     <div class="explanation hidden" id="vqExplain"></div>
     <button class="btn btn-primary hidden" id="vqNext" style="margin-top:12px">Câu tiếp →</button>`;
@@ -978,7 +1049,7 @@ function renderVocabMcQuestion() {
     body.querySelectorAll(".option").forEach(o => { if (o.dataset.word === card.word) o.classList.add("correct"); });
     if (right) { q.correct++; playSuccessSound(); } else { el.classList.add("wrong"); playWrongSound(); }
     const ex = document.getElementById("vqExplain"); ex.classList.remove("hidden");
-    ex.innerHTML = `<strong>${right ? "✓ Chính xác!" : "✕ Chưa đúng."}</strong> <b>${escapeHTML(card.word)}</b> (${card.pos}) ${card.phonetic}: ${escapeHTML(card.meaning)}<br><em>${escapeHTML(card.examples?.[0] || "")}</em>`;
+    ex.innerHTML = `<strong>${right ? "<i class=mi>check</i> Chính xác!" : "<i class=mi>close</i> Chưa đúng."}</strong> <b>${escapeHTML(card.word)}</b> (${card.pos}) ${card.phonetic}: ${escapeHTML(card.meaning)}<br><em>${escapeHTML(card.examples?.[0] || "")}</em>`;
     document.getElementById("vqNext").classList.remove("hidden");
   }));
   document.getElementById("vqNext").addEventListener("click", () => { delete body.dataset.locked; q.index++; renderVocabMcQuestion(); });
@@ -1020,8 +1091,8 @@ async function finishVocabQuiz() {
   document.getElementById("vocabQuizProgress").style.width = "100%";
   document.getElementById("vocabQuizBody").innerHTML = `<div style="text-align:center;padding:20px 0">
     <div class="result-score" style="background:conic-gradient(${good ? "#22c55e" : "#f59e0b"} 0 ${percent}%, #e5e7eb ${percent}% 100%)"><div><strong>${percent}%</strong><span class="small muted">đúng</span></div></div>
-    <h3 style="margin:0 0 6px">${good ? "🎉 Xuất sắc! Bạn đã thuộc bộ từ này" : "👍 Hoàn thành! Ôn lại các từ chưa nhớ nhé"}</h3>
-    <p class="muted">Đúng ${q.correct}/${q.total} · Thưởng ${good ? "+30 XP & +3 🥕" : "+10 XP"}</p>
+    <h3 style="margin:0 0 6px">${good ? "<i class=mi>celebration</i> Xuất sắc! Bạn đã thuộc bộ từ này" : "<i class=mi>thumb_up</i> Hoàn thành! Ôn lại các từ chưa nhớ nhé"}</h3>
+    <p class="muted">Đúng ${q.correct}/${q.total} · Thưởng ${good ? "+30 XP & +3 <i class=ico-carrot></i>" : "+10 XP"}</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><button class="btn btn-light" id="vqRetry">Học lại bộ thẻ</button><button class="btn btn-primary" id="vqOther">Làm dạng ${q.mode === "mc" ? "nối từ" : "trắc nghiệm"}</button></div></div>`;
   if (good) playSuccessSound();
   document.getElementById("vqRetry").addEventListener("click", () => { exitVocabQuiz(); resetFlashOrder(); });
@@ -1036,6 +1107,8 @@ let speakingTasks = [];
 let speakingProgressData = null;
 let activeSpeakingTask = null, activeItemIndex = 0, speakingItemResults = {};
 let speakingRecognizer = null, lastSpeakingEvaluation = null;
+let speakingRole = "A"; // vai học sinh đóng trong hội thoại; vai còn lại do máy đọc (TTS)
+let ttsAutoTimer = null;
 
 function buildSpeakingTasks(apiAssignments, progress) {
   const system = (window.ENGO_SPEAKING_SETS || []).map(s => ({ ...s, source: s.unit ? `Hệ thống · Unit ${s.unit}` : "Hệ thống", teacherName: "ENGO", progress: null }));
@@ -1072,7 +1145,7 @@ async function renderSpeakingLab() {
     const tasks = speakingTasks.filter(t => t.stage === stage);
     const done = tasks.filter(t => t.progress && t.progress.best > 0).length;
     return `<div class="stage-card ${unlocked ? "" : "locked"}">
-      <div class="stage-card-head"><span class="badge ${stage === 1 ? "green" : "orange"}">Giai đoạn ${stage}</span><strong>${stage === 1 ? "Câu đơn theo chủ đề" : "Hội thoại theo SGK"}</strong>${unlocked ? "" : '<span class="small" style="color:#dc2626">🔒 Hoàn thành ≥3 lượt GĐ1 với TB ≥70% để mở khóa</span>'}</div>
+      <div class="stage-card-head"><span class="badge ${stage === 1 ? "green" : "orange"}">Giai đoạn ${stage}</span><strong>${stage === 1 ? "Câu đơn theo chủ đề" : "Hội thoại theo SGK"}</strong>${unlocked ? "" : '<span class="small" style="color:#dc2626"><i class=mi>lock</i> Hoàn thành ≥3 lượt GĐ1 với TB ≥70% để mở khóa</span>'}</div>
       <div class="stage-metrics"><div><b>${st.attempts ? st.avgAccuracy + "%" : "--"}</b><span>Trung bình</span></div><div><b>${st.bestAccuracy || 0}%</b><span>Tốt nhất</span></div><div><b>${st.attempts || 0}</b><span>Lượt đọc</span></div><div><b>${done}/${tasks.length}</b><span>Bài đã luyện</span></div></div>
       <div class="progress"><span style="width:${Math.min(100, st.avgAccuracy || 0)}%"></span></div>
       <div class="small muted">${st.improvement ? `Tiến bộ ${st.improvement > 0 ? "▲ +" : "▼ "}${st.improvement}% so với những lượt đầu` : "Luyện đều để thấy tiến bộ theo thời gian"}</div>
@@ -1113,30 +1186,45 @@ function openSpeakingTask(taskId) {
   renderSpeakingItem();
   panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
-document.getElementById("closeSpeakingPractice").addEventListener("click", () => { stopSpeakingRecording(false); activeSpeakingTask = null; document.getElementById("speakingPracticePanel").classList.add("hidden"); renderSpeakingTable(); });
+document.getElementById("closeSpeakingPractice").addEventListener("click", () => { clearTimeout(ttsAutoTimer); window.speechSynthesis?.cancel(); stopSpeakingRecording(false); activeSpeakingTask = null; document.getElementById("speakingPracticePanel").classList.add("hidden"); renderSpeakingTable(); });
 function renderSpeakingItem() {
   stopSpeakingRecording(false); window.speechSynthesis?.cancel();
   const task = activeSpeakingTask; if (!task) return;
   const item = task.items[activeItemIndex]; if (!item) return;
   const n = task.items.length;
   document.getElementById("speakingCounter").textContent = `Câu ${activeItemIndex + 1} / ${n}`;
-  document.getElementById("speakingItemProgress").style.width = `${(Object.keys(speakingItemResults).length / n) * 100}%`;
-  document.getElementById("speakingSpeaker").textContent = item.speaker ? `Vai ${item.speaker}` : "";
+  document.getElementById("speakingItemProgress").style.width = `${(Object.values(speakingItemResults).filter(r => r && !r.tts).length / Math.max(1, task.items.filter(l => !(task.stage === 2 && task.items.some(x => x.speaker)) || (l.speaker || "A") === speakingRole).length)) * 100}%`;
+  const speakerEl = document.getElementById("speakingSpeaker");
+  const isDialogue = task.stage === 2 && task.items.some(l => l.speaker);
+  const speakers = isDialogue ? [...new Set(task.items.map(l => l.speaker || "A"))] : [];
+  const mine = !isDialogue || (item.speaker || "A") === speakingRole;
+  if (isDialogue) {
+    speakerEl.innerHTML = `<span class="role-pick">Bạn đóng vai: ${speakers.map(sp => `<button type="button" class="btn btn-sm ${sp === speakingRole ? "btn-primary" : "btn-light"}" data-role="${escapeHTML(sp)}">${escapeHTML(sp)}</button>`).join("")}</span><span class="role-now ${mine ? "" : "tts"}">${mine ? `<i class=mi>mic</i> Vai ${escapeHTML(item.speaker || "A")} — đến lượt bạn đọc` : `<i class=mi>volume_up</i> Vai ${escapeHTML(item.speaker)} — máy đọc, bạn lắng nghe`}</span>`;
+    speakerEl.querySelectorAll("[data-role]").forEach(b => b.addEventListener("click", () => { speakingRole = b.dataset.role; clearTimeout(ttsAutoTimer); renderSpeakingItem(); }));
+  } else speakerEl.textContent = item.speaker ? `Vai ${item.speaker}` : "";
+  document.getElementById("speakingMicBtn").disabled = !mine;
+  document.getElementById("speakingRetryBtn").disabled = !mine;
+  clearTimeout(ttsAutoTimer);
+  if (!mine) {
+    // Lời thoại của vai máy: tự đọc rồi chuyển sang câu tiếp theo
+    speakingItemResults[activeItemIndex] = { tts: true };
+    ttsAutoTimer = setTimeout(() => speakEnglishText(item.text, { rate: 0.9, onDone: () => { ttsAutoTimer = setTimeout(() => { if (activeSpeakingTask === task && activeItemIndex < task.items.length - 1) { activeItemIndex++; renderSpeakingItem(); } }, 700); } }), 350);
+  }
   document.getElementById("speakingTargetText").textContent = item.text;
   document.getElementById("speakingIpa").textContent = item.ipa || "";
   document.getElementById("speakingMeaning").textContent = item.meaning ? `"${item.meaning}"` : "";
   const focusEl = document.getElementById("speakingFocus");
-  focusEl.textContent = item.focus ? `🎯 ${item.focus}` : ""; focusEl.classList.toggle("hidden", !item.focus);
+ focusEl.textContent = item.focus ?`${item.focus}`:""; focusEl.classList.toggle("hidden", !item.focus);
   const script = document.getElementById("dialogueScript");
   if (task.stage === 2) {
     script.classList.remove("hidden");
-    script.innerHTML = task.items.map((l, i) => `<div class="dialogue-line ${i === activeItemIndex ? "current" : ""} ${speakingItemResults[i] ? "done" : ""}" data-idx="${i}"><b>${escapeHTML(l.speaker || (i % 2 ? "B" : "A"))}:</b> ${escapeHTML(l.text)} ${speakingItemResults[i] ? `<span class="small">✓ ${speakingItemResults[i].accuracy}%</span>` : ""}</div>`).join("");
+    script.innerHTML = task.items.map((l, i) => { const r = speakingItemResults[i]; const sp = l.speaker || (i % 2 ? "B" : "A"); return `<div class="dialogue-line ${i === activeItemIndex ? "current" : ""} ${r && !r.tts ? "done" : ""} ${sp !== speakingRole ? "machine" : ""}" data-idx="${i}"><b>${escapeHTML(sp)}:</b> ${escapeHTML(l.text)} ${r && !r.tts ? `<span class="small">${r.accuracy}%</span>` : sp !== speakingRole ? '<span class="small muted"><i class=mi>volume_up</i></span>' : ""}</div>`; }).join("");
     script.querySelectorAll(".dialogue-line").forEach(l => l.addEventListener("click", () => { activeItemIndex = Number(l.dataset.idx); renderSpeakingItem(); }));
   } else script.classList.add("hidden");
   document.getElementById("speakingResultBox").classList.add("hidden");
   document.getElementById("speakingWave").classList.add("hidden");
   const prev = speakingItemResults[activeItemIndex];
-  if (prev) showSpeakingResult(prev, item);
+  if (prev && !prev.tts) showSpeakingResult(prev, item);
   document.getElementById("speakingPrevBtn").disabled = activeItemIndex === 0;
   document.getElementById("speakingNextBtn").textContent = activeItemIndex === n - 1 ? "Hoàn thành bài →" : "Câu tiếp theo →";
 }
@@ -1150,7 +1238,7 @@ document.getElementById("speakingPlayAudioBtn").addEventListener("click", () => 
   const item = activeSpeakingTask?.items[activeItemIndex]; if (!item) return;
   stopSpeakingRecording(false);
   const btn = document.getElementById("speakingPlayAudioBtn"); btn.disabled = true; btn.textContent = "Đang phát...";
-  speakEnglishText(item.text, { onDone: () => { btn.disabled = false; btn.textContent = "🔊 Nghe phát âm mẫu"; } });
+ speakEnglishText(item.text, { onDone: () => { btn.disabled = false; btn.textContent ="Nghe phát âm mẫu"; } });
 });
 document.getElementById("speakingMicBtn").addEventListener("click", () => {
   const item = activeSpeakingTask?.items[activeItemIndex]; if (!item) return;
@@ -1190,7 +1278,7 @@ async function evaluateSpeakingAttempt(alternatives) {
     const stats = getLearningStats();
     stats.speakingAttempts = (stats.speakingAttempts || 0) + 1; stats.bestSpeakingScore = Math.max(stats.bestSpeakingScore || 0, res.accuracy); setLearningStats(stats);
     if (res.accuracy >= 60) playSuccessSound(); else playWrongSound();
-    document.getElementById("speakingItemProgress").style.width = `${(Object.keys(speakingItemResults).length / task.items.length) * 100}%`;
+    document.getElementById("speakingItemProgress").style.width = `${(Object.values(speakingItemResults).filter(r => r && !r.tts).length / Math.max(1, task.items.filter(l => !(task.stage === 2 && task.items.some(x => x.speaker)) || (l.speaker || "A") === speakingRole).length)) * 100}%`;
     if (task.stage === 2) renderSpeakingItem();
   } catch (e) { document.getElementById("speakingVerdict").textContent = "Không chấm được"; document.getElementById("speakingFeedback").textContent = e.message; }
 }
@@ -1201,29 +1289,29 @@ function showSpeakingResult(r, item) {
   document.getElementById("speakingVerdict").textContent = r.verdict?.label || "";
   document.getElementById("speakingFeedback").textContent = r.tip || "";
   document.getElementById("speakingTranscript").textContent = `"${r.transcript}"`;
-  document.getElementById("speakingWordPills").innerHTML = (r.breakdown || []).map(b => `<span class="word-pill ${b.status}" title="${b.heard ? `AI nghe: ${escapeHTML(b.heard)}` : "Không nghe thấy"}">${b.status === "correct" ? "✓" : b.status === "near" ? "≈" : b.status === "ending" ? "-s/-ed" : "✕"} ${escapeHTML(b.word)}</span>`).join("");
+  document.getElementById("speakingWordPills").innerHTML = (r.breakdown || []).map(b => `<span class="word-pill ${b.status}" title="${b.heard ? `AI nghe: ${escapeHTML(b.heard)}` : "Không nghe thấy"}">${b.status === "correct" ? "<i class=mi>check</i>" : b.status === "near" ? "≈" : b.status === "ending" ? "-s/-ed" : "<i class=mi>close</i>"} ${escapeHTML(b.word)}</span>`).join("");
   const note = document.getElementById("speakingErrorNote");
-  const gram = (r.errors || []).filter(e => e.type === "grammar"), pron = (r.errors || []).filter(e => e.type === "pronunciation");
-  if (gram.length || pron.length) {
+  const gram = (r.errors || []).filter(e => e.type === "grammar"), pron = (r.errors || []).filter(e => e.type === "pronunciation"), flu = (r.errors || []).filter(e => e.type === "fluency");
+  if (gram.length || pron.length || flu.length) {
     note.classList.remove("hidden");
-    note.innerHTML = `${gram.length ? `<div>📘 <b>Lỗi ngữ pháp (đuôi từ):</b> ${gram.map(e => `${escapeHTML(e.word)} → đọc "${escapeHTML(e.heard)}"`).join(", ")} — đã đưa vào Phòng chữa lỗi mục Ngữ pháp.</div>` : ""}${pron.length ? `<div>🎙️ <b>Cần luyện phát âm:</b> ${pron.slice(0, 5).map(e => escapeHTML(e.word)).join(", ")} — đã đưa vào mục Phát âm.</div>` : ""}`;
+    note.innerHTML = `${flu.map(e => e.subtype === "extra_words" ? `<div><i class=mi>warning</i> <b>Nói thừa ${e.extra} từ</b> ngoài câu mẫu — chỉ đọc đúng câu, không thêm bớt.</div>` : `<div><i class=mi>warning</i> <b>Sai trật tự từ</b> (${escapeHTML(e.detail || "")}) — đọc theo đúng thứ tự câu mẫu.</div>`).join("")}${gram.length ? `<div><i class=mi>menu_book</i> <b>Lỗi ngữ pháp (đuôi từ):</b> ${gram.map(e => `${escapeHTML(e.word)} → đọc "${escapeHTML(e.heard)}"`).join(", ")} — đã đưa vào Phòng chữa lỗi mục Ngữ pháp.</div>` : ""}${pron.length ? `<div><i class=mi>mic</i> <b>Cần luyện phát âm:</b> ${pron.slice(0, 5).map(e => escapeHTML(e.word)).join(", ")} — đã đưa vào mục Phát âm.</div>` : ""}`;
   } else note.classList.add("hidden");
   const coach = document.getElementById("capybaraCoachBubble");
-  if (coach) coach.textContent = r.accuracy >= 90 ? "Quá đỉnh! Phát âm chuẩn như người bản xứ luôn! 🦫🎉" : r.accuracy >= 75 ? "Tốt lắm! Người nghe hiểu rõ rồi, luyện thêm vài từ màu vàng nữa là hoàn hảo! 💪" : r.accuracy >= 60 ? "Khá rồi nè! Nghe lại mẫu và chú ý các từ đỏ nhé! ✨" : "Đừng nản! Bấm nghe mẫu, đọc chậm và rõ từng từ rồi thử lại cùng mình nào! 🦫";
+ if (coach) coach.textContent = r.accuracy >= 90 ?"Quá đỉnh! Phát âm chuẩn như người bản xứ luôn!": r.accuracy >= 75 ?"Tốt lắm! Người nghe hiểu rõ rồi, luyện thêm vài từ màu vàng nữa là hoàn hảo!": r.accuracy >= 60 ?"Khá rồi nè! Nghe lại mẫu và chú ý các từ đỏ nhé!":"Đừng nản! Bấm nghe mẫu, đọc chậm và rõ từng từ rồi thử lại cùng mình nào!";
 }
 async function finishSpeakingTask() {
   const task = activeSpeakingTask; if (!task) return;
-  const results = task.items.map((_, i) => speakingItemResults[i]).filter(Boolean);
+  const results = task.items.map((_, i) => speakingItemResults[i]).filter(r => r && !r.tts);
   if (!results.length) { showToast("Hãy đọc ít nhất một câu trước khi hoàn thành nhé!"); return; }
   const avg = Math.round(results.reduce((s, r) => s + r.accuracy, 0) / results.length);
   const verdict = avg >= 90 ? { xp: 40, carrots: 3 } : avg >= 75 ? { xp: 30, carrots: 2 } : avg >= 60 ? { xp: 20, carrots: 1 } : { xp: 10, carrots: 0 };
   const summary = document.getElementById("speakingSummary");
   summary.classList.remove("hidden");
-  summary.innerHTML = `<h4 style="margin:0 0 6px">🎉 Hoàn thành bài "${escapeHTML(task.title)}"</h4><div class="stage-metrics"><div><b>${avg}%</b><span>Trung bình</span></div><div><b>${results.length}/${task.items.length}</b><span>Câu đã đọc</span></div><div><b>${Math.max(...results.map(r => r.accuracy))}%</b><span>Câu tốt nhất</span></div></div><p class="small muted" id="speakingSubmitStatus">Đang lưu kết quả...</p>`;
+  summary.innerHTML = `<h4 style="margin:0 0 6px"><i class=mi>celebration</i> Hoàn thành bài "${escapeHTML(task.title)}"</h4><div class="stage-metrics"><div><b>${avg}%</b><span>Trung bình</span></div><div><b>${results.length}/${task.items.length}</b><span>Câu đã đọc</span></div><div><b>${Math.max(...results.map(r => r.accuracy))}%</b><span>Câu tốt nhất</span></div></div><p class="small muted" id="speakingSubmitStatus">Đang lưu kết quả...</p>`;
   gainRewards(verdict.xp, verdict.carrots, "Hoàn thành bài luyện nói");
   if (task.assignmentId) {
     try {
-      const res = await apiRequest("/api/student/speaking-submissions", { method: "POST", body: JSON.stringify({ assignmentId: task.assignmentId, itemsResult: results.map((r, i) => ({ index: i, accuracy: r.accuracy, transcript: r.transcript })), spokenTranscript: results.map(r => r.transcript).join(" | ") }) });
+      const res = await apiRequest("/api/student/speaking-submissions", { method: "POST", body: JSON.stringify({ assignmentId: task.assignmentId, itemsResult: task.items.map((_, i) => speakingItemResults[i] && !speakingItemResults[i].tts ? { index: i, accuracy: speakingItemResults[i].accuracy, transcript: speakingItemResults[i].transcript } : null).filter(Boolean), spokenTranscript: results.map(r => r.transcript).join(" | ") }) });
       document.getElementById("speakingSubmitStatus").textContent = res.message;
     } catch (e) { document.getElementById("speakingSubmitStatus").textContent = "Không nộp được cho giáo viên: " + e.message; }
   } else {
@@ -1322,7 +1410,7 @@ function renderHealingRoom() {
   const pronList = document.getElementById("healingPronList");
   pronList.innerHTML = profile.pronunciation.length ? profile.pronunciation.map(p => `<div class="healing-error-card pron">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><span class="error-badge purple">Phát âm · sai ${p.count} lần</span><h4 style="margin:6px 0 2px;font-size:22px">${escapeHTML(p.word)} ${p.ipa ? `<span class="small muted" style="font-family:monospace;font-weight:400"></span>` : ""}</h4><div class="small muted">AI nghe thành: "${escapeHTML(p.heard || "…")}" · Trong câu: "${escapeHTML(p.sentence || "")}"</div></div>
-      <div style="display:flex;gap:8px"><button class="btn btn-soft btn-sm pron-play" data-word="${escapeHTML(p.word)}">🔊 Nghe</button><button class="btn btn-primary btn-sm pron-drill" data-id="${p.id}">🎙️ Luyện lại</button></div></div></div>`).join("")
+      <div style="display:flex;gap:8px"><button class="btn btn-soft btn-sm pron-play" data-word="${escapeHTML(p.word)}"><i class=mi>volume_up</i> Nghe</button><button class="btn btn-primary btn-sm pron-drill" data-id="${p.id}"><i class=mi>mic</i> Luyện lại</button></div></div></div>`).join("")
     : '<div class="empty-state"><strong style="color:#16a34a">Không có lỗi phát âm nào cần chữa.</strong><p class="small muted">Luyện nói AI để hệ thống phát hiện các từ bạn đọc chưa chuẩn.</p></div>';
   pronList.querySelectorAll(".pron-play").forEach(b => b.addEventListener("click", () => speakEnglishText(b.dataset.word, { rate: 0.75 })));
   pronList.querySelectorAll(".pron-drill").forEach(b => b.addEventListener("click", () => openPronDrill(b.dataset.id)));
@@ -1332,11 +1420,11 @@ function renderHealingRoom() {
   pendingList.innerHTML = profile.grammar.length ? profile.grammar.map(err => {
     const bank = healingExercisesBank[err.code] || { label: "Ngữ pháp", rule: "", mnemonic: "" };
     return `<div class="healing-error-card">
-      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><span class="error-badge red">Cần chữa: ${escapeHTML(bank.label)}</span><span class="small muted">${err.source === "speaking" ? "🎙️ Từ luyện nói" : "📝 Từ bài kiểm tra"} · ${fmtDate(err.createdAt)}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><span class="error-badge red">Cần chữa: ${escapeHTML(bank.label)}</span><span class="small muted">${err.source === "speaking" ? "<i class=mi>mic</i> Từ luyện nói" : "<i class=mi>edit_note</i> Từ bài kiểm tra"} · ${fmtDate(err.createdAt)}</span></div>
       <div style="font-size:14px;margin-bottom:8px"><strong>Câu mắc lỗi:</strong> "${escapeHTML(err.triggerQuestion)}"</div>
       <div style="display:flex;gap:12px;font-size:13px;margin-bottom:12px;background:#fef2f2;padding:8px 12px;border-radius:8px;flex-wrap:wrap"><div>Bạn chọn/đọc: <span style="color:#dc2626;font-weight:700">${escapeHTML(String(err.selected || "—"))}</span></div><div>Đáp án chuẩn: <span style="color:#16a34a;font-weight:700">${escapeHTML(String(err.correct || ""))}</span></div></div>
       <div style="background:#f8fafc;border-left:3px solid #6366f1;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:14px;font-size:13px"><div style="font-weight:700;color:#4338ca">Quy tắc cốt lõi:</div><div>${escapeHTML(bank.rule)}</div><div style="margin-top:6px;color:#059669;font-weight:600">Mẹo nhớ: ${escapeHTML(bank.mnemonic)}</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary start-healing-btn" data-error-code="${err.code}" data-error-id="${err.id}" style="flex:2;font-weight:700">Bắt đầu chữa lỗi (3 câu) →</button><button class="btn btn-soft ask-capybara-err-btn" data-error-label="${escapeHTML(bank.label)}" style="flex:1">💬 Hỏi AI giải thích</button></div></div>`;
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary start-healing-btn" data-error-code="${err.code}" data-error-id="${err.id}" style="flex:2;font-weight:700">Bắt đầu chữa lỗi (3 câu) →</button><button class="btn btn-soft ask-capybara-err-btn" data-error-label="${escapeHTML(bank.label)}" style="flex:1"><i class=mi>chat</i> Hỏi AI giải thích</button></div></div>`;
   }).join("") : '<div class="empty-state"><strong style="color:#16a34a">Tuyệt vời! Không có lỗi ngữ pháp nào đang chờ chữa.</strong><p class="small muted">Lỗi từ bài kiểm tra và đuôi -s/-ed khi luyện nói sẽ tự động xuất hiện ở đây.</p></div>';
   pendingList.querySelectorAll(".start-healing-btn").forEach(btn => btn.addEventListener("click", () => startHealingExercise(btn.dataset.errorCode, btn.dataset.errorId)));
   pendingList.querySelectorAll(".ask-capybara-err-btn").forEach(btn => btn.addEventListener("click", () => { if (capybaraChatWindow.classList.contains("hidden")) toggleCapybaraChat(); sendCapybaraMessage(`Capybara ơi, giải thích chi tiết quy tắc ngữ pháp '${btn.dataset.errorLabel}' và cho 2 ví dụ dễ hiểu nhé!`); }));
@@ -1348,7 +1436,7 @@ function renderHealingRoom() {
   if (ugList) {
     const byUnit = {};
     ug.forEach(t => { (byUnit[t.unit] = byUnit[t.unit] || []).push(t); });
-    ugList.innerHTML = ug.length ? `<h4 style="margin:6px 0 10px">📖 Câu sai từ bài tập ngữ pháp theo Unit (${ug.length})</h4>` + Object.keys(byUnit).sort((a, b) => a - b).map(un => `<div class="card panel" style="margin-bottom:12px"><div class="section-head"><h4 style="margin:0">Unit ${un} · ${escapeHTML(byUnit[un][0].title || "")} <span class="badge orange">${byUnit[un].length} câu</span></h4><button class="btn btn-soft btn-sm ug-clear" data-unit="${un}">Đã ôn lại</button></div>${byUnit[un].map(t => `<div class="review-item"><div>${escapeHTML(t.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(t.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(t.correct || ""))}</b></div>${t.explanation ? `<div class="small muted">💡 ${escapeHTML(t.explanation)}</div>` : ""}</div>`).join("")}</div>`).join("") : "";
+    ugList.innerHTML = ug.length ? `<h4 style="margin:6px 0 10px"><i class=mi>book_2</i> Câu sai từ bài tập ngữ pháp theo Unit (${ug.length})</h4>` + Object.keys(byUnit).sort((a, b) => a - b).map(un => `<div class="card panel" style="margin-bottom:12px"><div class="section-head"><h4 style="margin:0">Unit ${un} · ${escapeHTML(byUnit[un][0].title || "")} <span class="badge orange">${byUnit[un].length} câu</span></h4><button class="btn btn-soft btn-sm ug-clear" data-unit="${un}">Đã ôn lại</button></div>${byUnit[un].map(t => `<div class="review-item"><div>${escapeHTML(t.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(t.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(t.correct || ""))}</b></div>${t.explanation ? `<div class="small muted"><i class=mi>lightbulb</i> ${escapeHTML(t.explanation)}</div>` : ""}</div>`).join("")}</div>`).join("") : "";
     ugList.querySelectorAll(".ug-clear").forEach(b => b.addEventListener("click", () => {
       const pr = getHealingProfile(); const removed = (pr.unitGrammar || []).filter(t => String(t.unit) === b.dataset.unit).length;
       pr.unitGrammar = (pr.unitGrammar || []).filter(t => String(t.unit) !== b.dataset.unit);
@@ -1361,8 +1449,8 @@ function renderHealingRoom() {
   const testList = document.getElementById("healingTestList");
   const byTest = {};
   pendingTest.forEach(t => { (byTest[t.testTitle] = byTest[t.testTitle] || []).push(t); });
-  testList.innerHTML = pendingTest.length ? Object.entries(byTest).map(([title, items]) => `<div class="card panel" style="margin-bottom:12px"><div class="section-head"><h4 style="margin:0">📝 ${escapeHTML(title)} <span class="badge orange">${items.length} câu sai</span></h4><button class="btn btn-soft btn-sm review-all-test" data-title="${escapeHTML(title)}">Đã xem lại tất cả</button></div>
-      ${items.map(t => `<div class="review-item"><div class="small muted">${escapeHTML(t.section || "")}</div><div>${escapeHTML(t.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(t.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(t.correct || ""))}</b> <button class="btn btn-light btn-sm review-one" data-id="${t.id}" style="margin-left:8px">✓ Đã hiểu</button></div></div>`).join("")}</div>`).join("")
+  testList.innerHTML = pendingTest.length ? Object.entries(byTest).map(([title, items]) => `<div class="card panel" style="margin-bottom:12px"><div class="section-head"><h4 style="margin:0"><i class=mi>edit_note</i> ${escapeHTML(title)} <span class="badge orange">${items.length} câu sai</span></h4><button class="btn btn-soft btn-sm review-all-test" data-title="${escapeHTML(title)}">Đã xem lại tất cả</button></div>
+      ${items.map(t => `<div class="review-item"><div class="small muted">${escapeHTML(t.section || "")}</div><div>${escapeHTML(t.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(t.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(t.correct || ""))}</b> <button class="btn btn-light btn-sm review-one" data-id="${t.id}" style="margin-left:8px"><i class=mi>check</i> Đã hiểu</button></div></div>`).join("")}</div>`).join("")
     : '<div class="empty-state"><strong style="color:#16a34a">Không có câu sai nào đang chờ xem lại.</strong><p class="small muted">Sau mỗi bài kiểm tra, các câu sai sẽ được liệt kê ở đây kèm đáp án đúng.</p></div>';
   const markReviewed = (ids, title) => {
     const pr = getHealingProfile();
@@ -1380,7 +1468,7 @@ function renderHealingRoom() {
 
   
   const historyList = document.getElementById("healingHistoryList");
-  const catLabel = { pronunciation: "🎙️ Phát âm", grammar: "📘 Ngữ pháp", test: "📝 Bài kiểm tra" };
+  const catLabel = { pronunciation: "<i class=mi>mic</i> Phát âm", grammar: "<i class=mi>menu_book</i> Ngữ pháp", test: "<i class=mi>edit_note</i> Bài kiểm tra" };
   historyList.innerHTML = profile.healedHistory.length ? profile.healedHistory.map(item => `<div class="card panel" style="padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px"><div><span class="badge green">${catLabel[item.category] || "Đã chữa"}</span><div style="font-weight:700;margin-top:4px">${escapeHTML(item.title)}</div><div class="small muted">${fmtDate(item.healedAt, true)}</div></div><div style="text-align:right"><div class="small muted">${escapeHTML(item.score || "")}</div></div></div>`).join("") : '<div class="empty-state">Chưa có lỗi nào được chữa khỏi.</div>';
 }
 document.querySelectorAll("[data-healing-tab]").forEach(tab => tab.addEventListener("click", () => {
@@ -1413,7 +1501,7 @@ document.getElementById("pronDrillMic").addEventListener("click", () => {
       try {
         const res = await apiRequest("/api/speaking/evaluate", { method: "POST", body: JSON.stringify({ target: drillItem.word, alternatives, context: "drill" }) });
         const ok = res.accuracy >= 85;
-        out.innerHTML = `<div class="quiz-speaking-result"><strong style="color:${ok ? "#16a34a" : "#d97706"}">Độ chuẩn: ${res.accuracy}% ${ok ? "— Đã chữa khỏi! 🎉" : "— Chưa đạt 85%, thử lại nhé"}</strong><div class="small muted">AI nghe: "${escapeHTML(res.transcript)}"</div>${res.tip ? `<div class="small">💡 ${escapeHTML(res.tip)}</div>` : ""}</div>`;
+        out.innerHTML = `<div class="quiz-speaking-result"><strong style="color:${ok ? "#16a34a" : "#d97706"}">Độ chuẩn: ${res.accuracy}% ${ok ? "— Đã chữa khỏi! <i class=mi>celebration</i>" : "— Chưa đạt 85%, thử lại nhé"}</strong><div class="small muted">AI nghe: "${escapeHTML(res.transcript)}"</div>${res.tip ? `<div class="small"><i class=mi>lightbulb</i> ${escapeHTML(res.tip)}</div>` : ""}</div>`;
         if (ok) {
           const pr = getHealingProfile();
           pr.pronunciation = pr.pronunciation.filter(p => p.id !== drillItem.id);
@@ -1452,7 +1540,7 @@ function renderHealingModalStep() {
       profile.healingStreak = (profile.healingStreak || 0) + 1; saveHealingProfile(profile);
       gainRewards(15, 1, "Chữa khỏi lỗi ngữ pháp"); logHealingEvent(`Chữa lỗi ngữ pháp: ${s.label}`, { category: "grammar", code: s.errorCode, score: s.correctCount }); playSuccessSound();
     }
-    modalBody.innerHTML = `<div style="text-align:center;padding:20px 0"><h3 style="color:${passed ? "#16a34a" : "#d97706"};margin:0 0 8px">${passed ? "CHỮA LỖI THÀNH CÔNG!" : "CHƯA ĐẠT — THỬ LẠI NHÉ"}</h3><p style="line-height:1.5">Bạn làm đúng <strong>${s.correctCount}/${s.questions.length}</strong> câu dạng <strong>${escapeHTML(s.label)}</strong>.${passed ? " Lỗi này đã được đánh dấu trên Bản đồ ngữ pháp!" : " Cần đúng ít nhất 2/3 câu để chữa khỏi."}</p>${passed ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:inline-block;margin-bottom:20px"><strong style="color:#15803d">🎁 +15 XP & +1 Cà rốt</strong></div>' : ""}<button class="btn btn-primary" id="finishHealingSessionBtn" style="width:100%;font-weight:700">${passed ? "Hoàn tất" : "Làm lại 3 câu khác"}</button></div>`;
+    modalBody.innerHTML = `<div style="text-align:center;padding:20px 0"><h3 style="color:${passed ? "#16a34a" : "#d97706"};margin:0 0 8px">${passed ? "CHỮA LỖI THÀNH CÔNG!" : "CHƯA ĐẠT — THỬ LẠI NHÉ"}</h3><p style="line-height:1.5">Bạn làm đúng <strong>${s.correctCount}/${s.questions.length}</strong> câu dạng <strong>${escapeHTML(s.label)}</strong>.${passed ? " Lỗi này đã được đánh dấu trên Bản đồ ngữ pháp!" : " Cần đúng ít nhất 2/3 câu để chữa khỏi."}</p>${passed ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:inline-block;margin-bottom:20px"><strong style="color:#15803d"><i class=mi>redeem</i> +15 XP & +1 Cà rốt</strong></div>' : ""}<button class="btn btn-primary" id="finishHealingSessionBtn" style="width:100%;font-weight:700">${passed ? "Hoàn tất" : "Làm lại 3 câu khác"}</button></div>`;
     document.getElementById("finishHealingSessionBtn").addEventListener("click", () => { if (passed) { closeModal("healingExerciseModal"); renderHealingRoom(); } else startHealingExercise(s.errorCode, s.errorId); });
     return;
   }
@@ -1464,7 +1552,7 @@ function renderHealingModalStep() {
     const isRight = Number(btn.dataset.optIndex) === q.answer;
     if (isRight) { btn.classList.add("correct"); s.correctCount++; playSuccessSound(); } else { btn.classList.add("wrong"); options[q.answer]?.classList.add("correct"); playWrongSound(); }
     feedback.style.display = "block"; feedback.style.background = isRight ? "#f0fdf4" : "#fef2f2"; feedback.style.border = isRight ? "1px solid #bbf7d0" : "1px solid #fecaca"; feedback.style.color = isRight ? "#15803d" : "#991b1b";
-    feedback.innerHTML = `<strong>${isRight ? "✓ CHÍNH XÁC!" : "✕ CHƯA ĐÚNG!"}</strong> ${escapeHTML(q.explanation)}`;
+    feedback.innerHTML = `<strong>${isRight ? "<i class=mi>check</i> CHÍNH XÁC!" : "<i class=mi>close</i> CHƯA ĐÚNG!"}</strong> ${escapeHTML(q.explanation)}`;
     nextBtn.style.display = "block";
     nextBtn.addEventListener("click", () => { s.currentIndex++; renderHealingModalStep(); }, { once: true });
   }));
@@ -1527,7 +1615,7 @@ async function openStudentProgress(id) {
       <div class="table-wrap"><table><thead><tr><th>Bài</th><th>Đề</th><th>Điểm</th><th>Trạng thái</th><th>Ngày</th></tr></thead><tbody>${p.tests.history.length ? p.tests.history.slice().reverse().map(h => `<tr><td>${escapeHTML(h.title)}</td><td class="small">${h.variant === "regular" ? "Cơ bản" : h.variant === "advanced" ? "Nâng cao" : "Đầy đủ"}</td><td><strong>${h.scoreOnTen}</strong>${h.speakingScore ? `<div class="small muted">Speaking ${h.speakingScore}</div>` : ""}</td><td><span class="badge ${h.status === "pending_manual" ? "orange" : "green"}">${h.status === "pending_manual" ? "Chờ chấm" : "Xong"}</span>${h.tabViolations ? `<div class="small" style="color:#dc2626">${h.tabViolations} lần rời tab</div>` : ""}</td><td class="small muted">${fmtDate(h.submittedAt)}</td></tr>`).join("") : '<tr><td colspan="5" class="small muted">Chưa làm bài nào.</td></tr>'}</tbody></table></div>
       <h4 style="margin:14px 0 6px">Từ hay phát âm sai</h4><div>${p.speaking.topWords.length ? p.speaking.topWords.map(w => `<span class="word-pill missed">${escapeHTML(w.word)} ×${w.count}</span> `).join("") : '<span class="small muted">Chưa có dữ liệu.</span>'}</div>
       <h4 style="margin:14px 0 6px">Hoạt động gần đây</h4>
-      <div class="table-wrap"><table><thead><tr><th>Hoạt động</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody>${p.events.slice(0, 10).map(e => `<tr><td>${escapeHTML(e.title || e.type)}</td><td>${e.type === "test" ? `${e.maxScore ? ((e.score / e.maxScore) * 10).toFixed(1) : e.score}/10` : e.type === "speaking" ? `${e.score}%` : e.type === "vocab" ? `${e.maxScore ? Math.round((e.score / e.maxScore) * 100) : e.score}%` : "✓"}</td><td class="small muted">${fmtDate(e.createdAt, true)}</td></tr>`).join("") || '<tr><td colspan="3" class="small muted">Chưa có hoạt động.</td></tr>'}</tbody></table></div>`;
+      <div class="table-wrap"><table><thead><tr><th>Hoạt động</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody>${p.events.slice(0, 10).map(e => `<tr><td>${escapeHTML(e.title || e.type)}</td><td>${e.type === "test" ? `${e.maxScore ? ((e.score / e.maxScore) * 10).toFixed(1) : e.score}/10` : e.type === "speaking" ? `${e.score}%` : e.type === "vocab" ? `${e.maxScore ? Math.round((e.score / e.maxScore) * 100) : e.score}%` : "<i class=mi>check</i>"}</td><td class="small muted">${fmtDate(e.createdAt, true)}</td></tr>`).join("") || '<tr><td colspan="3" class="small muted">Chưa có hoạt động.</td></tr>'}</tbody></table></div>`;
   } catch (err) { body.innerHTML = `<p class="small" style="color:red">${escapeHTML(err.message)}</p>`; }
 }
 
@@ -1547,7 +1635,7 @@ async function renderTeacherRecentTests() {
       const s = t.summary || {};
       const structure = [s.objectiveCount ? `${s.objectiveCount} TN` : "", s.speakingCount ? `${s.speakingCount} Speaking` : "", s.manualCount ? `${s.manualCount} Writing` : ""].filter(Boolean).join(" · ");
       const typeCell = `<select class="role-select test-type-sel" data-test-id="${t.id}" style="padding:5px 26px 5px 8px;font-size:12px"><option value="kttx" ${(t.testType || "kttx") === "kttx" ? "selected" : ""}>KTTX</option><option value="ktgk" ${t.testType === "ktgk" ? "selected" : ""}>KTGK</option><option value="ktck" ${t.testType === "ktck" ? "selected" : ""}>KTCK</option></select> <select class="role-select test-sem-sel" data-test-id="${t.id}" style="padding:5px 26px 5px 8px;font-size:12px"><option value="1" ${Number(t.semester || 1) === 1 ? "selected" : ""}>HK1</option><option value="2" ${Number(t.semester) === 2 ? "selected" : ""}>HK2</option></select>${t.unitNo ? `<div class="small muted">Unit ${t.unitNo}</div>` : ""}`;
-      return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${typeCell}</td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Tất cả lớp</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes}'</strong></td><td class="small">${t.matrixId ? `#${t.matrixId}` : '<span class="muted">—</span>'}</td><td class="small muted">${fmtDate(t.createdAt)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-light btn-sm analyze-test-btn" data-test-id="${t.id}" title="AI phân tích lại độ khó & thời gian">🤖 Phân tích</button><button class="btn btn-light btn-sm delete-test-btn" data-test-id="${t.id}" style="color:#ef4444">🗑️</button></div></td></tr>`;
+      return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${typeCell}</td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Tất cả lớp</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes}'</strong></td><td class="small">${t.matrixId ? `#${t.matrixId}` : '<span class="muted">—</span>'}</td><td class="small muted">${fmtDate(t.createdAt)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-light btn-sm analyze-test-btn" data-test-id="${t.id}" title="AI phân tích lại độ khó & thời gian"><i class=mi>smart_toy</i> Phân tích</button><button class="btn btn-light btn-sm delete-test-btn" data-test-id="${t.id}" style="color:#ef4444"><i class=mi>delete</i></button></div></td></tr>`;
     }).join("");
     tbody.querySelectorAll(".test-type-sel, .test-sem-sel").forEach(sel => sel.addEventListener("change", async () => {
       const id = sel.dataset.testId;
@@ -1561,7 +1649,7 @@ async function renderTeacherRecentTests() {
     }));
     tbody.querySelectorAll(".analyze-test-btn").forEach(btn => btn.addEventListener("click", async () => {
       btn.disabled = true; btn.textContent = "⏳ AI đang phân tích...";
-      try { const res = await apiRequest(`/api/teacher/tests/${btn.dataset.testId}/analyze`, { method: "POST", body: JSON.stringify({}) }); showToast(`${res.message} Dễ ${res.analysis.counts.easy} · TB ${res.analysis.counts.medium} · Khó ${res.analysis.counts.hard}. Thời gian: ${res.analysis.durations.full}' (cơ bản ${res.analysis.durations.regular}')`); renderTeacherRecentTests(); } catch (err) { showToast(err.message); btn.disabled = false; btn.textContent = "🤖 Phân tích"; }
+ try { const res = await apiRequest(`/api/teacher/tests/${btn.dataset.testId}/analyze`, { method:"POST", body: JSON.stringify({}) }); showToast(`${res.message} Dễ ${res.analysis.counts.easy} · TB ${res.analysis.counts.medium} · Khó ${res.analysis.counts.hard}. Thời gian: ${res.analysis.durations.full}' (cơ bản ${res.analysis.durations.regular}')`); renderTeacherRecentTests(); } catch (err) { showToast(err.message); btn.disabled = false; btn.textContent ="Phân tích"; }
     }));
   } catch (err) { tbody.innerHTML = `<tr><td colspan="9" class="small muted">${escapeHTML(err.message)}</td></tr>`; }
 }
@@ -1572,7 +1660,7 @@ document.getElementById("refreshTeacherTestsBtn")?.addEventListener("click", () 
 let matricesCache = [];
 function matrixSummaryHtml(m) {
   const levels = (m.levels || []).map(l => `<span class="diff-pill ${l.key}">${escapeHTML(l.name)} ${l.ratio}%</span>`).join(" ");
-  const tiers = m.tiers ? `<div class="small" style="margin-top:6px">🏫 <b>${escapeHTML(m.tiers.advanced?.label || "Tăng cường")}</b>: dễ ${m.tiers.advanced?.easy}% · TB ${m.tiers.advanced?.medium}% · khó ${m.tiers.advanced?.hard}% (thời gian ×${m.tiers.advanced?.timeFactor}) &nbsp; | &nbsp; <b>${escapeHTML(m.tiers.regular?.label || "Thường")}</b>: dễ ${m.tiers.regular?.easy}% · TB ${m.tiers.regular?.medium}% · khó ${m.tiers.regular?.hard}% (×${m.tiers.regular?.timeFactor})</div>` : "";
+  const tiers = m.tiers ? `<div class="small" style="margin-top:6px"><i class=mi>school</i> <b>${escapeHTML(m.tiers.advanced?.label || "Tăng cường")}</b>: dễ ${m.tiers.advanced?.easy}% · TB ${m.tiers.advanced?.medium}% · khó ${m.tiers.advanced?.hard}% (thời gian ×${m.tiers.advanced?.timeFactor}) &nbsp; | &nbsp; <b>${escapeHTML(m.tiers.regular?.label || "Thường")}</b>: dễ ${m.tiers.regular?.easy}% · TB ${m.tiers.regular?.medium}% · khó ${m.tiers.regular?.hard}% (×${m.tiers.regular?.timeFactor})</div>` : "";
   const skills = (m.skills || []).length ? `<div class="small muted" style="margin-top:4px">Kỹ năng: ${m.skills.map(s => `${escapeHTML(s.name)} (${s.questions || "?"} câu${s.points ? `, ${s.points}đ` : ""})`).join("; ")}</div>` : "";
   return `${levels}${tiers}${skills}${m.notes ? `<div class="small muted" style="margin-top:4px">${escapeHTML(m.notes)}</div>` : ""}`;
 }
@@ -1582,7 +1670,7 @@ async function renderMatricesList() {
     const data = await apiRequest("/api/teacher/test-matrices"); matricesCache = data.matrices || [];
     const sel = document.getElementById("docxModalMatrix");
     if (sel) sel.innerHTML = '<option value="">Mặc định (AI tự phân tầng)</option>' + matricesCache.map(m => `<option value="${m.id}">${escapeHTML(m.title)}</option>`).join("");
-    box.innerHTML = matricesCache.length ? matricesCache.map(m => `<div class="matrix-item"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><div><strong>#${m.id} · ${escapeHTML(m.title)}</strong><div class="small muted">${escapeHTML(m.sourceFileName || "")} · ${fmtDate(m.createdAt)} · ${m.matrix.source === "ai" ? "AI đọc" : "ước lượng"}</div></div><button class="btn btn-light btn-sm del-matrix" data-id="${m.id}" style="color:#ef4444">Xóa</button></div><div style="margin-top:8px">${matrixSummaryHtml(m.matrix)}</div></div>`).join("") : '<div class="empty-state">Chưa có ma trận nào. Bấm "📐 Ma trận đề" để upload.</div>';
+    box.innerHTML = matricesCache.length ? matricesCache.map(m => `<div class="matrix-item"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><div><strong>#${m.id} · ${escapeHTML(m.title)}</strong><div class="small muted">${escapeHTML(m.sourceFileName || "")} · ${fmtDate(m.createdAt)} · ${m.matrix.source === "ai" ? "AI đọc" : "ước lượng"}</div></div><button class="btn btn-light btn-sm del-matrix" data-id="${m.id}" style="color:#ef4444">Xóa</button></div><div style="margin-top:8px">${matrixSummaryHtml(m.matrix)}</div></div>`).join("") : '<div class="empty-state">Chưa có ma trận nào. Bấm "<i class=mi>straighten</i> Ma trận đề" để upload.</div>';
     box.querySelectorAll(".del-matrix").forEach(b => b.addEventListener("click", async () => { if (!confirm("Xóa ma trận này?")) return; try { await apiRequest(`/api/teacher/test-matrices/${b.dataset.id}`, { method: "DELETE" }); renderMatricesList(); } catch (e) { showToast(e.message); } }));
   } catch (err) { box.innerHTML = `<div class="small" style="color:red">${escapeHTML(err.message)}</div>`; }
 }
@@ -1594,7 +1682,7 @@ document.getElementById("matrixUploadForm")?.addEventListener("submit", async e 
   const btn = document.getElementById("submitMatrixBtn"); btn.disabled = true; btn.textContent = "⏳ AI đang đọc ma trận...";
   try {
     const res = await apiRequest("/api/teacher/test-matrices", { method: "POST", body: JSON.stringify({ documentBase64: await fileToDataUrl(file), fileName: file.name, title: document.getElementById("matrixTitleInput").value.trim() }) });
-    const pv = document.getElementById("matrixPreview"); pv.classList.remove("hidden"); pv.innerHTML = `<div class="notice"><strong>✅ ${escapeHTML(res.message)}</strong><div style="margin-top:8px">${matrixSummaryHtml(res.matrix)}</div></div>`;
+    const pv = document.getElementById("matrixPreview"); pv.classList.remove("hidden"); pv.innerHTML = `<div class="notice"><strong><i class=mi>check_circle</i> ${escapeHTML(res.message)}</strong><div style="margin-top:8px">${matrixSummaryHtml(res.matrix)}</div></div>`;
     showToast(res.message); e.target.reset(); renderMatricesList();
   } catch (err) { showToast(err.message); } finally { btn.disabled = false; btn.textContent = "AI đọc ma trận"; }
 });
@@ -1668,11 +1756,11 @@ async function renderTeacherResults() {
     if (!teacherSubmissionsCache.length) { tbody.innerHTML = '<tr><td colspan="12" class="empty-state" style="text-align:center;padding:24px">Chưa có kết quả nộp bài nào theo điều kiện lọc.</td></tr>'; return; }
     tbody.innerHTML = teacherSubmissionsCache.map((item, idx) => {
       const isPending = item.status === "pending_manual";
-      const writingBtn = item.manualScore !== null ? `<button class="btn btn-sm grade-writing-click" data-submission-id="${item.id}" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:8px;font-weight:700;padding:3px 9px">✏️ ${Number(item.manualScore).toFixed(2)} đ</button>` : `<button class="btn btn-sm grade-writing-click" data-submission-id="${item.id}" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;border-radius:8px;font-weight:700;padding:3px 9px">✍️ Chờ chấm</button>`;
+      const writingBtn = item.manualScore !== null ? `<button class="btn btn-sm grade-writing-click" data-submission-id="${item.id}" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;border-radius:8px;font-weight:700;padding:3px 9px"><i class=mi>edit</i> ${Number(item.manualScore).toFixed(2)} đ</button>` : `<button class="btn btn-sm grade-writing-click" data-submission-id="${item.id}" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;border-radius:8px;font-weight:700;padding:3px 9px"><i class=mi>edit</i> Chờ chấm</button>`;
       const cls = item.scoreOnTen >= 8 ? "high" : item.scoreOnTen >= 5 ? "mid" : "low";
       const tabV = Number(item.tabViolations || 0);
-      const anti = item.isForcedSubmit || tabV >= 3 ? '<span class="badge red">⛔ Bị thu bài</span>' : tabV === 2 ? '<span class="badge orange">⚠️ 2 lần rời tab</span>' : tabV === 1 ? '<span class="badge orange">⚠️ 1 lần rời tab</span>' : '<span class="badge green">✓ Nghiêm túc</span>';
-      return `<tr><td>${idx + 1}</td><td><strong>${escapeHTML(item.studentName)}</strong><br><span class="small muted">${escapeHTML(item.studentEmail)}</span></td><td><span class="badge blue">${escapeHTML(item.studentClass)}</span></td><td><strong>${escapeHTML(item.testTitle)}</strong></td><td class="small">${item.variant === "regular" ? "Cơ bản" : item.variant === "advanced" ? "Nâng cao" : "Đầy đủ"}</td><td>${Number(item.objectiveScore).toFixed(2)}${item.speakingScore ? `<div class="small muted">Spk ${Number(item.speakingScore).toFixed(2)}</div>` : ""}</td><td>${writingBtn}</td><td><strong class="total-score-badge ${cls}">${item.scoreOnTen} / 10</strong></td><td>${anti}</td><td><span class="badge ${isPending ? "orange" : "green"}">${isPending ? "Chờ chấm Writing" : "Đã hoàn thành"}</span></td><td class="small">${fmtDate(item.submittedAt, true)}</td><td><div style="display:flex;gap:4px"><button class="btn btn-light btn-sm view-submission-btn" data-submission-id="${item.id}">Chi tiết</button><button class="btn btn-light btn-sm delete-sub-btn" data-sub-id="${item.id}" style="color:#ef4444;padding:4px 7px">🗑️</button></div></td></tr>`;
+      const anti = item.isForcedSubmit || tabV >= 3 ? '<span class="badge red"><i class=mi>block</i> Bị thu bài</span>' : tabV === 2 ? '<span class="badge orange"><i class=mi>warning</i> 2 lần rời tab</span>' : tabV === 1 ? '<span class="badge orange"><i class=mi>warning</i> 1 lần rời tab</span>' : '<span class="badge green"><i class=mi>check</i> Nghiêm túc</span>';
+      return `<tr><td>${idx + 1}</td><td><strong>${escapeHTML(item.studentName)}</strong><br><span class="small muted">${escapeHTML(item.studentEmail)}</span></td><td><span class="badge blue">${escapeHTML(item.studentClass)}</span></td><td><strong>${escapeHTML(item.testTitle)}</strong></td><td class="small">${item.variant === "regular" ? "Cơ bản" : item.variant === "advanced" ? "Nâng cao" : "Đầy đủ"}</td><td>${Number(item.objectiveScore).toFixed(2)}${item.speakingScore ? `<div class="small muted">Spk ${Number(item.speakingScore).toFixed(2)}</div>` : ""}</td><td>${writingBtn}</td><td><strong class="total-score-badge ${cls}">${item.scoreOnTen} / 10</strong></td><td>${anti}</td><td><span class="badge ${isPending ? "orange" : "green"}">${isPending ? "Chờ chấm Writing" : "Đã hoàn thành"}</span></td><td class="small">${fmtDate(item.submittedAt, true)}</td><td><div style="display:flex;gap:4px"><button class="btn btn-light btn-sm view-submission-btn" data-submission-id="${item.id}">Chi tiết</button><button class="btn btn-light btn-sm delete-sub-btn" data-sub-id="${item.id}" style="color:#ef4444;padding:4px 7px"><i class=mi>delete</i></button></div></td></tr>`;
     }).join("");
     tbody.querySelectorAll(".view-submission-btn, .grade-writing-click").forEach(btn => btn.addEventListener("click", () => { const sub = teacherSubmissionsCache.find(s => s.id == btn.dataset.submissionId); if (sub) openSubmissionDetail(sub); }));
     tbody.querySelectorAll(".delete-sub-btn").forEach(btn => btn.addEventListener("click", async () => { if (!confirm("Xóa bài nộp này?")) return; try { const res = await apiRequest(`/api/teacher/submissions/${btn.dataset.subId}`, { method: "DELETE" }); showToast(res.message); renderTeacherResults(); renderTeacherStats(); } catch (err) { showToast(err.message); } }));
@@ -1694,12 +1782,12 @@ function openSubmissionDetail(sub) {
   const speakingEntries = Object.entries(sub.speakingAnswers || {});
   const objectiveAnswers = sub.objectiveAnswers || {};
   const objKeys = Object.keys(objectiveAnswers).filter(k => !k.startsWith("__"));
-  const gradeBlock = writingEntries.length ? (isTeacher ? `<form id="modalGradeForm" style="margin-top:14px;padding:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px"><div style="display:grid;grid-template-columns:160px 1fr;gap:12px"><div><label class="small" style="font-weight:700;display:block;margin-bottom:4px">Điểm Writing:</label><input type="number" min="0" max="10" step="0.25" id="modalScoreInput" value="${sub.manualScore !== null ? sub.manualScore : ""}" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700" required></div><div><label class="small" style="font-weight:700;display:block;margin-bottom:4px">Nhận xét:</label><textarea id="modalFeedbackInput" style="width:100%;min-height:58px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">${escapeHTML(sub.teacherFeedback || "")}</textarea></div></div><div style="text-align:right;margin-top:12px"><button type="submit" class="btn btn-primary" id="modalSaveGradeBtn">💾 Lưu điểm & nhận xét</button></div></form>` : `<div style="margin-top:14px;padding:12px;background:${sub.manualScore !== null ? "#f0fdf4" : "#fffbeb"};border-radius:10px"><strong>Nhận xét của giáo viên:</strong> ${sub.manualScore !== null ? `<span class="badge green">${Number(sub.manualScore).toFixed(2)} đ</span>` : '<span class="badge orange">Chờ chấm</span>'}<p style="margin:6px 0 0">${escapeHTML(sub.teacherFeedback || (sub.manualScore !== null ? "Giáo viên không để lại nhận xét." : "Bài đang được giáo viên chấm."))}</p></div>`) : "";
+  const gradeBlock = writingEntries.length ? (isTeacher ? `<form id="modalGradeForm" style="margin-top:14px;padding:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px"><div style="display:grid;grid-template-columns:160px 1fr;gap:12px"><div><label class="small" style="font-weight:700;display:block;margin-bottom:4px">Điểm Writing:</label><input type="number" min="0" max="10" step="0.25" id="modalScoreInput" value="${sub.manualScore !== null ? sub.manualScore : ""}" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700" required></div><div><label class="small" style="font-weight:700;display:block;margin-bottom:4px">Nhận xét:</label><textarea id="modalFeedbackInput" style="width:100%;min-height:58px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">${escapeHTML(sub.teacherFeedback || "")}</textarea></div></div><div style="text-align:right;margin-top:12px"><button type="submit" class="btn btn-primary" id="modalSaveGradeBtn"><i class=mi>save</i> Lưu điểm & nhận xét</button></div></form>` : `<div style="margin-top:14px;padding:12px;background:${sub.manualScore !== null ? "#f0fdf4" : "#fffbeb"};border-radius:10px"><strong>Nhận xét của giáo viên:</strong> ${sub.manualScore !== null ? `<span class="badge green">${Number(sub.manualScore).toFixed(2)} đ</span>` : '<span class="badge orange">Chờ chấm</span>'}<p style="margin:6px 0 0">${escapeHTML(sub.teacherFeedback || (sub.manualScore !== null ? "Giáo viên không để lại nhận xét." : "Bài đang được giáo viên chấm."))}</p></div>`) : "";
   body.innerHTML = `<div class="submission-detail-container">
     <div class="submission-summary-header"><div><strong>Học sinh:</strong> ${escapeHTML(sub.studentName || currentUser?.fullName || "")}</div><div><strong>Lớp:</strong> ${escapeHTML(sub.studentClass || currentUser?.className || "—")}</div><div><strong>Nộp lúc:</strong> ${fmtDate(sub.submittedAt, true)}</div><div><strong>Tổng điểm:</strong> <strong id="modalTotalScore10" style="color:var(--primary);font-size:1.2rem">${sub.scoreOnTen} / 10</strong></div>${sub.timeSpentSeconds ? `<div><strong>Thời gian làm:</strong> ${Math.round(sub.timeSpentSeconds / 60)} phút</div>` : ""}</div>
-    ${Number(sub.tabViolations) > 0 ? `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;color:#92400e">⚠️ Rời tab ${sub.tabViolations} lần · trừ ${sub.violationPenalty} điểm${sub.isForcedSubmit ? " · Bị thu bài tự động" : ""}</div>` : '<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;color:#166534">🛡️ Làm bài nghiêm túc, không vi phạm.</div>'}
-    ${speakingEntries.length ? `<div class="detail-section"><h4>🎙️ Phần Speaking (AI chấm)</h4>${speakingEntries.map(([k, v]) => `<div class="detail-writing-box"><strong class="small">${escapeHTML(v.prompt || k)}</strong><div class="small">Độ chuẩn: <b>${v.accuracy}%</b> · AI nghe: "${escapeHTML(v.transcript || "")}"</div></div>`).join("")}</div>` : ""}
-    ${writingEntries.length ? `<div class="detail-section" style="border:2px solid #818cf8"><h4>✍️ Bài làm Writing</h4>${writingEntries.map(([k, val]) => `<div class="detail-writing-box"><strong class="small">${escapeHTML(k)}</strong><div class="detail-student-answer">${escapeHTML(val || "Học sinh không nhập nội dung.")}</div></div>`).join("")}${gradeBlock}</div>` : ""}
+    ${Number(sub.tabViolations) > 0 ? `<div style="padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;color:#92400e"><i class=mi>warning</i> Rời tab ${sub.tabViolations} lần · trừ ${sub.violationPenalty} điểm${sub.isForcedSubmit ? " · Bị thu bài tự động" : ""}</div>` : '<div style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;color:#166534"><i class=mi>shield</i> Làm bài nghiêm túc, không vi phạm.</div>'}
+    ${speakingEntries.length ? `<div class="detail-section"><h4><i class=mi>mic</i> Phần Speaking (AI chấm)</h4>${speakingEntries.map(([k, v]) => `<div class="detail-writing-box"><strong class="small">${escapeHTML(v.prompt || k)}</strong><div class="small">Độ chuẩn: <b>${v.accuracy}%</b> · AI nghe: "${escapeHTML(v.transcript || "")}"</div></div>`).join("")}</div>` : ""}
+    ${writingEntries.length ? `<div class="detail-section" style="border:2px solid #818cf8"><h4><i class=mi>edit</i> Bài làm Writing</h4>${writingEntries.map(([k, val]) => `<div class="detail-writing-box"><strong class="small">${escapeHTML(k)}</strong><div class="detail-student-answer">${escapeHTML(val || "Học sinh không nhập nội dung.")}</div></div>`).join("")}${gradeBlock}</div>` : ""}
     ${objKeys.length ? `<div class="detail-section"><h4>Đáp án trắc nghiệm đã chọn</h4><div class="detail-answers-grid">${objKeys.map(k => `<div class="detail-answer-chip"><span>${escapeHTML(k)}:</span><strong>${escapeHTML(String(objectiveAnswers[k] || "—"))}</strong></div>`).join("")}</div></div>` : ""}</div>`;
   const gradeForm = document.getElementById("modalGradeForm");
   gradeForm?.addEventListener("submit", async e => {
@@ -1756,8 +1844,8 @@ async function loadTeacherSpeakingTasks() {
     const res = await apiRequest("/api/speaking/assignments");
     const list = res.assignments || [];
     document.getElementById("teacherStatSpeaking").textContent = list.length;
-    if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" class="small muted" style="text-align:center;padding:24px">Chưa có bài luyện nói. Dùng "📚 SGK → Bài nói AI" hoặc "🎙️ Giao bài Speaking".</td></tr>'; return; }
-    tbody.innerHTML = list.map((item, idx) => `<tr><td>${idx + 1}</td><td><strong>${escapeHTML(item.title)}</strong>${item.unitTitle ? `<div class="small muted">${escapeHTML(item.unitTitle)}</div>` : ""}</td><td><span class="badge ${item.stage === 1 ? "green" : "orange"}">GĐ${item.stage}</span></td><td>${item.className ? `<span class="badge blue">${escapeHTML(item.className)}</span>` : '<span class="badge gray">Toàn khối</span>'}</td><td class="small"><div class="clamp-3">${item.items.slice(0, 3).map(i => `${i.speaker ? `<b>${escapeHTML(i.speaker)}:</b> ` : ""}${escapeHTML(i.text)}`).join("<br>")}${item.items.length > 3 ? `<br>… (+${item.items.length - 3})` : ""}</div></td><td>${item.itemCount}</td><td><span class="badge green">${item.submissionCount || 0}</span></td><td class="small muted">${fmtDate(item.createdAt)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-soft btn-sm btn-spk-listen" data-text="${escapeHTML(item.items[0]?.text || "")}">Nghe</button><button class="btn btn-danger btn-sm btn-spk-del" data-id="${item.id}">✕</button></div></td></tr>`).join("");
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" class="small muted" style="text-align:center;padding:24px">Chưa có bài luyện nói. Dùng "<i class=mi>auto_stories</i> SGK → Bài nói AI" hoặc "<i class=mi>mic</i> Giao bài Speaking".</td></tr>'; return; }
+    tbody.innerHTML = list.map((item, idx) => `<tr><td>${idx + 1}</td><td><strong>${escapeHTML(item.title)}</strong>${item.unitTitle ? `<div class="small muted">${escapeHTML(item.unitTitle)}</div>` : ""}</td><td><span class="badge ${item.stage === 1 ? "green" : "orange"}">GĐ${item.stage}</span></td><td>${item.className ? `<span class="badge blue">${escapeHTML(item.className)}</span>` : '<span class="badge gray">Toàn khối</span>'}</td><td class="small"><div class="clamp-3">${item.items.slice(0, 3).map(i => `${i.speaker ? `<b>${escapeHTML(i.speaker)}:</b> ` : ""}${escapeHTML(i.text)}`).join("<br>")}${item.items.length > 3 ? `<br>… (+${item.items.length - 3})` : ""}</div></td><td>${item.itemCount}</td><td><span class="badge green">${item.submissionCount || 0}</span></td><td class="small muted">${fmtDate(item.createdAt)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-soft btn-sm btn-spk-listen" data-text="${escapeHTML(item.items[0]?.text || "")}">Nghe</button><button class="btn btn-danger btn-sm btn-spk-del" data-id="${item.id}"><i class=mi>close</i></button></div></td></tr>`).join("");
     tbody.querySelectorAll(".btn-spk-listen").forEach(btn => btn.addEventListener("click", () => speakEnglishText(btn.dataset.text)));
     tbody.querySelectorAll(".btn-spk-del").forEach(btn => btn.addEventListener("click", async () => { if (!confirm("Xóa bài luyện nói này?")) return; try { await apiRequest(`/api/teacher/speaking-assignments/${btn.dataset.id}`, { method: "DELETE" }); showToast("Đã xóa."); loadTeacherSpeakingTasks(); loadTeacherSpeakingSubmissions(); } catch (e) { showToast(e.message); } }));
   } catch (e) { tbody.innerHTML = `<tr><td colspan="9" class="small muted" style="color:#ef4444;text-align:center;padding:20px">${escapeHTML(e.message)}</td></tr>`; }
@@ -1790,7 +1878,7 @@ async function renderParentDashboard() {
     const rate = stats.integrityRate ?? 100; const integ = document.getElementById("parentIntegrityRate"); integ.textContent = `${rate}%`; integ.style.color = rate >= 90 ? "#16a34a" : rate >= 70 ? "#d97706" : "#dc2626";
     document.getElementById("parentTotalViolations").textContent = stats.totalViolations || 0;
     document.getElementById("parentTitleChips").innerHTML = p ? p.earnedTitles.map(titleChip).join("") : "";
-    tableBody.innerHTML = submissions.length ? submissions.map(item => { const cls = item.scoreOnTen >= 8 ? "high" : item.scoreOnTen >= 5 ? "mid" : "low"; const v = item.isForcedSubmit || item.tabViolations >= 3 ? '<span class="badge red">⛔ Rời tab 3 lần</span>' : item.tabViolations ? `<span class="badge orange">⚠️ Rời tab ${item.tabViolations} lần</span>` : '<span class="badge green">✓ Nghiêm túc</span>'; return `<tr><td><strong>${escapeHTML(item.testTitle)}</strong></td><td><strong class="total-score-badge ${cls}">${item.scoreOnTen}/10</strong></td><td>${v}</td><td class="small">${escapeHTML(item.teacherFeedback || "Chưa có nhận xét")}</td><td class="small muted">${fmtDate(item.submittedAt)}</td></tr>`; }).join("") : '<tr><td colspan="5" class="small muted" style="text-align:center;padding:24px">Con em chưa có bài kiểm tra nào được nộp.</td></tr>';
+    tableBody.innerHTML = submissions.length ? submissions.map(item => { const cls = item.scoreOnTen >= 8 ? "high" : item.scoreOnTen >= 5 ? "mid" : "low"; const v = item.isForcedSubmit || item.tabViolations >= 3 ? '<span class="badge red"><i class=mi>block</i> Rời tab 3 lần</span>' : item.tabViolations ? `<span class="badge orange"><i class=mi>warning</i> Rời tab ${item.tabViolations} lần</span>` : '<span class="badge green"><i class=mi>check</i> Nghiêm túc</span>'; return `<tr><td><strong>${escapeHTML(item.testTitle)}</strong></td><td><strong class="total-score-badge ${cls}">${item.scoreOnTen}/10</strong></td><td>${v}</td><td class="small">${escapeHTML(item.teacherFeedback || "Chưa có nhận xét")}</td><td class="small muted">${fmtDate(item.submittedAt)}</td></tr>`; }).join("") : '<tr><td colspan="5" class="small muted" style="text-align:center;padding:24px">Con em chưa có bài kiểm tra nào được nộp.</td></tr>';
     barChart(document.getElementById("parentSkillChart"), p ? Object.keys(SKILL_LABELS).map(k => ({ label: k, value: p.skills[k] })) : [], { suffix: "%" });
   } catch (err) { console.error("renderParentDashboard error:", err); }
 }
@@ -1855,10 +1943,10 @@ document.getElementById("jsonImportInput")?.addEventListener("change", e => { co
 
 
 const notificationItems = [
-  { id: "speaking2", icon: "🎙️", title: "Luyện nói 2 giai đoạn", detail: "Câu đơn → hội thoại. AI chấm thân thiện với mọi giọng đọc.", time: "Mới" },
-  { id: "tests", icon: "📝", title: "Bài kiểm tra theo ma trận", detail: "Đề được AI phân tích độ khó và thời gian phù hợp từng lớp.", time: "Mới" },
-  { id: "vocab", icon: "🔤", title: "Vocabulary có kiểm tra", detail: "Hoàn thành bộ thẻ rồi làm trắc nghiệm / nối từ để nhận điểm.", time: "Mới" },
-  { id: "titles", icon: "👑", title: "Danh hiệu mới", detail: "Vua Phát Âm, Vua Ngữ Pháp, Vua Từ Vựng... đang chờ bạn.", time: "Mới" }
+ { id:"speaking2", icon:"", title:"Luyện nói 2 giai đoạn", detail:"Câu đơn → hội thoại. AI chấm thân thiện với mọi giọng đọc.", time:"Mới"},
+ { id:"tests", icon:"", title:"Bài kiểm tra theo ma trận", detail:"Đề được AI phân tích độ khó và thời gian phù hợp từng lớp.", time:"Mới"},
+ { id:"vocab", icon:"", title:"Vocabulary có kiểm tra", detail:"Hoàn thành bộ thẻ rồi làm trắc nghiệm / nối từ để nhận điểm.", time:"Mới"},
+ { id:"titles", icon:"", title:"Danh hiệu mới", detail:"Vua Phát Âm, Vua Ngữ Pháp, Vua Từ Vựng... đang chờ bạn.", time:"Mới"}
 ];
 function getReadNotifications() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoNotificationsReadV3")) || "[]"); } catch { return []; } }
 function renderNotifications() {
@@ -1883,11 +1971,15 @@ function appendChatMessage(sender, text) {
   const formatted = escapeHTML(text).replace(/### (.*)/g, '<strong style="display:block;font-size:14px;color:#047857;margin-bottom:6px">$1</strong>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\n\* (.*)/g, '<div style="margin-left:8px">• $1</div>').replace(/\n/g, "<br/>");
   el.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="${sender}" /><div class="chat-bubble"><div>${formatted}</div></div>`;
   capybaraChatMessages.appendChild(el); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
+  // Công thức toán (LaTeX) trong câu trả lời của AI -> KaTeX
+  try {
+    if (window.renderMathInElement) renderMathInElement(el.querySelector(".chat-bubble"), { delimiters: [{ left: "$", right: "$", display: true }, { left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }, { left: "$", right: "$", display: false }], throwOnError: false });
+  } catch (_) {}
 }
 async function sendCapybaraMessage(textToSend) {
   const text = (textToSend || capybaraChatInput.value).trim(); if (!text) return;
   appendChatMessage("user", text); capybaraChatInput.value = ""; chatHistory.push({ role: "user", content: text });
-  const typing = document.createElement("div"); typing.className = "chat-msg capybara-msg"; typing.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="Capybara" /><div class="chat-bubble"><em class="small muted">Capybara đang suy nghĩ... 🦫💭</em></div>`;
+  const typing = document.createElement("div"); typing.className = "chat-msg capybara-msg"; typing.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="Capybara" /><div class="chat-bubble"><em class="small muted">Capybara đang suy nghĩ...<i class=mi>chat_bubble</i></em></div>`;
   capybaraChatMessages.appendChild(typing); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
   try {
     const res = await apiRequest("/api/ai/chat", { method: "POST", body: JSON.stringify({ message: text, history: chatHistory }) });

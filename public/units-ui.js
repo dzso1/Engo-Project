@@ -105,12 +105,12 @@
         <div class="unit-word-grid">
           ${groups[sec].map(c => `
             <div class="unit-word">
-              <button type="button" class="unit-say" data-say="${esc(c.w)}" title="Nghe phát âm">🔊</button>
+              <button type="button" class="unit-say" data-say="${esc(c.w)}" title="Nghe phát âm"><i class=mi>volume_up</i></button>
               <div>
                 <b>${esc(c.w)}</b> ${c.pos ? `<span class="unit-pos">${esc(c.pos)}</span>` : ""}
                 <div class="small muted">${esc(c.ipa)}</div>
                 <div class="unit-vi">${esc(c.vi)}</div>
-                ${(ex => ex ? `<div class="unit-ex"><button type="button" class="unit-say mini" data-say="${esc(ex.en)}" title="Nghe câu ví dụ">🔊</button><em>${esc(ex.en)}</em>${ex.vi ? `<div class="small muted">${esc(ex.vi)}</div>` : ""}</div>` : "")(exampleFor(u, c.w))}
+                ${(ex => ex ? `<div class="unit-ex"><button type="button" class="unit-say mini" data-say="${esc(ex.en)}" title="Nghe câu ví dụ"><i class=mi>volume_up</i></button><em>${esc(ex.en)}</em>${ex.vi ? `<div class="small muted">${esc(ex.vi)}</div>` : ""}</div>` : "")(exampleFor(u, c.w))}
               </div>
             </div>`).join("")}
         </div>
@@ -123,8 +123,8 @@
           <h4>${esc(pt.title)}</h4>
           <p>${esc(pt.rule)}</p>
           <div class="unit-form">${esc(pt.form)}</div>
-          <div class="unit-ok">✔ ${esc(pt.ok)}</div>
-          <div class="unit-no">✘ ${esc(pt.no)}</div>
+          <div class="unit-ok"><i class=mi>check</i> ${esc(pt.ok)}</div>
+          <div class="unit-no"><i class=mi>close</i> ${esc(pt.no)}</div>
           <p class="small muted">${esc(pt.note)}</p>
         </div>`).join("")}
       <div class="unit-codes">
@@ -153,8 +153,8 @@
         </div>
         ${unitChips(u, "data-vunit")}
         <div class="healing-tabs" style="margin-top:12px">
-          <button class="healing-tab${state.vocabTab === "words" ? " active" : ""}" data-vtab="words">📘 Từ vựng</button>
-          <button class="healing-tab${state.vocabTab === "grammar" ? " active" : ""}" data-vtab="grammar">✍️ Ngữ pháp</button>
+          <button class="healing-tab${state.vocabTab === "words" ? " active" : ""}" data-vtab="words"><i class=mi>menu_book</i> Từ vựng</button>
+          <button class="healing-tab${state.vocabTab === "grammar" ? " active" : ""}" data-vtab="grammar"><i class=mi>edit</i> Ngữ pháp</button>
         </div>
         <div class="unit-body">${state.vocabTab === "words" ? words : grammar}</div>
       </div>`;
@@ -168,7 +168,7 @@
         <h4>${esc(pt.name)}</h4>
         <p>${esc(pt.explanation)}</p>
         ${pt.formula ? `<div class="unit-form">${esc(pt.formula)}</div>` : ""}
-        ${(pt.examples || []).map(e => `<div class="unit-ok"><button type="button" class="unit-say mini" data-say="${esc(e.en)}">🔊</button> ${esc(e.en)} <span class="small muted">— ${esc(e.vi)}</span></div>`).join("")}
+        ${(pt.examples || []).map(e => `<div class="unit-ok"><button type="button" class="unit-say mini" data-say="${esc(e.en)}"><i class=mi>volume_up</i></button> ${esc(e.en)} <span class="small muted">— ${esc(e.vi)}</span></div>`).join("")}
         ${(pt.notes || []).map(nt => `<p class="small muted">• ${esc(nt)}</p>`).join("")}
       </div>`).join("");
     const mc = (gram.exercises || []).map((q, i) => `
@@ -223,7 +223,7 @@
     if (wrongList.length && typeof recordUnitGrammarErrors === "function") recordUnitGrammarErrors(u, gram.title || `Unit ${u}`, wrongList);
     wrongList.forEach(() => api.pushError("U" + u));
     logEvent("grammar", "unit" + u, `Ngữ pháp Unit ${u}: ${gram.title || ""}`, right, total, { unit: u, percent: pct });
-    if (pct >= 80 && markDone("grammar", "u" + u)) { reward(30, 3, `Ngữ pháp Unit ${u}`); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3 🥕`); }
+ if (pct >= 80 && markDone("grammar","u"+ u)) { reward(30, 3,`Ngữ pháp Unit ${u}`); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3`); }
     else if (pct < 80) toast(`Đúng ${right}/${total}. Xem giải thích và làm lại để đạt ≥ 80% nhé!`);
   }
 
@@ -269,7 +269,7 @@
       $("#unitGrammarScore").textContent = `Đúng ${right}/${qs.length}`;
       if (right === qs.length && markDone("grammar", "u" + state.vocabUnit)) {
         reward(30, 3, `Ngữ pháp Unit ${state.vocabUnit}`);
-        toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3 🥕`);
+ toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3`);
       }
     });
   }
@@ -300,7 +300,7 @@
               <h4 class="unit-sec-title"><span class="unit-lv lv${l.level}">Cấp ${l.level}</span> ${esc(l.label)}</h4>
               ${l.items.map(it => `
                 <div class="unit-line">
-                  <button type="button" class="unit-say" data-say="${esc(it.text)}" title="Nghe câu mẫu">🔊</button>
+                  <button type="button" class="unit-say" data-say="${esc(it.text)}" title="Nghe câu mẫu"><i class=mi>volume_up</i></button>
                   <div>
                     <b>${esc(it.text)}</b>
                     <div class="unit-vi">${esc(it.vi)}</div>
@@ -338,9 +338,9 @@
         <div class="card panel unit-panel" data-task="${ti}">
           <div class="section-head">
             <div><h3><span class="unit-lv lv${t.level}">Cấp ${t.level}</span> ${esc(t.title)}</h3>
-              <p class="small muted">${t.intro ? esc(t.intro) + " · " : ""}${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "t" + ti] ? "· ✅ đã hoàn thành" : ""}</p></div>
+              <p class="small muted">${t.intro ? esc(t.intro) + " · " : ""}${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "t" + ti] ? "· <i class=mi>check_circle</i> đã hoàn thành" : ""}</p></div>
             <div style="display:flex;gap:8px;align-items:center">
-              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button">▶ Nghe</button>
+              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button"><i class=mi>play_arrow</i> Nghe</button>
               <span class="small muted" data-plays="${ti}">Còn 3 lượt</span>
             </div>
           </div>
@@ -402,7 +402,7 @@
         logEvent("listening", "u" + u + "t" + ti, `Nghe Unit ${u} · ${t.title}`, right, t.qs.length, { unit: u, level: t.level, ai: Boolean(t.ai) });
         if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", "u" + u + "t" + ti)) {
           reward(30, 3, `Nghe Unit ${u} cấp ${t.level}`);
-          toast(`Hoàn thành đoạn nghe: +30 XP, +3 🥕`);
+ toast(`Hoàn thành đoạn nghe: +30 XP, +3`);
           if (badge) badge.textContent = `${countDone("listen")} / ${totalTasks} đoạn`;
         }
       });

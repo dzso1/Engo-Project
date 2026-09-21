@@ -233,6 +233,22 @@ function scorePronunciation(targetSentence, spokenTranscript) {
   let accuracy = (total / targetWords.length) * 100;
   const lengthRatio = Math.min(spokenWords.length, targetWords.length) / Math.max(spokenWords.length, targetWords.length);
   if (lengthRatio > 0.8 && accuracy > 50 && !errors.length) accuracy += 3;
+
+  // Phạt nói thừa / đọc linh tinh: cho phép dư ~25% (từ đệm), vượt quá thì giảm dần tới tối đa -50%
+  const extraRatio = Math.max(0, (spokenWords.length - targetWords.length) / Math.max(1, targetWords.length));
+  const extraPenalty = Math.min(0.5, Math.max(0, extraRatio - 0.25) * 0.7);
+  if (extraPenalty > 0) {
+    accuracy *= 1 - extraPenalty;
+    errors.push({ type: "fluency", subtype: "extra_words", word: "", heard: "", extra: spokenWords.length - targetWords.length });
+  }
+  // Phạt sai trật tự từ: số cặp khớp theo đúng thứ tự (căn chỉnh đơn điệu) so với số từ nhận ra
+  const matchedInOrder = breakdown.filter(b => b.status !== "missed").length;
+  const recognized = spokenWords.filter(sw => targetWords.some(tw => wordSimilarity(tw, sw) >= 0.82)).length;
+  if (recognized > matchedInOrder + 1) {
+    const orderFactor = Math.max(0.4, matchedInOrder / recognized);
+    accuracy *= orderFactor;
+    errors.push({ type: "fluency", subtype: "word_order", word: "", heard: "", detail: `${recognized - matchedInOrder} từ sai vị trí` });
+  }
   accuracy = Math.max(0, Math.min(100, Math.round(accuracy)));
 
   return { accuracy, breakdown, errors, spokenWords, targetWords };

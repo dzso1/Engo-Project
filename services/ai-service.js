@@ -499,7 +499,7 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
 
   const systemMessage = {
     role: "system",
-    content: "You are Capybara (Bé Capybara), a charming, witty, super friendly, and enthusiastic AI companion & English Tutor on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, playfully, and concisely in Vietnamese or English with emojis and carrots 🥕. You can chat freely about ANY topic, solve coding problems, write essays, explain grammar, translate, tell jokes, and provide emotional support. NEVER use rigid templates or menus."
+    content: "You are Capybara (Bé Capybara), a charming, witty, super friendly, and enthusiastic AI companion & English Tutor on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, playfully, and concisely in Vietnamese or English with emojis and carrots 🥕. You can chat freely about ANY topic, solve coding problems, write essays, explain grammar, translate, tell jokes, and provide emotional support. NEVER use rigid templates or menus. For mathematics, write formulas in LaTeX between $...$ (inline) or $...$ (block), e.g. $x^2 + \\frac{1}{2}$; the app renders them with KaTeX."
   };
 
   const formattedMessages = [
@@ -1249,7 +1249,39 @@ Write ONE short, warm, specific tip in Vietnamese (max 45 words) telling the stu
   return { tip: fallbackTip(), source: "rule" };
 }
 
+// ==========================================================
+// 5. AI CHẤM NÓI TỰ DO (trả lời câu hỏi / nói về chủ đề) — chống nói lạc đề, đọc linh tinh
+// ==========================================================
+async function judgeFreeSpeaking({ prompt = "", transcript = "" }) {
+  const words = String(transcript || "").trim().split(/s+/).filter(Boolean);
+  const fallback = () => {
+    const lengthScore = Math.min(100, Math.round((words.length / 15) * 100));
+    return { score: words.length < 3 ? Math.min(20, lengthScore) : Math.round(lengthScore * 0.6), relevance: 50, tip: "Hãy nói ít nhất 3 câu đầy đủ, bám sát câu hỏi.", grammarIssues: [], source: "rule" };
+  };
+  if (!transcript || words.length < 2) return fallback();
+  const system = `You are a fair English speaking examiner for Vietnamese Grade 9 students (CEFR A2-B1). Answer with valid JSON only.`;
+  const user = `Task/question given to the student: "${prompt}"
+Speech-to-text transcript of the student's answer: "${transcript}"
+
+Grade the answer. Be strict about relevance: if the answer does not address the task (random words, reading something unrelated, repeating the question, nonsense), score must be below 30.
+Criteria: relevance to the task (0-100), content/length (at least 3 sentences for full marks), grammar & vocabulary appropriate for Grade 9.
+Return JSON: {"score":0-100,"relevance":0-100,"grammarIssues":[{"wrong":"...","correct":"...","note":"(tiếng Việt, ngắn)"}],"tip":"(1-2 câu tiếng Việt, cụ thể, khích lệ)"}`;
+  try {
+    const parsed = await callAiJson(system, user, `free_spk_${prompt.toLowerCase()}_${transcript.toLowerCase()}`.slice(0, 500), 15000);
+    if (parsed && parsed.score !== undefined) {
+      return {
+        score: Math.max(0, Math.min(100, Math.round(Number(parsed.score) || 0))),
+        relevance: Math.max(0, Math.min(100, Math.round(Number(parsed.relevance) || 0))),
+        grammarIssues: Array.isArray(parsed.grammarIssues) ? parsed.grammarIssues.slice(0, 5) : [],
+        tip: String(parsed.tip || "").slice(0, 300), source: "ai"
+      };
+    }
+  } catch (e) {}
+  return fallback();
+}
+
 module.exports = {
+  judgeFreeSpeaking,
   chatWithCapybara,
   gradeWritingEssay,
   generateTestOnDemand,
