@@ -548,6 +548,9 @@ document.getElementById("refreshDashboardBtn")?.addEventListener("click", () => 
 
 let testsCache = [];
 const DIFF_LABEL = { easy: "Dễ", medium: "TB", hard: "Khó" };
+const TEST_TYPE_LABEL = { kttx: "Thường xuyên", ktgk: "Giữa kỳ", ktck: "Cuối kỳ" };
+function testTypeBadge(t) { const ty = t.testType || "kttx"; return `<span class="badge ${ty === "ktck" ? "red" : ty === "ktgk" ? "orange" : "blue"}">${TEST_TYPE_LABEL[ty] || ty}</span><div class="small muted">HK${t.semester || 1}${t.unitNo ? ` · Unit ${t.unitNo}` : ""}</div>`; }
+function invalidateProgress() { studentProgress = null; }
 function difficultyPills(counts) {
   if (!counts) return '<span class="small muted">Chưa phân tích</span>';
   return `<span class="diff-pill easy" title="Nhận biết">${counts.easy} dễ</span><span class="diff-pill medium" title="Thông hiểu">${counts.medium} TB</span><span class="diff-pill hard" title="Vận dụng">${counts.hard} khó</span>`;
@@ -555,13 +558,16 @@ function difficultyPills(counts) {
 async function renderTestsPage() {
   const tbody = document.getElementById("testsTableBody"); if (!tbody || !currentUser || currentUser.role !== "student") return;
   const filter = document.getElementById("testsStatusFilter")?.value || "";
+  const semFilter = document.getElementById("testsSemesterFilter")?.value || "";
+  const typeFilter = document.getElementById("testsTypeFilter")?.value || "";
   try {
     const data = await apiRequest("/api/tests/latest");
     testsCache = data.tests || [];
+    if (window.ENGO_UNITS_UI) window.ENGO_UNITS_UI.refreshExams();
     const hint = document.getElementById("testsVariantHint");
     if (hint) hint.textContent = data.variant === "regular" ? "Lớp bạn nhận đề cơ bản (rút gọn bớt câu vận dụng theo ma trận)." : data.variant === "advanced" ? "Lớp bạn thuộc nhóm tăng cường: nhận đề đầy đủ với nhiều câu vận dụng." : "";
-    const list = testsCache.filter(t => filter === "todo" ? !t.submission : filter === "done" ? Boolean(t.submission) : true);
-    if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="small muted" style="text-align:center;padding:24px">Chưa có bài kiểm tra nào phù hợp.</td></tr>'; return; }
+    const list = testsCache.filter(t => (filter === "todo" ? !t.submission : filter === "done" ? Boolean(t.submission) : true) && (!semFilter || String(t.semester || 1) === semFilter) && (!typeFilter || (t.testType || "kttx") === typeFilter));
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="small muted" style="text-align:center;padding:24px">Chưa có bài kiểm tra nào phù hợp.</td></tr>'; return; }
     tbody.innerHTML = list.map(t => {
       const s = t.summary || {};
       const structure = [s.objectiveCount ? `${s.objectiveCount} TN` : "", s.speakingCount ? `${s.speakingCount} Speaking` : "", s.manualCount ? `${s.manualCount} Writing` : ""].filter(Boolean).join(" · ");
@@ -571,14 +577,14 @@ async function renderTestsPage() {
       const action = t.submission
         ? `<button class="btn btn-light btn-sm" data-view="overview">Xem kết quả</button>`
         : `<button class="btn btn-primary btn-sm start-test-btn" data-test-id="${t.id}">Làm bài</button>`;
-      return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Toàn khối</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes} phút</strong><div class="small muted">AI đề xuất</div></td><td>${status}</td><td>${action}</td></tr>`;
+      return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${testTypeBadge(t)}</td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Toàn khối</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes} phút</strong><div class="small muted">AI đề xuất</div></td><td>${status}</td><td>${action}</td></tr>`;
     }).join("");
     tbody.querySelectorAll(".start-test-btn").forEach(b => b.addEventListener("click", () => startImportedTest(b.dataset.testId)));
     tbody.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => switchView(b.dataset.view)));
-  } catch (err) { tbody.innerHTML = `<tr><td colspan="7" class="small muted" style="color:red">${escapeHTML(err.message)}</td></tr>`; }
+  } catch (err) { tbody.innerHTML = `<tr><td colspan="8" class="small muted" style="color:red">${escapeHTML(err.message)}</td></tr>`; }
 }
 document.getElementById("refreshTestsBtn")?.addEventListener("click", () => { renderTestsPage(); showToast("Đã làm mới danh sách đề."); });
-document.getElementById("testsStatusFilter")?.addEventListener("change", renderTestsPage);
+["testsStatusFilter", "testsSemesterFilter", "testsTypeFilter"].forEach(id => document.getElementById(id)?.addEventListener("change", renderTestsPage));
 
 
 
@@ -1032,7 +1038,7 @@ let activeSpeakingTask = null, activeItemIndex = 0, speakingItemResults = {};
 let speakingRecognizer = null, lastSpeakingEvaluation = null;
 
 function buildSpeakingTasks(apiAssignments, progress) {
-  const system = (window.ENGO_SPEAKING_SETS || []).map(s => ({ ...s, source: "Hệ thống", teacherName: "ENGO", progress: null }));
+  const system = (window.ENGO_SPEAKING_SETS || []).map(s => ({ ...s, source: s.unit ? `Hệ thống · Unit ${s.unit}` : "Hệ thống", teacherName: "ENGO", progress: null }));
   const teacher = (apiAssignments || []).map(a => ({ id: `t-${a.id}`, assignmentId: a.id, title: a.title, stage: a.stage, system: false, source: a.teacherName || "Giáo viên", className: a.className, situation: a.translation && a.stage === 2 ? a.translation : "", items: a.items || [], progress: a.progress || null, unitTitle: a.unitTitle }));
   
   const local = getLocalSpeakingRecords();
@@ -1077,17 +1083,21 @@ async function renderSpeakingLab() {
 function renderSpeakingTable() {
   const tbody = document.getElementById("speakingTableBody");
   const filter = document.getElementById("speakingStageFilter")?.value || "";
-  const list = speakingTasks.filter(t => !filter || String(t.stage) === filter);
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="small muted" style="text-align:center;padding:24px">Chưa có bài luyện nói.</td></tr>'; return; }
+  const unitFilter = document.getElementById("speakingUnitFilter")?.value || "";
+  const unitSel = document.getElementById("speakingUnitFilter");
+  if (unitSel && unitSel.options.length <= 1) unitSel.innerHTML = '<option value="">Tất cả Unit</option>' + Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Unit ${i + 1}</option>`).join("") + '<option value="teacher">Bài giáo viên giao</option>';
+  const list = speakingTasks.filter(t => (!filter || String(t.stage) === filter) && (!unitFilter || (unitFilter === "teacher" ? !t.system : String(t.unit || "") === unitFilter)));
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="small muted" style="text-align:center;padding:24px">Chưa có bài luyện nói.</td></tr>'; return; }
   tbody.innerHTML = list.map((t, idx) => {
     const unlocked = stageUnlocked(t.stage);
     const best = t.progress?.best || 0;
     const prog = best ? `<div class="mini-progress"><span style="width:${best}%"></span></div><span class="small">${best}% tốt nhất · ${t.progress?.attempts || 1} lượt</span>` : '<span class="small muted">Chưa luyện</span>';
-    return `<tr class="${activeSpeakingTask && activeSpeakingTask.id === t.id ? "row-active" : ""}"><td>${idx + 1}</td><td><strong>${escapeHTML(t.title)}</strong>${t.unitTitle ? `<div class="small muted">${escapeHTML(t.unitTitle)}</div>` : ""}${t.className ? `<div class="small muted">Lớp ${escapeHTML(t.className)}</div>` : ""}</td><td><span class="badge ${t.stage === 1 ? "green" : "orange"}">GĐ${t.stage} · ${t.stage === 1 ? "Câu đơn" : "Hội thoại"}</span></td><td class="small">${escapeHTML(t.source)}</td><td>${t.items.length} câu</td><td>${prog}</td><td><button class="btn ${best ? "btn-light" : "btn-primary"} btn-sm open-speaking-task" data-task-id="${t.id}" ${unlocked ? "" : "disabled title='Giai đoạn chưa mở khóa'"}>${best ? "Luyện lại" : "Luyện"}</button></td></tr>`;
+    return `<tr class="${activeSpeakingTask && activeSpeakingTask.id === t.id ? "row-active" : ""}"><td>${idx + 1}</td><td><strong>${escapeHTML(t.title)}</strong>${t.unitTitle ? `<div class="small muted">${escapeHTML(t.unitTitle)}</div>` : ""}${t.className ? `<div class="small muted">Lớp ${escapeHTML(t.className)}</div>` : ""}</td><td>${t.unit ? `<span class="badge">U${t.unit}</span>` : '<span class="small muted">—</span>'}</td><td><span class="badge ${t.stage === 1 ? "green" : "orange"}">GĐ${t.stage} · ${t.stage === 1 ? "Câu đơn" : "Hội thoại"}</span></td><td class="small">${escapeHTML(t.source)}</td><td>${t.items.length} câu</td><td>${prog}</td><td><button class="btn ${best ? "btn-light" : "btn-primary"} btn-sm open-speaking-task" data-task-id="${t.id}" ${unlocked ? "" : "disabled title='Giai đoạn chưa mở khóa'"}>${best ? "Luyện lại" : "Luyện"}</button></td></tr>`;
   }).join("");
   tbody.querySelectorAll(".open-speaking-task").forEach(b => b.addEventListener("click", () => openSpeakingTask(b.dataset.taskId)));
 }
 document.getElementById("speakingStageFilter")?.addEventListener("change", renderSpeakingTable);
+document.getElementById("speakingUnitFilter")?.addEventListener("change", renderSpeakingTable);
 document.getElementById("refreshSpeakingBtn")?.addEventListener("click", () => { renderSpeakingLab(); showToast("Đã làm mới."); });
 
 function openSpeakingTask(taskId) {
@@ -1276,6 +1286,14 @@ function recordSpeakingErrorsForHealing(errors, sentence, ipa) {
   profile.pronunciation = profile.pronunciation.slice(0, 40);
   saveHealingProfile(profile);
 }
+// Câu sai từ bài tập ngữ pháp theo Unit -> Phòng chữa lỗi (mục Ngữ pháp)
+function recordUnitGrammarErrors(unit, title, wrongList) {
+  const profile = getHealingProfile();
+  profile.unitGrammar = profile.unitGrammar || [];
+  wrongList.forEach(w => profile.unitGrammar.unshift({ id: `ug-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, unit, title, prompt: w.prompt, selected: w.selected, correct: w.correct, explanation: w.explanation, createdAt: new Date().toISOString() }));
+  profile.unitGrammar = profile.unitGrammar.slice(0, 60);
+  saveHealingProfile(profile);
+}
 function recordTestErrorsForHealing(wrongList, testTitle) {
   if (!wrongList.length) return;
   const profile = getHealingProfile();
@@ -1324,6 +1342,22 @@ function renderHealingRoom() {
   pendingList.querySelectorAll(".ask-capybara-err-btn").forEach(btn => btn.addEventListener("click", () => { if (capybaraChatWindow.classList.contains("hidden")) toggleCapybaraChat(); sendCapybaraMessage(`Capybara ơi, giải thích chi tiết quy tắc ngữ pháp '${btn.dataset.errorLabel}' và cho 2 ví dụ dễ hiểu nhé!`); }));
 
   
+  // 2b. Câu sai từ bài tập ngữ pháp theo Unit
+  const ugList = document.getElementById("healingUnitGrammarList");
+  const ug = profile.unitGrammar || [];
+  if (ugList) {
+    const byUnit = {};
+    ug.forEach(t => { (byUnit[t.unit] = byUnit[t.unit] || []).push(t); });
+    ugList.innerHTML = ug.length ? `<h4 style="margin:6px 0 10px">📖 Câu sai từ bài tập ngữ pháp theo Unit (${ug.length})</h4>` + Object.keys(byUnit).sort((a, b) => a - b).map(un => `<div class="card panel" style="margin-bottom:12px"><div class="section-head"><h4 style="margin:0">Unit ${un} · ${escapeHTML(byUnit[un][0].title || "")} <span class="badge orange">${byUnit[un].length} câu</span></h4><button class="btn btn-soft btn-sm ug-clear" data-unit="${un}">Đã ôn lại</button></div>${byUnit[un].map(t => `<div class="review-item"><div>${escapeHTML(t.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(t.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(t.correct || ""))}</b></div>${t.explanation ? `<div class="small muted">💡 ${escapeHTML(t.explanation)}</div>` : ""}</div>`).join("")}</div>`).join("") : "";
+    ugList.querySelectorAll(".ug-clear").forEach(b => b.addEventListener("click", () => {
+      const pr = getHealingProfile(); const removed = (pr.unitGrammar || []).filter(t => String(t.unit) === b.dataset.unit).length;
+      pr.unitGrammar = (pr.unitGrammar || []).filter(t => String(t.unit) !== b.dataset.unit);
+      pr.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "grammar", title: `Ôn lại ${removed} câu ngữ pháp Unit ${b.dataset.unit}`, healedAt: new Date().toISOString(), score: `${removed} câu` });
+      saveHealingProfile(pr); logHealingEvent(`Ôn lại ngữ pháp Unit ${b.dataset.unit}`, { category: "grammar", unit: Number(b.dataset.unit), count: removed }); gainRewards(5 * removed, 0, "Ôn lại ngữ pháp"); renderHealingRoom();
+    }));
+  }
+  document.getElementById("healingStatGrammar").textContent = profile.grammar.length + ug.length;
+
   const testList = document.getElementById("healingTestList");
   const byTest = {};
   pendingTest.forEach(t => { (byTest[t.testTitle] = byTest[t.testTitle] || []).push(t); });
@@ -1503,15 +1537,23 @@ async function renderTeacherRecentTests() {
   const tbody = document.getElementById("teacherRecentTestsBody"); if (!tbody || !isTeacherLike()) return;
   try {
     const data = await apiRequest("/api/tests/latest"); teacherTestsCache = data.tests || [];
+    const semF = document.getElementById("teacherTestsSemesterFilter")?.value || "", typeF = document.getElementById("teacherTestsTypeFilter")?.value || "";
+    const visibleTests = teacherTestsCache.filter(t => (!semF || String(t.semester || 1) === semF) && (!typeF || (t.testType || "kttx") === typeF));
     const filter = document.getElementById("teacherTestFilter");
     if (filter) { const cur = filter.value; filter.innerHTML = '<option value="">Tất cả bài kiểm tra</option>' + teacherTestsCache.map(t => `<option value="${t.id}" ${t.id == cur ? "selected" : ""}>${escapeHTML(t.title)}</option>`).join(""); }
     const docxMatrix = document.getElementById("docxModalMatrix");
-    if (!teacherTestsCache.length) { tbody.innerHTML = '<tr><td colspan="8" class="small muted" style="text-align:center">Chưa có bài kiểm tra nào.</td></tr>'; return; }
-    tbody.innerHTML = teacherTestsCache.map(t => {
+    if (!visibleTests.length) { tbody.innerHTML = '<tr><td colspan="9" class="small muted" style="text-align:center">Chưa có bài kiểm tra nào.</td></tr>'; return; }
+    tbody.innerHTML = visibleTests.map(t => {
       const s = t.summary || {};
       const structure = [s.objectiveCount ? `${s.objectiveCount} TN` : "", s.speakingCount ? `${s.speakingCount} Speaking` : "", s.manualCount ? `${s.manualCount} Writing` : ""].filter(Boolean).join(" · ");
-      return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Tất cả lớp</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes}'</strong></td><td class="small">${t.matrixId ? `#${t.matrixId}` : '<span class="muted">—</span>'}</td><td class="small muted">${fmtDate(t.createdAt)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-light btn-sm analyze-test-btn" data-test-id="${t.id}" title="AI phân tích lại độ khó & thời gian">🤖 Phân tích</button><button class="btn btn-light btn-sm delete-test-btn" data-test-id="${t.id}" style="color:#ef4444">🗑️</button></div></td></tr>`;
+      const typeCell = `<select class="role-select test-type-sel" data-test-id="${t.id}" style="padding:5px 26px 5px 8px;font-size:12px"><option value="kttx" ${(t.testType || "kttx") === "kttx" ? "selected" : ""}>KTTX</option><option value="ktgk" ${t.testType === "ktgk" ? "selected" : ""}>KTGK</option><option value="ktck" ${t.testType === "ktck" ? "selected" : ""}>KTCK</option></select> <select class="role-select test-sem-sel" data-test-id="${t.id}" style="padding:5px 26px 5px 8px;font-size:12px"><option value="1" ${Number(t.semester || 1) === 1 ? "selected" : ""}>HK1</option><option value="2" ${Number(t.semester) === 2 ? "selected" : ""}>HK2</option></select>${t.unitNo ? `<div class="small muted">Unit ${t.unitNo}</div>` : ""}`;
+      return `<tr><td><strong>${escapeHTML(t.title)}</strong><div class="small muted">${escapeHTML(t.sourceFileName || "")}</div></td><td>${typeCell}</td><td>${t.className ? `<span class="badge blue">${escapeHTML(t.className)}</span>` : '<span class="badge">Tất cả lớp</span>'}</td><td class="small">${structure}</td><td>${difficultyPills(t.difficultyCounts)}</td><td><strong>${t.durationMinutes}'</strong></td><td class="small">${t.matrixId ? `#${t.matrixId}` : '<span class="muted">—</span>'}</td><td class="small muted">${fmtDate(t.createdAt)}</td><td><div style="display:flex;gap:6px"><button class="btn btn-light btn-sm analyze-test-btn" data-test-id="${t.id}" title="AI phân tích lại độ khó & thời gian">🤖 Phân tích</button><button class="btn btn-light btn-sm delete-test-btn" data-test-id="${t.id}" style="color:#ef4444">🗑️</button></div></td></tr>`;
     }).join("");
+    tbody.querySelectorAll(".test-type-sel, .test-sem-sel").forEach(sel => sel.addEventListener("change", async () => {
+      const id = sel.dataset.testId;
+      const body = sel.classList.contains("test-type-sel") ? { testType: sel.value } : { semester: Number(sel.value) };
+      try { const res = await apiRequest(`/api/teacher/tests/${id}`, { method: "PATCH", body: JSON.stringify(body) }); showToast(res.message); } catch (err) { showToast(err.message); }
+    }));
     tbody.querySelectorAll(".delete-test-btn").forEach(btn => btn.addEventListener("click", async () => {
       const t = teacherTestsCache.find(x => x.id == btn.dataset.testId);
       if (!confirm(`Xóa bài kiểm tra "${t?.title}"? Bài làm của học sinh cũng sẽ bị xóa.`)) return;
@@ -1521,9 +1563,10 @@ async function renderTeacherRecentTests() {
       btn.disabled = true; btn.textContent = "⏳ AI đang phân tích...";
       try { const res = await apiRequest(`/api/teacher/tests/${btn.dataset.testId}/analyze`, { method: "POST", body: JSON.stringify({}) }); showToast(`${res.message} Dễ ${res.analysis.counts.easy} · TB ${res.analysis.counts.medium} · Khó ${res.analysis.counts.hard}. Thời gian: ${res.analysis.durations.full}' (cơ bản ${res.analysis.durations.regular}')`); renderTeacherRecentTests(); } catch (err) { showToast(err.message); btn.disabled = false; btn.textContent = "🤖 Phân tích"; }
     }));
-  } catch (err) { tbody.innerHTML = `<tr><td colspan="8" class="small muted">${escapeHTML(err.message)}</td></tr>`; }
+  } catch (err) { tbody.innerHTML = `<tr><td colspan="9" class="small muted">${escapeHTML(err.message)}</td></tr>`; }
 }
 document.getElementById("refreshTeacherTestsBtn")?.addEventListener("click", () => { renderTeacherRecentTests(); showToast("Đã làm mới danh sách đề."); });
+["teacherTestsSemesterFilter", "teacherTestsTypeFilter"].forEach(id => document.getElementById(id)?.addEventListener("change", renderTeacherRecentTests));
 
 
 let matricesCache = [];
@@ -1587,13 +1630,26 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
 
 
 document.getElementById("createTestBtn")?.addEventListener("click", () => { renderMatricesList(); openModal("createTestModal"); });
+// Mở form nạp đề với loại / học kỳ / unit đặt sẵn theo khung đề (KTTX / KTGK / KTCK)
+function openCreateTestForSpec(spec) {
+  renderMatricesList();
+  const typeSel = document.getElementById("docxModalType"), semSel = document.getElementById("docxModalSemester"), unitSel = document.getElementById("docxModalUnit"), titleIn = document.getElementById("docxModalTitle");
+  if (spec) {
+    if (typeSel) typeSel.value = String(spec.type || "KTTX").toLowerCase();
+    if (semSel) semSel.value = String(spec.term || 1);
+    if (unitSel) unitSel.value = spec.type === "KTTX" && spec.units && spec.units.length === 1 ? String(spec.units[0]) : "";
+    if (titleIn && !titleIn.value) titleIn.value = spec.name || "";
+  }
+  openModal("createTestModal");
+}
+(function fillUnitSelects() { document.querySelectorAll("#docxModalUnit").forEach(sel => { sel.innerHTML = '<option value="">— Không gắn Unit —</option>' + Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Unit ${i + 1}</option>`).join(""); }); })();
 document.querySelectorAll(".create-close").forEach(btn => btn.addEventListener("click", () => closeModal("createTestModal")));
 document.getElementById("uploadDocxForm")?.addEventListener("submit", async e => {
   e.preventDefault();
   const file = document.getElementById("docxModalFileInput").files[0]; if (!file) return showToast("Vui lòng chọn file DOCX.");
   const submitBtn = document.getElementById("submitDocxBtn"); submitBtn.disabled = true; submitBtn.textContent = "⏳ Đang đọc đề & AI phân tích...";
   try {
-    const result = await apiRequest("/api/tests/import-docx", { method: "POST", body: JSON.stringify({ documentBase64: await fileToDataUrl(file), fileName: file.name, title: document.getElementById("docxModalTitle").value.trim() || file.name.replace(/\.docx$/i, ""), className: document.getElementById("docxModalClass").value.trim().toUpperCase() || null, matrixId: document.getElementById("docxModalMatrix").value || null }) });
+    const result = await apiRequest("/api/tests/import-docx", { method: "POST", body: JSON.stringify({ documentBase64: await fileToDataUrl(file), fileName: file.name, title: document.getElementById("docxModalTitle").value.trim() || file.name.replace(/\.docx$/i, ""), className: document.getElementById("docxModalClass").value.trim().toUpperCase() || null, matrixId: document.getElementById("docxModalMatrix").value || null, testType: document.getElementById("docxModalType")?.value || "kttx", semester: Number(document.getElementById("docxModalSemester")?.value || 1), unitNo: document.getElementById("docxModalUnit")?.value || null }) });
     const a = result.analysis || {};
     showToast(`${result.message} ${result.summary.objectiveCount} TN, ${result.summary.speakingCount || 0} Speaking, ${result.summary.manualCount} Writing · AI: ${a.counts?.easy || 0} dễ / ${a.counts?.medium || 0} TB / ${a.counts?.hard || 0} khó · ${a.durationMinutes || 45} phút.`);
     closeModal("createTestModal"); e.target.reset(); renderTeacherRecentTests(); renderTeacherStats();

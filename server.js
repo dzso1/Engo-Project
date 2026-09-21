@@ -249,6 +249,9 @@ async function ensureAssessmentTables() {
   try { await pool.query("ALTER TABLE imported_tests ADD COLUMN matrix_id BIGINT UNSIGNED NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE imported_tests ADD COLUMN analysis_json JSON NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE imported_tests ADD COLUMN duration_minutes INT NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN test_type VARCHAR(10) NOT NULL DEFAULT 'kttx'"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN semester TINYINT NOT NULL DEFAULT 1"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN unit_no INT NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN speaking_answers_json JSON NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN speaking_score DECIMAL(5,2) NOT NULL DEFAULT 0"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN objective_max DECIMAL(5,2) NULL"); } catch (e) {}
@@ -435,6 +438,9 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
     className: test.class_name || null,
     createdAt: test.created_at,
     matrixId: test.matrix_id || null,
+    testType: test.test_type || "kttx",
+    semester: Number(test.semester) || 1,
+    unitNo: test.unit_no !== null && test.unit_no !== undefined ? Number(test.unit_no) : null,
     variant: variantName,
     durationMinutes: variantInfo ? variantInfo.durationMinutes : (test.duration_minutes || 45),
     difficultyCounts: analysis && analysis.variants ? analysis.variants.counts : null,
@@ -1000,7 +1006,7 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
 // BÀI KIỂM TRA: IMPORT DOCX + AI PHÂN TÍCH ĐỘ KHÓ + BIẾN THỂ THEO MA TRẬN
 // ==========================================
 function testSelect() {
-  return "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, " + optCols("imported_tests", "imported_tests", ["analysis_json", "matrix_id", "duration_minutes"]) + ", created_at FROM imported_tests";
+  return "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, " + optCols("imported_tests", "imported_tests", ["analysis_json", "matrix_id", "duration_minutes", "test_type", "semester", "unit_no"]) + ", created_at FROM imported_tests";
 }
 
 async function loadMatrix(matrixId) {
@@ -1021,7 +1027,10 @@ async function analyzeAndBuildVariants(test, matrix) {
 app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (req, res) => {
   try {
     await assessmentReady;
-    const { documentBase64, fileName = "de-kiem-tra.docx", title, className, matrixId } = req.body;
+    const { documentBase64, fileName = "de-kiem-tra.docx", title, className, matrixId, testType, semester, unitNo } = req.body;
+    const safeType = ["kttx", "ktgk", "ktck"].includes(String(testType)) ? String(testType) : "kttx";
+    const safeSemester = Number(semester) === 2 ? 2 : 1;
+    const safeUnit = unitNo ? Math.max(1, Math.min(12, Number(unitNo))) : null;
     if (!documentBase64 || !String(documentBase64).startsWith("data:")) return res.status(400).json({ success: false, message: "File DOCX không hợp lệ." });
     const buffer = Buffer.from(String(documentBase64).split(",").pop(), "base64");
     if (buffer.length > 8 * 1024 * 1024) return res.status(413).json({ success: false, message: "File DOCX vượt quá 8 MB." });
@@ -1030,7 +1039,12 @@ app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (
     const assignedClass = String(className || "").trim() || null;
     const matrix = await loadMatrix(matrixId);
     const analysis = await analyzeAndBuildVariants(test, matrix);
-    const [result] = hasCol("imported_tests", "analysis_json")
+    const [result] = hasCol("imported_tests", "test_type")
+      ? await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes, test_type, semester, unit_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes, safeType, safeSemester, safeUnit]
+        )
+      : hasCol("imported_tests", "analysis_json")
       ? await pool.execute(
           "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes]
@@ -1073,7 +1087,7 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
       } catch (e) {}
     }
 
-    query += " ORDER BY created_at DESC LIMIT 30";
+    query += " ORDER BY created_at DESC LIMIT 100";
     const [rows] = await pool.execute(query, params);
     const tests = rows.map(row => {
       const t = publicTest(getStoredTest(row), { variantName });
@@ -1123,6 +1137,29 @@ app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", 
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể phân tích đề." });
+  }
+});
+
+// Giáo viên sửa phân loại đề (loại KTTX/KTGK/KTCK, học kỳ, unit, lớp)
+app.patch("/api/teacher/tests/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { testType, semester, unitNo, className, title } = req.body;
+    const sets = [], params = [];
+    if (hasCol("imported_tests", "test_type") && ["kttx", "ktgk", "ktck"].includes(String(testType))) { sets.push("test_type = ?"); params.push(String(testType)); }
+    if (hasCol("imported_tests", "semester") && (Number(semester) === 1 || Number(semester) === 2)) { sets.push("semester = ?"); params.push(Number(semester)); }
+    if (hasCol("imported_tests", "unit_no") && unitNo !== undefined) { sets.push("unit_no = ?"); params.push(unitNo ? Math.max(1, Math.min(12, Number(unitNo))) : null); }
+    if (className !== undefined) { sets.push("class_name = ?"); params.push(String(className || "").trim() || null); }
+    if (title) { sets.push("title = ?"); params.push(String(title).trim().slice(0, 255)); }
+    if (!sets.length) return res.status(400).json({ success: false, message: "Không có gì để cập nhật." });
+    params.push(req.params.id);
+    if (req.user.role === "teacher") params.push(req.user.userId);
+    const [result] = await pool.execute(`UPDATE imported_tests SET ${sets.join(", ")} WHERE id = ?${req.user.role === "teacher" ? " AND teacher_id = ?" : ""}`, params);
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
+    return res.json({ success: true, message: "Đã cập nhật phân loại đề." });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không thể cập nhật đề." });
   }
 });
 
@@ -2039,7 +2076,7 @@ app.post("/api/learning-events", requireLogin, requireRole("student"), async (re
   try {
     await assessmentReady;
     const { type, refId, title, score, maxScore, meta } = req.body;
-    if (!["vocab", "healing", "speaking"].includes(type)) return res.status(400).json({ success: false, message: "Loại sự kiện không hợp lệ." });
+    if (!["vocab", "healing", "speaking", "listening", "grammar"].includes(type)) return res.status(400).json({ success: false, message: "Loại sự kiện không hợp lệ." });
     await progressService.recordLearningEvent({ studentId: req.user.userId, type, refId, title: String(title || "").slice(0, 255), score: score !== undefined ? Number(score) : null, maxScore: maxScore !== undefined ? Number(maxScore) : null, meta: meta || null });
     return res.json({ success: true });
   } catch (error) {
@@ -2198,41 +2235,36 @@ app.get("/api/exams/specs/:id", requireLogin, (req, res) => {
   return res.json({ success: true, spec });
 });
 
-// Giáo viên nạp đề Word thật vào một khung đề: dùng lại bộ tách 5 phần kĩ năng sẵn có.
+// Giáo viên nạp đề Word thật vào một khung đề (KTTX/KTGK/KTCK): dùng chung pipeline import + AI phân tích
 app.post("/api/exams/specs/:id/import", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
+    await assessmentReady;
     const spec = unitsData.examSpec(String(req.params.id));
     if (!spec) return res.status(404).json({ success: false, message: "Không tìm thấy khung đề này." });
-
-    const { fileBase64, fileName } = req.body || {};
-    if (!fileBase64) return res.status(400).json({ success: false, message: "Vui lòng chọn tệp đề Word." });
-
-    const buffer = Buffer.from(String(fileBase64).split(",").pop(), "base64");
-    const { value: html } = await mammoth.convertToHtml({ buffer });
-    const parsed = parseDocxAssessment(html);
-    const questionCount = (parsed.sections || []).reduce((a, sec) => a + (sec.questions || []).length, 0);
-
-    const [result] = await pool.query(
-      "INSERT INTO imported_tests (title, class_name, payload, created_by) VALUES (?, ?, ?, ?)",
-      [
-        `${spec.name}${fileName ? " · " + fileName : ""}`,
-        req.user.className || null,
-        JSON.stringify({ specId: spec.id, type: spec.type, term: spec.term, units: spec.units, matrix: spec.matrix, ...parsed }),
-        req.user.id
-      ]
-    );
-
-    return res.json({
-      success: true,
-      testId: result.insertId,
-      specId: spec.id,
-      questionCount,
-      expected: spec.sections.reduce((a, x) => a + x.n, 0),
-      message: `Đã nạp ${questionCount} câu vào khung "${spec.name}".`
-    });
+    const { fileBase64, documentBase64, fileName = "de.docx", className, matrixId, title } = req.body || {};
+    const raw = fileBase64 || documentBase64;
+    if (!raw) return res.status(400).json({ success: false, message: "Vui lòng chọn tệp đề Word." });
+    const buffer = Buffer.from(String(raw).split(",").pop(), "base64");
+    const extracted = await mammoth.extractRawText({ buffer });
+    const test = parseDocxAssessment(extracted.value, String(title || spec.name));
+    const matrix = await loadMatrix(matrixId);
+    const analysis = await analyzeAndBuildVariants(test, matrix);
+    const safeType = String(spec.type || "KTTX").toLowerCase();
+    const unitNo = spec.type === "KTTX" && Array.isArray(spec.units) && spec.units.length === 1 ? spec.units[0] : null;
+    const assignedClass = String(className || "").trim() || null;
+    const [result] = hasCol("imported_tests", "test_type")
+      ? await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes, test_type, semester, unit_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, specId: spec.id }), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes, safeType, Number(spec.term) === 2 ? 2 : 1, unitNo]
+        )
+      : await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json) VALUES (?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, analysis, specId: spec.id }), JSON.stringify(test.summary)]
+        );
+    return res.json({ success: true, testId: result.insertId, specId: spec.id, questionCount: test.questions.length, expected: (spec.sections || []).reduce((a, x) => a + Number(x.n || 0), 0), summary: test.summary, message: `Đã nạp ${test.questions.length} câu vào khung "${spec.name}".` });
   } catch (error) {
     console.error("Lỗi nạp đề vào khung:", error);
-    return res.status(500).json({ success: false, message: "Không nạp được đề. Kiểm tra lại tệp Word." });
+    return res.status(400).json({ success: false, message: error.message || "Không nạp được đề. Kiểm tra lại tệp Word." });
   }
 });
 

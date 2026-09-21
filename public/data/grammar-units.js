@@ -1,394 +1,476 @@
-// Ngữ pháp Tiếng Anh 9 — Global Success, Unit 1–12
-// Mỗi unit gồm: trọng tâm ngữ pháp, công thức, ví dụ, mã lỗi riêng và câu luyện tập.
-// Mã lỗi ở đây nối tiếp 12 mã lỗi nền (PS_*, PAST_*, CMP_*) trong services/speaking-scorer.js
-// và được Phòng Chữa Lỗi dùng để gom lỗi, vẽ bản đồ nhiệt theo unit.
+// Ngữ pháp theo Unit 1-12: lý thuyết + bài tập
+// Sinh tự động bởi scripts/generate-unit-content.js (nguồn: TỪ VỰNG 9 Global Success + AI). Chỉnh tay được.
 window.ENGO_GRAMMAR_UNITS = {
-  unit1: {
-    unit: 1,
-    name: "Unit 1 · Local Community",
-    focus: "Từ để hỏi + to-infinitive · Cụm động từ (phrasal verbs)",
-    points: [
-      {
-        title: "Wh-word + to-infinitive",
-        rule: "Dùng what / where / when / how / who + to V để rút gọn một mệnh đề hỏi gián tiếp. Chủ ngữ của hai vế phải cùng là một người.",
-        form: "S + V + wh-word + to V",
-        ok: "I don't know where to buy local handicrafts.",
-        no: "I don't know where I should to buy local handicrafts.",
-        note: "Sau wh-word là động từ nguyên thể có to, không chia thì."
-      },
-      {
-        title: "Phrasal verbs — tách được và không tách được",
-        rule: "Cụm động từ gồm động từ + tiểu từ. Loại tách được cho phép đặt tân ngữ ở giữa; nếu tân ngữ là đại từ thì bắt buộc đặt ở giữa.",
-        form: "take the rubbish away = take away the rubbish = take it away",
-        ok: "Please take it away before noon.",
-        no: "Please take away it before noon.",
-        note: "Loại không tách được (get on with, look for) luôn giữ nguyên cụm."
-      }
+ "unit1": {
+  "unit": 1,
+  "title": "Local Community",
+  "points": [
+   {
+    "name": "Phrasal verbs (Cụm động từ)",
+    "explanation": "Cụm động từ là sự kết hợp giữa một động từ và một hoặc hai tiểu từ (trạng từ hoặc giới từ). Khi kết hợp với nhau, chúng tạo thành một nghĩa mới hoàn toàn khác với nghĩa của động từ gốc. Trong bài này, chúng ta tập trung vào các cụm động từ gồm ba từ (three-word phrasal verbs) phổ biến liên quan đến đời sống cộng đồng.",
+    "formula": "Verb + Particle + Preposition",
+    "notes": [
+     "Các cụm động từ ba từ thường gặp: get on with (hòa hợp với), cut down on (cắt giảm), run out of (hết, cạn kiệt), keep up with (theo kịp).",
+     "Các cụm động từ hai từ thường gặp: pass down (truyền lại), find out (tìm hiểu), take care of (chăm sóc), break down (hỏng hóc)."
     ],
-    codes: [
-      { id: "U1_WHTO", label: "Wh-word + to V", hint: "Sau từ để hỏi phải là động từ nguyên thể có to, không chia thì." },
-      { id: "U1_PHRV", label: "Vị trí tân ngữ trong phrasal verb", hint: "Tân ngữ là đại từ (it, them) phải nằm giữa động từ và tiểu từ." }
-    ],
-    quiz: [
-      { q: "She is wondering ______ for the community garden project.", a: "where to find volunteers", b: ["where finding volunteers", "where she find volunteers"], code: "U1_WHTO" },
-      { q: "The rubbish is heavy. Can you take ______ away?", a: "it", b: ["away it", "it away away"], code: "U1_PHRV" },
-      { q: "Please tell me ______ about the community centre.", a: "who to contact", b: ["who contacting", "who to contacting"], code: "U1_WHTO" }
+    "examples": [
+     {
+      "en": "The local artisans pass down traditional techniques to their children.",
+      "vi": "Các nghệ nhân địa phương truyền lại các kỹ thuật truyền thống cho con cái của họ."
+     },
+     {
+      "en": "We should cut down on the amount of rubbish we throw away.",
+      "vi": "Chúng ta nên cắt giảm lượng rác thải mà chúng ta thải ra."
+     }
     ]
-  },
-  unit2: {
-    unit: 2,
-    name: "Unit 2 · City Life",
-    focus: "So sánh kép (double comparatives) · Cụm động từ (tiếp)",
-    points: [
-      {
-        title: "So sánh kép — càng… càng…",
-        rule: "Diễn tả hai sự việc tăng hoặc giảm song song.",
-        form: "The + so sánh hơn + S + V, the + so sánh hơn + S + V",
-        ok: "The more crowded the city is, the harder it is to find affordable housing.",
-        no: "The more crowded the city is, the hard it is to find housing.",
-        note: "Cả hai vế đều phải ở dạng so sánh hơn."
-      },
-      {
-        title: "So sánh hơn tăng dần — ngày càng…",
-        rule: "Lặp lại tính từ so sánh hơn, nối bằng and.",
-        form: "S + be/get + so sánh hơn + and + so sánh hơn",
-        ok: "Traffic jams are getting worse and worse.",
-        no: "Traffic jams are getting more worse and worse.",
-        note: "Tính từ dài dùng more and more + adj: more and more convenient."
-      }
+   },
+   {
+    "name": "Question words before to-infinitive (Từ để hỏi đứng trước động từ nguyên mẫu có 'to')",
+    "explanation": "Chúng ta có thể dùng các từ để hỏi (who, what, where, when, how) trước động từ nguyên mẫu có 'to' để diễn tả một tình huống khó xử, một sự băn khoăn hoặc khi cần đưa ra quyết định. Cấu trúc này thường làm tân ngữ cho các động từ như decide, find out, wonder, know, ask.",
+    "formula": "S + V (know/decide/ask...) + Question Word (who/what/where/when/how/whether) + to-V",
+    "notes": [
+     "Không dùng từ để hỏi 'why' trong cấu trúc này.",
+     "Cấu trúc này có thể dùng để viết lại các mệnh đề danh ngữ chứa 'should' hoặc 'can' (Ví dụ: 'where I should go' -> 'where to go')."
     ],
-    codes: [
-      { id: "U2_DBLCMP", label: "So sánh kép", hint: "Cả hai vế của cấu trúc the… the… đều phải là dạng so sánh hơn." },
-      { id: "U2_INCCMP", label: "So sánh tăng dần", hint: "Tính từ ngắn dùng -er and -er; tính từ dài dùng more and more + adj." }
-    ],
-    quiz: [
-      { q: "The more skyscrapers a city has, ______ it looks at night.", a: "the more modern", b: ["the modern", "more modern"], code: "U2_DBLCMP" },
-      { q: "Public transport is becoming ______.", a: "more and more convenient", b: ["convenienter and convenienter", "more convenient and convenient"], code: "U2_INCCMP" },
-      { q: "______ we leave, the less traffic we meet.", a: "The earlier", b: ["The early", "Earlier"], code: "U2_DBLCMP" }
+    "examples": [
+     {
+      "en": "The new residents don't know where to look for help.",
+      "vi": "Những cư dân mới không biết tìm kiếm sự trợ giúp ở đâu."
+     },
+     {
+      "en": "She asked the artisan how to make a paper fan.",
+      "vi": "Cô ấy đã hỏi nghệ nhân cách làm một chiếc quạt giấy."
+     }
     ]
-  },
-  unit3: {
-    unit: 3,
-    name: "Unit 3 · Healthy Living for Teens",
-    focus: "Động từ khuyết thiếu trong câu điều kiện loại 1",
-    points: [
-      {
-        title: "Câu điều kiện loại 1 có modal verb",
-        rule: "Nói về điều có thật ở hiện tại hoặc tương lai. Vế if dùng hiện tại đơn, vế chính dùng will / can / should / must / may.",
-        form: "If + S + V(hiện tại đơn), S + will/can/should/must + V",
-        ok: "If you skip breakfast, you may feel tired at school.",
-        no: "If you will skip breakfast, you may feel tired.",
-        note: "Không dùng will ở vế if."
-      },
-      {
-        title: "should / must / have to trong lời khuyên sức khoẻ",
-        rule: "should đưa lời khuyên, must là bắt buộc do người nói, have to là bắt buộc do hoàn cảnh bên ngoài.",
-        form: "S + should / must / have to + V",
-        ok: "Teenagers should sleep at least eight hours a night.",
-        no: "Teenagers should to sleep at least eight hours.",
-        note: "Sau modal verb luôn là động từ nguyên thể không to."
-      }
+   }
+  ],
+  "exercises": [
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "My family moved to the suburbs last month, and we get on well ________ our new neighbours.",
+    "options": [
+     "A. with",
+     "B. on",
+     "C. at",
+     "D. for"
     ],
-    codes: [
-      { id: "U3_COND1", label: "Điều kiện loại 1", hint: "Vế if dùng hiện tại đơn, không dùng will." },
-      { id: "U3_MODAL", label: "Modal + V nguyên thể", hint: "Sau should / must / can không có to." }
+    "answer": 0,
+    "explanation": "Cụm động từ 'get on well with someone' có nghĩa là hòa hợp, có mối quan hệ tốt với ai đó."
+   },
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "The local artisans always ________ traditional techniques to the younger generation.",
+    "options": [
+     "A. break down",
+     "B. pass down",
+     "C. run out",
+     "D. go out"
     ],
-    quiz: [
-      { q: "If you ______ enough water, your skin will look better.", a: "drink", b: ["will drink", "drinks"], code: "U3_COND1" },
-      { q: "You should ______ more vegetables.", a: "eat", b: ["to eat", "eating"], code: "U3_MODAL" },
-      { q: "If she practises every day, she ______ her stress.", a: "can reduce", b: ["can reduces", "can to reduce"], code: "U3_MODAL" }
+    "answer": 1,
+    "explanation": "Cụm động từ 'pass down' có nghĩa là truyền lại (cho thế hệ sau)."
+   },
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "The tourists are asking the police officer where ________ the nearest bus station.",
+    "options": [
+     "A. find",
+     "B. finding",
+     "C. to find",
+     "D. found"
+    ],
+    "answer": 2,
+    "explanation": "Cấu trúc từ để hỏi + to-V (where to find) dùng để chỉ địa điểm cần tìm."
+   },
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "We didn't know ________ to sort our household rubbish, so we asked the garbage collector for advice.",
+    "options": [
+     "A. how",
+     "B. why",
+     "C. what",
+     "D. who"
+    ],
+    "answer": 0,
+    "explanation": "Dựa vào ngữ cảnh 'sort our household rubbish' (phân loại rác thải sinh hoạt), ta chọn từ để hỏi 'how' (how to sort: cách phân loại)."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "To make our community greener, we must ________ the amount of plastic we use every day.",
+    "options": [
+     "A. get on with",
+     "B. cut down on",
+     "C. run out of",
+     "D. look around"
+    ],
+    "answer": 1,
+    "explanation": "Cụm động từ 'cut down on' có nghĩa là cắt giảm (lượng nhựa sử dụng để bảo vệ môi trường)."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "The local community is trying to decide ________ to preserve their historic pottery village.",
+    "options": [
+     "A. how",
+     "B. what",
+     "C. who",
+     "D. why"
+    ],
+    "answer": 0,
+    "explanation": "Cấu trúc 'decide how to preserve' nghĩa là quyết định cách thức để bảo tồn ngôi làng gốm lịch sử."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "While making the traditional lanterns, the craft village ________ bamboo, so they had to buy more.",
+    "options": [
+     "A. broke down",
+     "B. ran out of",
+     "C. got on with",
+     "D. came back"
+    ],
+    "answer": 1,
+    "explanation": "Cụm động từ 'run out of' ở thì quá khứ là 'ran out of', nghĩa là cạn kiệt, hết sạch (nguyên liệu tre)."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "Can you tell me ________ to contact if there is an electricity problem in my house? - You should call an electrician.",
+    "options": [
+     "A. when",
+     "B. who",
+     "C. where",
+     "D. how"
+    ],
+    "answer": 1,
+    "explanation": "Câu trả lời đề cập đến 'electrician' (thợ điện - chỉ người), do đó từ để hỏi phù hợp là 'who' (who to contact: liên hệ với ai)."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "The old delivery truck ________ on the way to the pedestrian street, so the speciality food arrived late.",
+    "options": [
+     "A. ran out of",
+     "B. broke down",
+     "C. looked around",
+     "D. took away"
+    ],
+    "answer": 1,
+    "explanation": "Cụm động từ 'break down' ở quá khứ là 'broke down', nghĩa là (xe cộ, máy móc) bị hỏng giữa đường."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "The new neighbour was completely confused about ________ to do with all the packing suitcases after moving in.",
+    "options": [
+     "A. how",
+     "B. what",
+     "C. where",
+     "D. who"
+    ],
+    "answer": 1,
+    "explanation": "Cấu trúc 'what to do with something' nghĩa là làm gì với cái gì. Không dùng 'how to do with'."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "Our local community has ________ ideas on how to improve the facilities, so we need some advice from experts.",
+    "options": [
+     "A. cut down on",
+     "B. run out of",
+     "C. got on with",
+     "D. passed down to"
+    ],
+    "answer": 1,
+    "explanation": "Dựa vào vế sau 'we need some advice' (chúng tôi cần lời khuyên), vế trước phải mang nghĩa 'đã cạn kiệt ý tưởng' (run out of ideas)."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "She is still wondering ________ to buy a traditional bamboo bed or a modern one for her new house in the suburbs.",
+    "options": [
+     "A. whether",
+     "B. what",
+     "C. how",
+     "D. where"
+    ],
+    "answer": 0,
+    "explanation": "Cấu trúc 'whether to V... or...' dùng để diễn tả sự phân vân, lựa chọn giữa hai phương án (liệu nên mua giường tre truyền thống hay giường hiện đại)."
+   }
+  ],
+  "rewrite": [
+   {
+    "level": "medium",
+    "prompt": "I don't know where I can buy the best speciality food in this local community. (where to)",
+    "answer": "I don't know where to buy the best speciality food in this local community.",
+    "accepted": [
+     "I do not know where to buy the best speciality food in this local community."
+    ],
+    "explanation": "Rút gọn mệnh đề danh ngữ 'where I can buy' thành cấu trúc từ để hỏi đi với to-infinitive 'where to buy'."
+   },
+   {
+    "level": "medium",
+    "prompt": "The young artist decided to reduce the amount of electricity they use to protect the environment. (cut)",
+    "answer": "The young artist decided to cut down on the amount of electricity they use to protect the environment.",
+    "accepted": [
+     "The young artist decided to cut down on the amount of electricity they used to protect the environment."
+    ],
+    "explanation": "Sử dụng cụm động từ ba từ 'cut down on' (cắt giảm) để thay thế cho động từ 'reduce'."
+   },
+   {
+    "level": "hard",
+    "prompt": "We asked the firefighter, \"How can we stop the fire from spreading?\" (how to)",
+    "answer": "We asked the firefighter how to stop the fire from spreading.",
+    "accepted": [
+     "We asked the firefighter how we could stop the fire from spreading."
+    ],
+    "explanation": "Chuyển câu hỏi trực tiếp sang gián tiếp bằng cách sử dụng cấu trúc 'how to-V' thay cho mệnh đề 'how we can stop'."
+   },
+   {
+    "level": "hard",
+    "prompt": "The local artisans are not sure who they should pass down their traditional pottery techniques to. (who to)",
+    "answer": "The local artisans are not sure who to pass down their traditional pottery techniques to.",
+    "accepted": [
+     "The local artisans are not sure whom to pass down their traditional pottery techniques to."
+    ],
+    "explanation": "Chuyển mệnh đề 'who they should pass down... to' thành cấu trúc rút gọn 'who to pass down... to'."
+   }
+  ]
+ },
+ "unit2": {
+  "unit": 2,
+  "title": "City life",
+  "points": [
+   {
+    "name": "Double Comparatives (So sánh kép)",
+    "explanation": "So sánh kép (càng... thì càng...) được dùng để diễn tả mối quan hệ nguyên nhân - kết quả giữa hai sự việc xảy ra đồng thời. Khi một sự thay đổi ở vế này diễn ra, nó sẽ kéo theo một sự thay đổi tương ứng ở vế kia.",
+    "formula": "The + comparative adj/adv + S + V, the + comparative adj/adv + S + V",
+    "notes": [
+     "Với tính từ/trạng từ ngắn: thêm đuôi '-er' (ví dụ: busier, noisier, safer).",
+     "Với tính từ/trạng từ dài: dùng 'more' (ví dụ: more modern, more polluted, more expensive).",
+     "Một số trường hợp đặc biệt: good/well -> better, bad/badly -> worse, far -> farther/further, many/much -> more, little -> less."
+    ],
+    "examples": [
+     {
+      "en": "The more modern the public transport is, the more convenient city life becomes.",
+      "vi": "Phương tiện công cộng càng hiện đại thì cuộc sống thành thị càng thuận tiện hơn."
+     },
+     {
+      "en": "The noisier the downtown gets, the more stressed the citizens feel.",
+      "vi": "Khu trung tâm càng ồn ào thì người dân thành phố càng cảm thấy căng thẳng."
+     }
     ]
-  },
-  unit4: {
-    unit: 4,
-    name: "Unit 4 · Remembering the Past",
-    focus: "Quá khứ tiếp diễn · Wish + quá khứ đơn",
-    points: [
-      {
-        title: "Quá khứ tiếp diễn",
-        rule: "Diễn tả hành động đang xảy ra tại một thời điểm trong quá khứ, hoặc hành động dài bị hành động ngắn cắt ngang.",
-        form: "S + was/were + V-ing (+ when + S + V quá khứ đơn)",
-        ok: "My grandmother was making sticky rice when we arrived.",
-        no: "My grandmother made sticky rice when we were arriving.",
-        note: "Hành động dài dùng tiếp diễn, hành động cắt ngang dùng quá khứ đơn."
-      },
-      {
-        title: "Wish + quá khứ đơn",
-        rule: "Diễn tả điều ước trái với thực tế ở hiện tại.",
-        form: "S + wish(es) + S + V quá khứ đơn (be luôn dùng were)",
-        ok: "I wish I were living in that old village again.",
-        no: "I wish I am living in that old village again.",
-        note: "Với động từ to be, mọi ngôi đều dùng were trong câu ước."
-      }
+   }
+  ],
+  "exercises": [
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "The ______ the city is, the more attractive it becomes to young immigrants.",
+    "options": [
+     "A. modern",
+     "B. more modern",
+     "C. most modern",
+     "D. modernest"
     ],
-    codes: [
-      { id: "U4_PASTCONT", label: "Quá khứ tiếp diễn", hint: "was/were + V-ing cho hành động đang diễn ra trong quá khứ." },
-      { id: "U4_WISH", label: "Wish + quá khứ đơn", hint: "Sau wish dùng thì quá khứ đơn; to be luôn là were." }
+    "answer": 1,
+    "explanation": "\"Modern\" là tính từ dài, cấu trúc so sánh kép yêu cầu dùng dạng so sánh hơn: \"the more modern\"."
+   },
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "The busier the streets are during rush hour, the ______ the traffic flow becomes.",
+    "options": [
+     "A. slower",
+     "B. more slow",
+     "C. slowest",
+     "D. as slow"
     ],
-    quiz: [
-      { q: "We ______ old photos when the lights went out.", a: "were looking at", b: ["looked at", "are looking at"], code: "U4_PASTCONT" },
-      { q: "I wish my village ______ its traditional market.", a: "still had", b: ["still has", "still have"], code: "U4_WISH" },
-      { q: "She wishes she ______ old enough to join the festival.", a: "were", b: ["was being", "is"], code: "U4_WISH" }
-    ]
-  },
-  unit5: {
-    unit: 5,
-    name: "Unit 5 · Our Experiences",
-    focus: "Thì hiện tại hoàn thành",
-    points: [
-      {
-        title: "Hiện tại hoàn thành",
-        rule: "Diễn tả trải nghiệm tính tới hiện tại, hoặc hành động bắt đầu trong quá khứ và còn kéo dài.",
-        form: "S + have/has + V3/V-ed",
-        ok: "I have taken an eco-tour twice.",
-        no: "I have took an eco-tour twice.",
-        note: "Sau have/has phải là quá khứ phân từ (cột 3), không phải quá khứ đơn."
-      },
-      {
-        title: "for / since / ever / never / already / yet",
-        rule: "for + khoảng thời gian, since + mốc thời gian. yet đứng cuối câu phủ định và câu hỏi.",
-        form: "S + have/has + (never/already) + V3 … for/since …",
-        ok: "She has lived here since 2020.",
-        no: "She has lived here since three years.",
-        note: "since đi với mốc (2020, last year), for đi với khoảng (three years)."
-      }
+    "answer": 0,
+    "explanation": "\"Slow\" là tính từ ngắn, dạng so sánh hơn của nó là \"slower\"."
+   },
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "The ______ the concrete jungle grows, the less green space we have.",
+    "options": [
+     "A. larger",
+     "B. more large",
+     "C. largest",
+     "D. as large"
     ],
-    codes: [
-      { id: "U5_PRESPERF", label: "Hiện tại hoàn thành", hint: "have/has + quá khứ phân từ, không dùng quá khứ đơn." },
-      { id: "U5_FORSINCE", label: "for / since", hint: "for + khoảng thời gian; since + mốc thời gian." }
+    "answer": 0,
+    "explanation": "\"Large\" là tính từ ngắn kết thúc bằng 'e', ta chỉ cần thêm đuôi '-r' thành \"larger\"."
+   },
+   {
+    "type": "mc",
+    "level": "easy",
+    "prompt": "The more polluted the air in the downtown is, the ______ our itchy eyes get.",
+    "options": [
+     "A. badder",
+     "B. worst",
+     "C. worse",
+     "D. more bad"
     ],
-    quiz: [
-      { q: "They ______ that cave before.", a: "have never explored", b: ["have never explore", "has never explored"], code: "U5_PRESPERF" },
-      { q: "We have known each other ______ five years.", a: "for", b: ["since", "from"], code: "U5_FORSINCE" },
-      { q: "Have you ______ your homework yet?", a: "done", b: ["did", "do"], code: "U5_PRESPERF" }
-    ]
-  },
-  unit6: {
-    unit: 6,
-    name: "Unit 6 · Vietnamese Lifestyles: Then and Now",
-    focus: "Verb + to-infinitive · Verb + V-ing",
-    points: [
-      {
-        title: "Động từ theo sau là to V",
-        rule: "Nhóm want, hope, decide, plan, agree, promise, expect, learn, would like luôn đi với to V.",
-        form: "S + V + to V",
-        ok: "They decided to preserve the old house.",
-        no: "They decided preserving the old house.",
-        note: "Ghi nhớ theo nhóm, không dịch từng chữ từ tiếng Việt."
-      },
-      {
-        title: "Động từ theo sau là V-ing",
-        rule: "Nhóm enjoy, avoid, finish, practise, suggest, mind, keep, consider luôn đi với V-ing.",
-        form: "S + V + V-ing",
-        ok: "My grandparents enjoy telling stories about the past.",
-        no: "My grandparents enjoy to tell stories about the past.",
-        note: "like / love / start / begin dùng được cả hai dạng, nghĩa gần như nhau."
-      }
+    "answer": 2,
+    "explanation": "\"Bad\" là tính từ bất quy tắc, dạng so sánh hơn của nó là \"worse\"."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "The ______ the public transport is, the ______ people will use private vehicles.",
+    "options": [
+     "A. more unreliable / more",
+     "B. more unreliable / most",
+     "C. unreliable / more",
+     "D. unreliabler / more"
     ],
-    codes: [
-      { id: "U6_VTOINF", label: "V + to V", hint: "want / decide / hope / plan đi với to + động từ nguyên thể." },
-      { id: "U6_VING", label: "V + V-ing", hint: "enjoy / avoid / finish / practise đi với động từ thêm -ing." }
+    "answer": 0,
+    "explanation": "\"Unreliable\" (không đáng tin) là tính từ dài nên dùng \"more unreliable\". Vế sau dùng danh từ \"people\" đi với \"more\" để chỉ số lượng nhiều hơn."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "The more crowded the downtown becomes, the ______ the traffic jams get.",
+    "options": [
+     "A. terrible",
+     "B. more terrible",
+     "C. most terrible",
+     "D. terribly"
     ],
-    quiz: [
-      { q: "She avoids ______ fast food after school.", a: "eating", b: ["to eat", "eat"], code: "U6_VING" },
-      { q: "We hope ______ the craft village next month.", a: "to visit", b: ["visiting", "visit"], code: "U6_VTOINF" },
-      { q: "He keeps ______ the same traditional song.", a: "singing", b: ["to sing", "sing"], code: "U6_VING" }
-    ]
-  },
-  unit7: {
-    unit: 7,
-    name: "Unit 7 · Natural Wonders of the World",
-    focus: "Câu tường thuật — câu hỏi Yes/No",
-    points: [
-      {
-        title: "Tường thuật câu hỏi Yes/No",
-        rule: "Dùng asked / wanted to know + if / whether, sau đó đưa về dạng câu kể (chủ ngữ trước động từ) và lùi một thì.",
-        form: "S + asked + (O) + if/whether + S + V(lùi thì)",
-        ok: 'He asked me if I had ever seen Ha Long Bay.',
-        no: 'He asked me if had I ever seen Ha Long Bay.',
-        note: "Sau if/whether không đảo ngữ và không có dấu chấm hỏi."
-      },
-      {
-        title: "Lùi thì và đổi trạng từ",
-        rule: "Hiện tại đơn → quá khứ đơn; quá khứ đơn → quá khứ hoàn thành. today → that day, tomorrow → the next day, here → there.",
-        form: "“Do you like it?” → She asked if I liked it.",
-        ok: "She asked whether we were going there the next day.",
-        no: "She asked whether we are going here tomorrow.",
-        note: "Đại từ cũng phải đổi theo người nói."
-      }
+    "answer": 1,
+    "explanation": "\"Terrible\" (khủng khiếp) đóng vai trò là tính từ dài bổ nghĩa cho động từ liên kết \"get\", dạng so sánh hơn là \"more terrible\"."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "The ______ the public amenities are, the ______ this coastal city becomes.",
+    "options": [
+     "A. better / more attractive",
+     "B. gooder / more attractive",
+     "C. best / most attractive",
+     "D. better / attractive"
     ],
-    codes: [
-      { id: "U7_REPYN", label: "Tường thuật câu hỏi Yes/No", hint: "Dùng if/whether và giữ trật tự câu kể, không đảo ngữ." },
-      { id: "U7_REPTENSE", label: "Lùi thì khi tường thuật", hint: "Động từ phải lùi một thì so với câu gốc." }
+    "answer": 0,
+    "explanation": "\"Good\" có dạng so sánh hơn bất quy tắc là \"better\". \"Attractive\" là tính từ dài nên dùng \"more attractive\"."
+   },
+   {
+    "type": "mc",
+    "level": "medium",
+    "prompt": "The ______ the city authority carries out traffic rules, the ______ the streets are.",
+    "options": [
+     "A. more strictly / safer",
+     "B. stricter / more safe",
+     "C. strictly / safer",
+     "D. more strict / safer"
     ],
-    quiz: [
-      { q: '“Are you tired?” → She asked me ______.', a: "if I was tired", b: ["if was I tired", "if I am tired"], code: "U7_REPYN" },
-      { q: '“Did you climb the mountain?” → He asked whether I ______ the mountain.', a: "had climbed", b: ["climbed", "have climbed"], code: "U7_REPTENSE" },
-      { q: '“Will it rain today?” → They wanted to know if it ______ that day.', a: "would rain", b: ["will rain", "rains"], code: "U7_REPTENSE" }
-    ]
-  },
-  unit8: {
-    unit: 8,
-    name: "Unit 8 · Tourism",
-    focus: "Đại từ quan hệ who / whom / whose / which / that",
-    points: [
-      {
-        title: "Chọn đúng đại từ quan hệ",
-        rule: "who thay cho người làm chủ ngữ, whom thay cho người làm tân ngữ, which thay cho vật, whose chỉ sở hữu, that thay được cho who và which trong mệnh đề xác định.",
-        form: "N (người) + who/whom + … | N (vật) + which + …",
-        ok: "The guide who showed us the cave was very friendly.",
-        no: "The guide which showed us the cave was very friendly.",
-        note: "whose luôn đi kèm một danh từ ngay sau nó."
-      },
-      {
-        title: "Không lặp lại chủ ngữ",
-        rule: "Sau đại từ quan hệ không được lặp lại đại từ chỉ danh từ đứng trước.",
-        form: "The hotel which we booked … (không phải: which we booked it)",
-        ok: "This is the beach which we visited last summer.",
-        no: "This is the beach which we visited it last summer.",
-        note: "Đây là lỗi rất phổ biến do dịch theo tiếng Việt."
-      }
+    "answer": 0,
+    "explanation": "Vế đầu cần trạng từ \"strictly\" bổ nghĩa cho động từ \"carries out\" (-> more strictly). Vế sau cần tính từ ngắn \"safe\" bổ nghĩa cho \"streets are\" (-> safer)."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "The closer you live to a construction site, the ______ you will suffer from noise pollution.",
+    "options": [
+     "A. much",
+     "B. more",
+     "C. most",
+     "D. many"
     ],
-    codes: [
-      { id: "U8_RELPRON", label: "Chọn đại từ quan hệ", hint: "who cho người, which cho vật, whose cho sở hữu." },
-      { id: "U8_RELDUP", label: "Lặp tân ngữ sau đại từ quan hệ", hint: "Không dùng lại it / him / them sau which / who." }
+    "answer": 1,
+    "explanation": "Cấu trúc so sánh kép với động từ \"suffer\": \"the more you will suffer\" (bạn càng phải chịu đựng nhiều hơn)."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "The ______ the city is, the ______ it is for immigrants to find affordable housing.",
+    "options": [
+     "A. pricier / more difficult",
+     "B. more pricey / difficulter",
+     "C. pricier / difficulter",
+     "D. more pricier / more difficult"
     ],
-    quiz: [
-      { q: "That is the traveller ______ lost his passport.", a: "who", b: ["which", "whose"], code: "U8_RELPRON" },
-      { q: "The resort ______ we stayed at was affordable.", a: "which", b: ["who", "whom"], code: "U8_RELPRON" },
-      { q: "This is the souvenir which I bought ______ in Hoi An.", a: "(không cần gì)", b: ["it", "them"], code: "U8_RELDUP" }
-    ]
-  },
-  unit9: {
-    unit: 9,
-    name: "Unit 9 · World Englishes",
-    focus: "Mệnh đề quan hệ xác định",
-    points: [
-      {
-        title: "Mệnh đề quan hệ xác định",
-        rule: "Bổ nghĩa bắt buộc cho danh từ đứng trước, không dùng dấu phẩy. Bỏ đi thì câu mất nghĩa xác định.",
-        form: "N + who/which/that + V …",
-        ok: "Students who learn English online often improve quickly.",
-        no: "Students, who learn English online, often improve quickly.",
-        note: "Trong mệnh đề xác định có thể dùng that thay cho who/which."
-      },
-      {
-        title: "Lược bỏ đại từ quan hệ",
-        rule: "Khi đại từ quan hệ làm tân ngữ trong mệnh đề xác định thì có thể lược bỏ.",
-        form: "The accent (which) she uses is British.",
-        ok: "The variety of English I study is American English.",
-        no: "The variety of English which it I study is American English.",
-        note: "Không lược bỏ khi đại từ quan hệ làm chủ ngữ."
-      }
+    "answer": 0,
+    "explanation": "\"Pricey\" (đắt đỏ) kết thúc bằng đuôi 'y' nên được biến đổi như tính từ ngắn thành \"pricier\". \"Difficult\" là tính từ dài nên dùng \"more difficult\"."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "The more people throw away leftovers in the cafeteria, the ______ food waste we have to deal with.",
+    "options": [
+     "A. more",
+     "B. much",
+     "C. most",
+     "D. many"
     ],
-    codes: [
-      { id: "U9_DEFREL", label: "Mệnh đề quan hệ xác định", hint: "Không dùng dấu phẩy trước mệnh đề xác định." },
-      { id: "U9_RELOMIT", label: "Lược bỏ đại từ quan hệ", hint: "Chỉ lược bỏ được khi đại từ quan hệ làm tân ngữ." }
+    "answer": 0,
+    "explanation": "Danh từ không đếm được \"food waste\" đi kèm với \"the more\" trong cấu trúc so sánh kép để chỉ lượng rác thải thức ăn nhiều hơn."
+   },
+   {
+    "type": "mc",
+    "level": "hard",
+    "prompt": "The ______ the drop-off and pick-up time is, the ______ the pavements around the school gate become.",
+    "options": [
+     "A. busier / more packed",
+     "B. more busy / packeder",
+     "C. busier / packeder",
+     "D. more busier / more packed"
     ],
-    quiz: [
-      { q: "The teacher ______ taught us pronunciation is from Singapore.", a: "who", b: [", who", "whom"], code: "U9_DEFREL" },
-      { q: "The English ______ in India has its own accent.", a: "spoken", b: ["which speaks", "who spoken"], code: "U9_DEFREL" },
-      { q: "The word ______ you asked about is informal.", a: "(có thể bỏ which)", b: ["which it", "who"], code: "U9_RELOMIT" }
-    ]
-  },
-  unit10: {
-    unit: 10,
-    name: "Unit 10 · Planet Earth",
-    focus: "Mệnh đề quan hệ không xác định",
-    points: [
-      {
-        title: "Mệnh đề quan hệ không xác định",
-        rule: "Bổ sung thông tin thêm cho một danh từ đã xác định. Luôn tách bằng dấu phẩy và không dùng that.",
-        form: "N (đã xác định), who/which + V …",
-        ok: "The Amazon, which produces much of our oxygen, is shrinking.",
-        no: "The Amazon, that produces much of our oxygen, is shrinking.",
-        note: "Danh từ riêng, hoặc danh từ có this/my, thường đi với mệnh đề không xác định."
-      },
-      {
-        title: "which thay cho cả mệnh đề",
-        rule: "which có thể thay cho toàn bộ ý vừa nói ở trước.",
-        form: "…, which + V …",
-        ok: "Sea levels are rising, which worries many scientists.",
-        no: "Sea levels are rising, what worries many scientists.",
-        note: "Không dùng what trong trường hợp này."
-      }
+    "answer": 0,
+    "explanation": "\"Busy\" kết thúc bằng 'y' chuyển thành \"busier\". \"Packed\" (chật chội/đông đúc) là tính từ hai âm tiết kết thúc bằng đuôi '-ed', dạng so sánh hơn là \"more packed\"."
+   }
+  ],
+  "rewrite": [
+   {
+    "level": "medium",
+    "prompt": "If the city is more modern, it has more public amenities. -> The more modern the city is, _______________________.",
+    "answer": "the more public amenities it has",
+    "accepted": [
+     "the more public amenities it has.",
+     "the more public amenities there are",
+     "the more public amenities there are."
     ],
-    codes: [
-      { id: "U10_NONDEF", label: "Mệnh đề quan hệ không xác định", hint: "Có dấu phẩy và không được dùng that." },
-      { id: "U10_WHICHCL", label: "which thay cho cả mệnh đề", hint: "Dùng which, không dùng what, để thay cho ý đứng trước." }
+    "explanation": "Chuyển đổi câu điều kiện sang câu so sánh kép: \"The more modern + S + V, the more + Noun + S + V\"."
+   },
+   {
+    "level": "medium",
+    "prompt": "When the weather is dusty, my itchy eyes get worse. -> The dustier _______________________.",
+    "answer": "the weather is, the worse my itchy eyes get",
+    "accepted": [
+     "the weather is, the worse my itchy eyes become",
+     "the weather is, the worse my itchy eyes get.",
+     "the weather is, the worse my itchy eyes become."
     ],
-    quiz: [
-      { q: "Mount Everest, ______ is 8,849 m high, attracts many climbers.", a: "which", b: ["that", "what"], code: "U10_NONDEF" },
-      { q: "The ice caps are melting, ______ raises sea levels.", a: "which", b: ["what", "that"], code: "U10_WHICHCL" },
-      { q: "My father, ______ works for a climate group, often plants trees.", a: "who", b: ["that", "which"], code: "U10_NONDEF" }
-    ]
-  },
-  unit11: {
-    unit: 11,
-    name: "Unit 11 · Electronic Devices",
-    focus: "suggest / advise / recommend",
-    points: [
-      {
-        title: "suggest / recommend + V-ing hoặc + that + S + should + V",
-        rule: "suggest và recommend không đi trực tiếp với to V.",
-        form: "S + suggest/recommend + V-ing | + that + S + (should) + V",
-        ok: "I suggest turning off the device at night.",
-        no: "I suggest to turn off the device at night.",
-        note: "Cũng đúng: I suggest that you should turn off the device."
-      },
-      {
-        title: "advise + tân ngữ + to V",
-        rule: "advise có hai dạng: advise + V-ing (nói chung) và advise + O + to V (khuyên một người cụ thể).",
-        form: "S + advise + O + to V",
-        ok: "She advised me to back up my files.",
-        no: "She advised me backing up my files.",
-        note: "Phân biệt rõ: suggest không dùng được mẫu suggest + O + to V."
-      }
+    "explanation": "Tính từ \"dusty\" chuyển thành \"the dustier\", tính từ \"bad\" (trong từ \"worse\") chuyển thành \"the worse\" ở vế sau."
+   },
+   {
+    "level": "hard",
+    "prompt": "As the public transport system becomes more unreliable, people hang out with friends less often. -> The more unreliable _______________________.",
+    "answer": "the public transport system becomes, the less often people hang out with friends",
+    "accepted": [
+     "the public transport system is, the less often people hang out with friends",
+     "the public transport system becomes, the less people hang out with friends",
+     "the public transport system is, the less people hang out with friends."
     ],
-    codes: [
-      { id: "U11_SUGGEST", label: "suggest / recommend", hint: "Đi với V-ing hoặc that + S + should + V, không dùng to V." },
-      { id: "U11_ADVISE", label: "advise + O + to V", hint: "Khi có tân ngữ chỉ người thì advise đi với to V." }
+    "explanation": "So sánh kép kết hợp trạng từ chỉ tần suất: \"the more unreliable + S + V, the less often + S + V\"."
+   },
+   {
+    "level": "hard",
+    "prompt": "If the city authority doesn't clean the construction sites, the air pollution will be very bad. -> The less the city authority cleans the construction sites, _______________________.",
+    "answer": "the worse the air pollution will be",
+    "accepted": [
+     "the worse the air pollution is",
+     "the worse the air pollution becomes",
+     "the worse the air pollution will be.",
+     "the worse the air pollution is.",
+     "the worse the air pollution becomes."
     ],
-    quiz: [
-      { q: "He suggested ______ a new laptop.", a: "buying", b: ["to buy", "buy"], code: "U11_SUGGEST" },
-      { q: "The teacher advised us ______ our passwords.", a: "to change", b: ["changing", "change"], code: "U11_ADVISE" },
-      { q: "I recommend that she ______ the app first.", a: "should try", b: ["to try", "trying"], code: "U11_SUGGEST" }
-    ]
-  },
-  unit12: {
-    unit: 12,
-    name: "Unit 12 · Career Choices",
-    focus: "Mệnh đề trạng ngữ: nhượng bộ · kết quả · lí do",
-    points: [
-      {
-        title: "Nhượng bộ — although / though / even though / despite / in spite of",
-        rule: "although + mệnh đề; despite / in spite of + danh từ hoặc V-ing.",
-        form: "Although + S + V, S + V. | Despite + N/V-ing, S + V.",
-        ok: "Despite working hard, he did not get the job.",
-        no: "Despite he worked hard, he did not get the job.",
-        note: "Sau despite / in spite of không được có mệnh đề đầy đủ."
-      },
-      {
-        title: "Kết quả — so / such … that · Lí do — because / since / due to",
-        rule: "so + tính từ/trạng từ + that; such + (a/an) + tính từ + danh từ + that. because + mệnh đề; due to + danh từ.",
-        form: "S + be + so + adj + that + S + V | due to + N",
-        ok: "The training was so demanding that many students quit.",
-        no: "The training was so demanding job that many students quit.",
-        note: "Có danh từ thì phải dùng such, không dùng so."
-      }
-    ],
-    codes: [
-      { id: "U12_CONCESS", label: "although / despite", hint: "although + mệnh đề; despite + danh từ hoặc V-ing." },
-      { id: "U12_SOSUCH", label: "so / such … that", hint: "so + tính từ; such + (a/an) + tính từ + danh từ." },
-      { id: "U12_REASON", label: "because / due to", hint: "because + mệnh đề; due to + danh từ." }
-    ],
-    quiz: [
-      { q: "______ his low salary, he loves his job.", a: "Despite", b: ["Although", "Because"], code: "U12_CONCESS" },
-      { q: "It was ______ an interesting career that she changed her plan.", a: "such", b: ["so", "very"], code: "U12_SOSUCH" },
-      { q: "The factory closed ______ a lack of orders.", a: "due to", b: ["because", "although"], code: "U12_REASON" }
-    ]
-  }
+    "explanation": "\"The less + S + V\" (càng ít làm gì) đi kèm với vế sau chỉ kết quả tồi tệ hơn: \"the worse the air pollution will be\"."
+   }
+  ]
+ }
 };
-
-// Tổng: 12 unit · 24 điểm ngữ pháp · 25 mã lỗi theo unit · 36 câu luyện tập.
-// Cộng với 12 mã lỗi nền trong speaking-scorer.js, Phòng Chữa Lỗi nhận ra 37 dạng lỗi.

@@ -39,3 +39,8 @@ uploads/
 
 # OS-specific files
 .DS_Store
+
+# Ban sao tam / cache sinh noi dung
+*.bak
+*.part
+public/data/unit-cache/

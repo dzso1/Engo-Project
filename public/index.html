@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="./images/engocircle.png?v=2">
   <link rel="shortcut icon" type="image/png" href="./images/engocircle.png?v=2">
   <link rel="apple-touch-icon" href="./images/engocircle.png?v=2">
-  <link rel="stylesheet" href="./styles.css?v=3" />
+  <link rel="stylesheet" href="./styles.css?v=5" />
 </head>
 <body>
 
@@ -154,12 +154,16 @@
           <div class="card panel">
             <div class="section-head">
               <div><h3>Danh sách đề</h3><p class="small muted" id="testsVariantHint"></p></div>
-              <select class="role-select" id="testsStatusFilter"><option value="">Tất cả trạng thái</option><option value="todo">Chưa làm</option><option value="done">Đã nộp</option></select>
+              <div class="results-controls">
+                <select class="role-select" id="testsSemesterFilter"><option value="">Cả 2 học kỳ</option><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select>
+                <select class="role-select" id="testsTypeFilter"><option value="">Tất cả loại</option><option value="kttx">Kiểm tra thường xuyên</option><option value="ktgk">Kiểm tra giữa kỳ</option><option value="ktck">Kiểm tra cuối kỳ</option></select>
+                <select class="role-select" id="testsStatusFilter"><option value="">Tất cả trạng thái</option><option value="todo">Chưa làm</option><option value="done">Đã nộp</option></select>
+              </div>
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Tên bài</th><th>Lớp</th><th>Cấu trúc</th><th>Độ khó (AI)</th><th>Thời gian</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-                <tbody id="testsTableBody"><tr><td colspan="7" class="small muted" style="text-align:center;padding:24px">Đang tải bài kiểm tra...</td></tr></tbody>
+                <thead><tr><th>Tên bài</th><th>Loại</th><th>Lớp</th><th>Cấu trúc</th><th>Độ khó (AI)</th><th>Thời gian</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <tbody id="testsTableBody"><tr><td colspan="8" class="small muted" style="text-align:center;padding:24px">Đang tải bài kiểm tra...</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -244,12 +248,13 @@
             <div class="section-head">
               <div><h3>Danh sách bài luyện nói</h3><p class="small muted">Mỗi bài giáo viên giao là một dòng riêng. Chọn "Luyện" để bắt đầu.</p></div>
               <div class="results-controls">
+                <select class="role-select" id="speakingUnitFilter"><option value="">Tất cả Unit</option></select>
                 <select class="role-select" id="speakingStageFilter"><option value="">Tất cả giai đoạn</option><option value="1">Giai đoạn 1 · Câu đơn</option><option value="2">Giai đoạn 2 · Hội thoại</option></select>
               </div>
             </div>
             <div class="table-wrap">
               <table class="speaking-table">
-                <thead><tr><th>STT</th><th>Bài luyện</th><th>Giai đoạn</th><th>Nguồn</th><th>Số câu</th><th>Tiến độ của bạn</th><th>Thao tác</th></tr></thead>
+                <thead><tr><th>STT</th><th>Bài luyện</th><th>Unit</th><th>Giai đoạn</th><th>Nguồn</th><th>Số câu</th><th>Tiến độ của bạn</th><th>Thao tác</th></tr></thead>
                 <tbody id="speakingTableBody"><tr><td colspan="7" class="small muted" style="text-align:center;padding:24px">Đang tải bài luyện nói...</td></tr></tbody>
               </table>
             </div>
@@ -351,7 +356,7 @@
             <button class="healing-tab" data-healing-tab="history">✅ Đã chữa khỏi</button>
           </div>
           <div class="healing-panel active" id="healingPanel-pronunciation"><div id="healingPronList"></div></div>
-          <div class="healing-panel" id="healingPanel-grammar"><div id="healingPendingList"></div></div>
+          <div class="healing-panel" id="healingPanel-grammar"><div id="healingPendingList"></div><div id="healingUnitGrammarList" style="margin-top:14px"></div></div>
           <div class="healing-panel" id="healingPanel-test"><div id="healingTestList"></div></div>
           <div class="healing-panel" id="healingPanel-heatmap"><div class="card panel"><div id="grammarHeatmapContainer"></div></div></div>
           <div class="healing-panel" id="healingPanel-history"><div id="healingHistoryList"></div></div>
@@ -432,11 +437,11 @@
           <!-- TAB BÀI KIỂM TRA -->
           <section class="healing-panel" id="teacherPanel-tests">
             <div class="card panel">
-              <div class="section-head"><div><h3>Bài kiểm tra đã tạo</h3><p class="small muted">AI phân tích độ khó từng câu và đề xuất thời gian; lớp tăng cường nhận bản đầy đủ, lớp thường nhận bản rút gọn theo ma trận.</p></div><button class="btn btn-light btn-sm" id="refreshTeacherTestsBtn">Làm mới</button></div>
+              <div class="section-head"><div><h3>Bài kiểm tra đã tạo</h3><div class="results-controls" style="margin-top:6px"><select class="role-select" id="teacherTestsSemesterFilter"><option value="">Cả 2 học kỳ</option><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select><select class="role-select" id="teacherTestsTypeFilter"><option value="">Tất cả loại</option><option value="kttx">KTTX</option><option value="ktgk">KTGK</option><option value="ktck">KTCK</option></select></div><p class="small muted">AI phân tích độ khó từng câu và đề xuất thời gian; lớp tăng cường nhận bản đầy đủ, lớp thường nhận bản rút gọn theo ma trận.</p></div><button class="btn btn-light btn-sm" id="refreshTeacherTestsBtn">Làm mới</button></div>
               <div class="table-wrap">
                 <table id="teacherRecentTestsTable">
-                  <thead><tr><th>Tên bài</th><th>Giao cho</th><th>Cấu trúc</th><th>Độ khó (AI)</th><th>Thời gian</th><th>Ma trận</th><th>Ngày tạo</th><th></th></tr></thead>
-                  <tbody id="teacherRecentTestsBody"><tr><td colspan="8" class="small muted" style="text-align:center">Đang tải danh sách bài...</td></tr></tbody>
+                  <thead><tr><th>Tên bài</th><th>Loại · HK</th><th>Giao cho</th><th>Cấu trúc</th><th>Độ khó (AI)</th><th>Thời gian</th><th>Ma trận</th><th>Ngày tạo</th><th></th></tr></thead>
+                  <tbody id="teacherRecentTestsBody"><tr><td colspan="9" class="small muted" style="text-align:center">Đang tải danh sách bài...</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -862,8 +867,11 @@
       <form id="uploadDocxForm" class="form-grid">
         <div class="field full"><label>Chọn file DOCX đề thi</label><input type="file" id="docxModalFileInput" accept=".docx" required /></div>
         <div class="field full"><label>Tên bài kiểm tra</label><input id="docxModalTitle" placeholder="Ví dụ: Đề kiểm tra học kỳ 2 - Tiếng Anh 9" /></div>
+        <div class="field"><label>Loại kiểm tra</label><select id="docxModalType"><option value="kttx">Kiểm tra thường xuyên (KTTX)</option><option value="ktgk">Kiểm tra giữa kỳ (KTGK)</option><option value="ktck">Kiểm tra cuối kỳ (KTCK)</option></select></div>
+        <div class="field"><label>Học kỳ</label><select id="docxModalSemester"><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select></div>
+        <div class="field"><label>Unit (tuỳ chọn, cho KTTX)</label><select id="docxModalUnit"><option value="">— Không gắn Unit —</option></select></div>
         <div class="field"><label>Giao cho lớp</label><input id="docxModalClass" list="classNameList" placeholder="Bỏ trống = toàn khối" /></div>
-        <div class="field"><label>Ma trận đề (tuỳ chọn)</label><select id="docxModalMatrix"><option value="">Mặc định (AI tự phân tầng)</option></select></div>
+        <div class="field full"><label>Ma trận đề (tuỳ chọn)</label><select id="docxModalMatrix"><option value="">Mặc định (AI tự phân tầng)</option></select></div>
         <div class="field full small muted" style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px 12px;line-height:1.5">Lớp được đánh dấu <strong>tăng cường</strong> nhận đề đầy đủ (nhiều câu vận dụng); lớp <strong>thường</strong> nhận bản rút gọn bớt câu khó theo tỉ lệ ma trận, thời gian được AI cân đối. Cấu hình ở nút "Phân loại lớp".</div>
         <div class="field full" style="display:flex;gap:10px;margin-top:6px"><button type="button" class="btn btn-light create-close" style="flex:1">Hủy</button><button type="submit" class="btn btn-primary" style="flex:1" id="submitDocxBtn">Tạo & Giao bài</button></div>
       </form>
@@ -1030,15 +1038,16 @@
 
   <div class="toast" id="toast">Đã lưu</div>
 
-  <script src="./data/healing-bank.js?v=3"></script>
-  <script src="./data/vocab-decks.js?v=3"></script>
-  <script src="./data/speaking-sets.js?v=3"></script>
-  <script src="./data/vocab-units.js?v=4"></script>
-  <script src="./data/grammar-units.js?v=4"></script>
-  <script src="./data/speaking-units.js?v=4"></script>
-  <script src="./data/listening-units.js?v=4"></script>
-  <script src="./data/exam-bank.js?v=4"></script>
-  <script src="./script.js?v=4" defer></script>
-  <script src="./units-ui.js?v=4" defer></script>
+  <script src="./data/healing-bank.js?v=5"></script>
+  <script src="./data/vocab-decks.js?v=5"></script>
+  <script src="./data/speaking-sets.js?v=5"></script>
+  <script src="./data/vocab-units.js?v=5"></script>
+  <script src="./data/grammar-units.js?v=5"></script>
+  <script src="./data/speaking-units.js?v=5"></script>
+  <script src="./data/listening-units.js?v=5"></script>
+  <script src="./data/listening-sets.js?v=5"></script>
+  <script src="./data/exam-bank.js?v=5"></script>
+  <script src="./script.js?v=5" defer></script>
+  <script src="./units-ui.js?v=5" defer></script>
 </body>
 </html>

@@ -163,9 +163,15 @@ async function getEventProgress(studentId) {
   const vocabAvg = vocab.length ? Math.round(vocab.reduce((s, e) => s + (e.maxScore ? (e.score / e.maxScore) * 100 : Number(e.score || 0)), 0) / vocab.length) : 0;
   const uniqueSets = new Set(vocab.map(e => e.refId || e.title)).size;
   const healing = events.filter(e => e.type === "healing");
+  const pct = list => list.length ? Math.round(list.reduce((s, e) => s + (e.maxScore ? (e.score / e.maxScore) * 100 : Number(e.score || 0)), 0) / list.length) : 0;
+  const listening = events.filter(e => e.type === "listening");
+  const grammar = events.filter(e => e.type === "grammar");
+  const unitsOf = list => new Set(list.map(e => e.meta?.unit || e.refId)).size;
   return {
     events: events.slice(0, 40),
     vocab: { sessions: vocab.length, setsCompleted: uniqueSets, avgQuizPercent: vocabAvg, recent: vocab.slice(0, 5) },
+    listening: { sessions: listening.length, avgPercent: pct(listening), unitsDone: unitsOf(listening), recent: listening.slice(0, 5) },
+    grammar: { sessions: grammar.length, avgPercent: pct(grammar), unitsDone: unitsOf(grammar), recent: grammar.slice(0, 5) },
     healing: { healed: healing.length, recent: healing.slice(0, 5) },
     activeDays: new Set(events.map(e => new Date(e.createdAt).toISOString().slice(0, 10))).size
   };
@@ -176,10 +182,12 @@ function buildSkillScores({ tests, speaking, eventsInfo }) {
   const speakingPct = speaking.totalAttempts ? speaking.avgAccuracy : 0;
   const vocabPct = eventsInfo.vocab.sessions ? eventsInfo.vocab.avgQuizPercent : 0;
   const grammarSignal = speaking.totalAttempts ? Math.max(0, 100 - Object.values(speaking.grammarErrors || {}).reduce((s, n) => s + n, 0) * 4) : 0;
-  const grammar = tests.count ? Math.round((testPct * 0.7) + (grammarSignal ? grammarSignal * 0.3 : testPct * 0.3)) : (grammarSignal || 0);
+  const grammarPractice = eventsInfo.grammar.sessions ? eventsInfo.grammar.avgPercent : 0;
+  const grammarParts = [tests.count ? testPct : null, grammarPractice || null, grammarSignal || null].filter(v => v !== null);
+  const grammar = grammarParts.length ? Math.round(grammarParts.reduce((s, v) => s + v, 0) / grammarParts.length) : 0;
   const writingScored = tests.history.filter(h => h.status === "graded");
   const writing = writingScored.length ? Math.round(writingScored.reduce((s, h) => s + h.scoreOnTen, 0) / writingScored.length * 10) : (tests.count ? Math.round(testPct * 0.8) : 0);
-  const listening = speaking.totalAttempts ? Math.round(speakingPct * 0.85 + (eventsInfo.activeDays * 2)) : 0;
+  const listening = eventsInfo.listening.sessions ? eventsInfo.listening.avgPercent : (speaking.totalAttempts ? Math.round(speakingPct * 0.7) : 0);
   return {
     Listening: Math.min(100, listening),
     Speaking: Math.min(100, speakingPct),
@@ -196,7 +204,8 @@ function computeTitles({ tests, speaking, eventsInfo }) {
   push("pron_king", "Vua Phát Âm", "🎙️", "Trung bình phát âm ≥ 85% với ít nhất 15 lượt luyện", speaking.totalAttempts >= 15 && speaking.avgAccuracy >= 85);
   push("pron_rising", "Ngôi Sao Phát Âm", "🌟", "Đạt ít nhất một lượt ≥ 95%", speaking.bestAccuracy >= 95);
   push("dialogue_master", "Bậc Thầy Hội Thoại", "💬", "Hoàn thành giai đoạn 2 với trung bình ≥ 80%", (speaking.stages[2]?.attempts || 0) >= 8 && (speaking.stages[2]?.avgAccuracy || 0) >= 80);
-  push("grammar_king", "Vua Ngữ Pháp", "📘", "Điểm kiểm tra trung bình ≥ 8.5 (≥ 3 bài)", tests.count >= 3 && tests.avgScore >= 8.5);
+  push("grammar_king", "Vua Ngữ Pháp", "📘", "Điểm kiểm tra TB ≥ 8.5 (≥ 3 bài) hoặc bài tập ngữ pháp ≥ 85% ở 6 unit", (tests.count >= 3 && tests.avgScore >= 8.5) || (eventsInfo.grammar.unitsDone >= 6 && eventsInfo.grammar.avgPercent >= 85));
+  push("listening_king", "Vua Nghe", "🎧", "Luyện nghe ≥ 6 bài với trung bình ≥ 85%", eventsInfo.listening.sessions >= 6 && eventsInfo.listening.avgPercent >= 85);
   push("test_ace", "Chiến Binh Phòng Thi", "🛡️", "Hoàn thành 5 bài kiểm tra không vi phạm", tests.count >= 5 && tests.history.every(h => !h.tabViolations));
   push("vocab_king", "Vua Từ Vựng", "🔤", "Hoàn thành 5 bộ từ vựng với điểm ≥ 80%", eventsInfo.vocab.setsCompleted >= 5 && eventsInfo.vocab.avgQuizPercent >= 80);
   push("healer", "Bác Sĩ Ngữ Pháp", "🩺", "Chữa khỏi 10 lỗi trong Phòng chữa lỗi", eventsInfo.healing.healed >= 10);
@@ -219,6 +228,8 @@ async function buildStudentProgress(studentId) {
     tests,
     speaking,
     vocab: eventsInfo.vocab,
+    listening: eventsInfo.listening,
+    grammar: eventsInfo.grammar,
     healing: eventsInfo.healing,
     events: eventsInfo.events,
     activeDays: eventsInfo.activeDays,

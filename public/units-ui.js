@@ -24,6 +24,39 @@
   const say = (t, rate, onDone) => (window.speakEnglishText ? window.speakEnglishText(t, { rate: rate || 0.85, onDone }) : onDone && onDone());
   const reward = (xp, carrots, why) => { try { window.gainRewards && window.gainRewards(xp, carrots, why || ""); } catch (_) {} };
   const $ = (sel, root) => (root || document).querySelector(sel);
+  // script.js khai báo bằng let/const nên không nằm trên window -> đọc qua tên toàn cục
+  const CU = () => { try { return typeof currentUser !== "undefined" ? currentUser : null; } catch (_) { return null; } };
+  const TESTS = () => { try { if (typeof testsCache !== "undefined" && Array.isArray(testsCache) && testsCache.length) return testsCache; } catch (_) {} try { if (typeof teacherTestsCache !== "undefined" && Array.isArray(teacherTestsCache)) return teacherTestsCache; } catch (_) {} return []; };
+  // Ghi nhận kết quả lên server (tiến độ, danh hiệu) — bỏ qua nếu chưa đăng nhập
+  async function logEvent(type, refId, title, score, maxScore, meta) {
+    try {
+      const cu = CU();
+      if (typeof apiRequest !== "function" || !cu || cu.role !== "student") return;
+      await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type, refId, title, score, maxScore, meta }) });
+      if (typeof invalidateProgress === "function") invalidateProgress();
+    } catch (_) {}
+  }
+  // Câu ví dụ do AI sinh sẵn (data/vocab-decks.js) tra theo từ
+  function exampleFor(unit, word) {
+    const deck = (window.ENGO_VOCAB_DECKS || {})["unit" + unit];
+    if (!deck) return null;
+    const key = String(word).toLowerCase().replace(/s*(.*?)s*/g, " ").trim();
+    const c = deck.cards.find(x => x.word.toLowerCase() === key) || deck.cards.find(x => key.startsWith(x.word.toLowerCase()) || x.word.toLowerCase().startsWith(key));
+    return c && c.examples && c.examples[0] ? { en: c.examples[0], vi: c.exampleVi || "" } : null;
+  }
+  // Gộp bài nghe do AI sinh (data/listening-sets.js) vào bộ nghe theo unit (cùng định dạng tasks)
+  function listeningTasks(u) {
+    const base = (LISTEN()["unit" + u] || {}).tasks || [];
+    const ai = ((window.ENGO_LISTENING_SETS || {})["unit" + u] || {}).levels || [];
+    const LV = { easy: 1, medium: 2, hard: 3 };
+    const extra = ai.map(l => ({
+      level: LV[l.level] || 2, rate: l.level === "easy" ? 0.82 : l.level === "medium" ? 0.9 : 0.95, ai: true,
+      title: l.title + " (AI)", intro: l.intro || "",
+      script: (l.script || []).join(" "),
+      qs: (l.questions || []).map(q => ({ type: "mcq", q: q.prompt, opts: (q.options || []).map(o => String(o).replace(/^[A-D]\.\s*/, "")), a: Number(q.answer) || 0, why: q.explanation || "" }))
+    })).filter(t => t.qs.length && t.script);
+    return [...base, ...extra].sort((a, b) => a.level - b.level);
+  }
 
   /* ---------------------------- lưu tiến độ ---------------------------- */
   function storeKey() {
@@ -77,12 +110,13 @@
                 <b>${esc(c.w)}</b> ${c.pos ? `<span class="unit-pos">${esc(c.pos)}</span>` : ""}
                 <div class="small muted">${esc(c.ipa)}</div>
                 <div class="unit-vi">${esc(c.vi)}</div>
+                ${(ex => ex ? `<div class="unit-ex"><button type="button" class="unit-say mini" data-say="${esc(ex.en)}" title="Nghe câu ví dụ">🔊</button><em>${esc(ex.en)}</em>${ex.vi ? `<div class="small muted">${esc(ex.vi)}</div>` : ""}</div>` : "")(exampleFor(u, c.w))}
               </div>
             </div>`).join("")}
         </div>
       </div>`).join("");
 
-    const grammar = !gram ? '<p class="small muted">Chưa có dữ liệu ngữ pháp cho unit này.</p>' : `
+    const grammar = !gram ? '<p class="small muted">Chưa có dữ liệu ngữ pháp cho unit này.</p>' : Array.isArray(gram.exercises) ? grammarAiHTML(u, gram) : `
       <p class="unit-focus"><b>Trọng tâm:</b> ${esc(gram.focus)}</p>
       ${gram.points.map(pt => `
         <div class="unit-rule">
@@ -126,6 +160,73 @@
       </div>`;
   }
 
+  // Ngữ pháp định dạng AI (scripts/generate-unit-content.js): points / exercises / rewrite
+  const LVN = { easy: "Dễ", medium: "Vừa", hard: "Khó" };
+  function grammarAiHTML(u, gram) {
+    const theory = (gram.points || []).map(pt => `
+      <div class="unit-rule">
+        <h4>${esc(pt.name)}</h4>
+        <p>${esc(pt.explanation)}</p>
+        ${pt.formula ? `<div class="unit-form">${esc(pt.formula)}</div>` : ""}
+        ${(pt.examples || []).map(e => `<div class="unit-ok"><button type="button" class="unit-say mini" data-say="${esc(e.en)}">🔊</button> ${esc(e.en)} <span class="small muted">— ${esc(e.vi)}</span></div>`).join("")}
+        ${(pt.notes || []).map(nt => `<p class="small muted">• ${esc(nt)}</p>`).join("")}
+      </div>`).join("");
+    const mc = (gram.exercises || []).map((q, i) => `
+      <div class="unit-q" data-mc="${i}" data-answer="${Number(q.answer)}" data-level="${esc(q.level)}">
+        <p><span class="unit-lv lv${q.level === "easy" ? 1 : q.level === "medium" ? 2 : 3}">${LVN[q.level] || "Vừa"}</span> <b>${i + 1}.</b> ${esc(q.prompt)}</p>
+        <div class="unit-opts">${(q.options || []).map((o, k) => `<button type="button" class="unit-opt" data-val="${k}">${esc(o)}</button>`).join("")}</div>
+        <div class="unit-why hidden">${esc(q.explanation || "")}</div>
+      </div>`).join("");
+    const rw = (gram.rewrite || []).map((q, i) => `
+      <div class="unit-q" data-rw="${i}">
+        <p><span class="unit-lv lv3">Viết lại</span> <b>${i + 1}.</b> ${esc(q.prompt)}</p>
+        <input class="unit-gap wide" type="text" placeholder="Viết câu trả lời...">
+        <div class="unit-why hidden"><b>Đáp án:</b> ${esc(q.answer)} <span class="small muted">— ${esc(q.explanation || "")}</span></div>
+      </div>`).join("");
+    return `
+      <div class="unit-theory">${theory}</div>
+      <div class="unit-quiz" id="unitGrammarQuiz">
+        <h4>Bài tập vận dụng (dễ → khó)</h4>
+        ${mc}
+        ${rw ? `<h4 style="margin-top:14px">Viết lại câu</h4>${rw}` : ""}
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+          <button class="btn btn-primary btn-sm" id="unitGrammarCheck" type="button">Kiểm tra đáp án</button>
+          <span class="small muted" id="unitGrammarScore"></span>
+        </div>
+      </div>`;
+  }
+  function normalizeAns(v) { return String(v || "").toLowerCase().replace(/[.,!?;:"']/g, "").replace(/\s+/g, " ").trim(); }
+  function checkAiGrammar(host, u, gram) {
+    let right = 0, total = 0;
+    const wrongList = [];
+    host.querySelectorAll("[data-mc]").forEach(q => {
+      total++;
+      const ex = gram.exercises[Number(q.dataset.mc)];
+      const picked = q.querySelector(".unit-opt.picked");
+      const ok = picked && Number(picked.dataset.val) === Number(q.dataset.answer);
+      if (ok) right++; else wrongList.push({ prompt: ex.prompt, selected: picked ? ex.options[Number(picked.dataset.val)] : "—", correct: ex.options[Number(ex.answer)], explanation: ex.explanation });
+      q.querySelectorAll(".unit-opt").forEach(o => { o.classList.toggle("right", Number(o.dataset.val) === Number(q.dataset.answer)); o.classList.toggle("wrong", o === picked && !ok); });
+      q.querySelector(".unit-why").classList.remove("hidden");
+    });
+    host.querySelectorAll("[data-rw]").forEach(q => {
+      total++;
+      const ex = gram.rewrite[Number(q.dataset.rw)];
+      const input = q.querySelector("input");
+      const val = normalizeAns(input.value);
+      const ok = Boolean(val) && [ex.answer, ...(ex.accepted || [])].map(normalizeAns).includes(val);
+      if (ok) right++; else wrongList.push({ prompt: ex.prompt, selected: input.value || "—", correct: ex.answer, explanation: ex.explanation });
+      input.classList.toggle("right", ok); input.classList.toggle("wrong", !ok);
+      q.querySelector(".unit-why").classList.remove("hidden");
+    });
+    const pct = total ? Math.round((right / total) * 100) : 0;
+    $("#unitGrammarScore").textContent = `Đúng ${right}/${total} (${pct}%)`;
+    if (wrongList.length && typeof recordUnitGrammarErrors === "function") recordUnitGrammarErrors(u, gram.title || `Unit ${u}`, wrongList);
+    wrongList.forEach(() => api.pushError("U" + u));
+    logEvent("grammar", "unit" + u, `Ngữ pháp Unit ${u}: ${gram.title || ""}`, right, total, { unit: u, percent: pct });
+    if (pct >= 80 && markDone("grammar", "u" + u)) { reward(30, 3, `Ngữ pháp Unit ${u}`); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3 🥕`); }
+    else if (pct < 80) toast(`Đúng ${right}/${total}. Xem giải thích và làm lại để đạt ≥ 80% nhé!`);
+  }
+
   function mountVocab() {
     const view = document.getElementById("vocabulary");
     if (!view) return;
@@ -150,7 +251,9 @@
       o.classList.add("picked");
     })));
     const check = document.getElementById("unitGrammarCheck");
-    if (check) check.addEventListener("click", () => {
+    const gramData = GRAM()["unit" + state.vocabUnit];
+    if (check && gramData && Array.isArray(gramData.exercises)) check.addEventListener("click", () => checkAiGrammar(host, state.vocabUnit, gramData));
+    else if (check) check.addEventListener("click", () => {
       const qs = [...host.querySelectorAll(".unit-q")];
       let right = 0;
       qs.forEach(q => {
@@ -216,9 +319,11 @@
     const host = document.getElementById("listeningMount");
     if (!host) return;
     const u = state.listenUnit;
-    const set = LISTEN()["unit" + u];
+    const base = LISTEN()["unit" + u];
+    const set = base ? { ...base, tasks: listeningTasks(u) } : null;
     const badge = document.getElementById("listenProgressBadge");
-    if (badge) badge.textContent = `${countDone("listen")} / 36 đoạn`;
+    const totalTasks = UNITS.reduce((a, x) => a + listeningTasks(x).length, 0);
+    if (badge) badge.textContent = `${countDone("listen")} / ${totalTasks} đoạn`;
     if (!set) { host.innerHTML = '<div class="card panel"><p class="small muted">Chưa nạp được dữ liệu luyện nghe.</p></div>'; return; }
 
     host.innerHTML = `
@@ -233,7 +338,7 @@
         <div class="card panel unit-panel" data-task="${ti}">
           <div class="section-head">
             <div><h3><span class="unit-lv lv${t.level}">Cấp ${t.level}</span> ${esc(t.title)}</h3>
-              <p class="small muted">${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "l" + t.level] ? "· ✅ đã hoàn thành" : ""}</p></div>
+              <p class="small muted">${t.intro ? esc(t.intro) + " · " : ""}${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "t" + ti] ? "· ✅ đã hoàn thành" : ""}</p></div>
             <div style="display:flex;gap:8px;align-items:center">
               <button class="btn btn-primary btn-sm" data-play="${ti}" type="button">▶ Nghe</button>
               <span class="small muted" data-plays="${ti}">Còn 3 lượt</span>
@@ -293,10 +398,12 @@
           if (ok) right++;
         });
         host.querySelector(`[data-score="${ti}"]`).textContent = `Đúng ${right}/${t.qs.length}`;
-        if (right === t.qs.length && markDone("listen", "u" + u + "l" + t.level)) {
+        host.querySelectorAll(`[data-task="${ti}"] .unit-why`).forEach(w => w.classList.remove("hidden"));
+        logEvent("listening", "u" + u + "t" + ti, `Nghe Unit ${u} · ${t.title}`, right, t.qs.length, { unit: u, level: t.level, ai: Boolean(t.ai) });
+        if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", "u" + u + "t" + ti)) {
           reward(30, 3, `Nghe Unit ${u} cấp ${t.level}`);
           toast(`Hoàn thành đoạn nghe: +30 XP, +3 🥕`);
-          if (badge) badge.textContent = `${countDone("listen")} / 36 đoạn`;
+          if (badge) badge.textContent = `${countDone("listen")} / ${totalTasks} đoạn`;
         }
       });
     });
@@ -306,7 +413,7 @@
     const head = `<p><b>${qi + 1}.</b> ${esc(q.q)}</p>`;
     if (q.type === "gap") return `<div class="unit-q" data-q="${qi}">${head}<input class="unit-gap" type="text" placeholder="Điền từ nghe được"></div>`;
     const opts = q.type === "tf" ? ["Đúng", "Sai"] : q.opts;
-    return `<div class="unit-q" data-q="${qi}">${head}<div class="unit-opts">${opts.map(o => `<button type="button" class="unit-opt" data-val="${esc(o)}">${esc(o)}</button>`).join("")}</div></div>`;
+    return `<div class="unit-q" data-q="${qi}">${head}<div class="unit-opts">${opts.map(o => `<button type="button" class="unit-opt" data-val="${esc(o)}">${esc(o)}</button>`).join("")}</div>${q.why ? `<div class="unit-why hidden">${esc(q.why)}</div>` : ""}</div>`;
   }
 
   /* ============================== 4. NGÂN HÀNG ĐỀ ============================== */
@@ -323,6 +430,20 @@
     const term = state.examTerm;
     const specs = B.byTerm(term);
     const TYPEN = { KTTX: "Thường xuyên", KTGK: "Giữa kì", KTCK: "Cuối kì" };
+    const cu = CU();
+    const isTeacher = cu && (cu.role === "teacher" || cu.role === "admin");
+    const tests = TESTS();
+    const forSpec = s => tests.filter(t => String(t.testType || "kttx").toUpperCase() === s.type && Number(t.semester || 1) === s.term && (s.type !== "KTTX" || !t.unitNo || (s.units || []).includes(Number(t.unitNo))));
+    const bankCell = s => {
+      const list = forSpec(s);
+      const rows = list.slice(0, 4).map(t => {
+        const sub = t.submission;
+        const btn = isTeacher ? "" : sub ? `<span class="badge green">${sub.scoreOnTen}/10</span>` : `<button type="button" class="btn btn-primary btn-sm" data-take="${t.id}">Làm bài</button>`;
+        return `<div class="unit-bank-row"><span>${esc(t.title)}${t.className ? ` <span class="small muted">(${esc(t.className)})</span>` : ""}</span>${btn}</div>`;
+      }).join("");
+      const upload = isTeacher ? `<button type="button" class="btn btn-soft btn-sm" data-upload-spec="${esc(s.id)}">＋ Nạp đề Word</button>` : "";
+      return (rows || '<span class="small muted">Chưa có đề — giáo viên nạp từ ngân hàng của tổ.</span>') + (upload ? `<div style="margin-top:6px">${upload}</div>` : "");
+    };
 
     host.innerHTML = `
       <div class="card panel unit-panel">
@@ -347,13 +468,18 @@
                   <td>${s.minutes} phút</td>
                   <td class="small">${s.sections.map(x => `${esc(x.skill)} <b>${x.n}</b> câu · ${x.pts} đ`).join("<br>")}</td>
                   <td class="small">${s.matrix.NB}% – ${s.matrix.TH}% – ${s.matrix.VD}% – ${s.matrix.VDC}%</td>
-                  <td>${B.hasBank(s.id) ? '<span class="unit-ok" style="display:inline">✔ Đã nạp</span>' : '<span class="small muted">Chưa nạp — giáo viên tải đề Word lên</span>'}</td>
+                  <td>${bankCell(s)}</td>
                 </tr>`).join("")}
             </tbody>
           </table>
         </div>
       </div>`;
     host.querySelectorAll("[data-term]").forEach(b => b.addEventListener("click", () => { state.examTerm = Number(b.dataset.term); mountExams(); }));
+    host.querySelectorAll("[data-take]").forEach(b => b.addEventListener("click", () => typeof startImportedTest === "function" && startImportedTest(b.dataset.take)));
+    host.querySelectorAll("[data-upload-spec]").forEach(b => b.addEventListener("click", () => {
+      const spec = specs.find(x => x.id === b.dataset.uploadSpec);
+      if (typeof openCreateTestForSpec === "function") openCreateTestForSpec(spec);
+    }));
   }
 
   /* ============================== 5. TỔNG KẾT ============================== */
@@ -397,6 +523,7 @@
       } catch (_) {}
     },
     errorMap() { return loadProg().errors || {}; },
+    refreshExams() { try { if (document.getElementById("tests")?.classList.contains("active")) mountExams(); } catch (_) {} },
     stats() {
       return { grammarDone: countDone("grammar"), listenDone: countDone("listen"), errors: api.errorMap() };
     }
