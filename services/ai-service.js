@@ -369,7 +369,8 @@ async function callCloudLlm(messages, timeoutMs = 20000) {
       parts: [{ text: m.content }]
     }));
     const systemInstruction = messages.find(m => m.role === 'system')?.content || "You are Capybara, a friendly, witty, smart AI tutor & companion on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, humorously and concisely in Vietnamese or English with emojis and carrots 🥕.";
-    const candidateModels = [process.env.GEMINI_MODEL, "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-latest"].filter(Boolean);
+    // Thứ tự dự phòng: model cấu hình -> flash -> flash-lite (hạn mức riêng, dùng khi flash hết quota trong ngày)
+    const candidateModels = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"].filter(Boolean))];
 
     // Try rotating keys and models for 100% uptime
     for (const model of candidateModels) {
@@ -394,6 +395,9 @@ async function callCloudLlm(messages, timeoutMs = 20000) {
             const data = await res.json();
             const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
             if (text) return text;
+          } else if (res.status === 404 || res.status === 429) {
+            if (process.env.AI_DEBUG === "1") console.log("[AI_DEBUG] gemini", model, res.status);
+            break; // model không khả dụng / hết hạn mức -> thử model kế tiếp
           }
         } catch (e) {}
       }
@@ -916,7 +920,13 @@ function extractJson(reply) {
   const closer = opener === "{" ? "}" : "]";
   const end = clean.lastIndexOf(closer);
   if (end <= start) return null;
-  try { return JSON.parse(clean.slice(start, end + 1)); } catch (e) { return null; }
+  const slice = clean.slice(start, end + 1);
+  try { return JSON.parse(slice); } catch (e) {}
+  // Sửa các lỗi JSON hay gặp của LLM: dấu phẩy thừa, ký tự điều khiển trong chuỗi
+  try {
+    const repaired = slice.replace(/,s*([}]])/g, "$1").replace(/[ --]/g, " ");
+    return JSON.parse(repaired);
+  } catch (e) { return null; }
 }
 
 async function callAiJson(systemInstruction, userPrompt, cacheKey, timeoutMs = 45000) {

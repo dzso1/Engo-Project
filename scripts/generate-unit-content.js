@@ -59,6 +59,14 @@ Return JSON:
  "exercises":[{"type":"mc","level":"easy|medium|hard","prompt":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":0,"explanation":"(tiếng Việt)"}],
  "rewrite":[{"level":"medium|hard","prompt":"(rewrite / fill-in instruction + sentence)","answer":"(đáp án chuẩn)","accepted":["(các đáp án chấp nhận khác, có thể rỗng)"],"explanation":"(tiếng Việt)"}]}
 Requirements: 1-3 grammar points; exactly 12 "mc" exercises ordered easy(4) -> medium(4) -> hard(4) covering all points; 4 "rewrite" items. Options must include the letter prefix. Sentences use the unit's vocabulary and topic.`, null, 120000), `U${unit.unit} grammar`);
+  if (!parsed) {
+    // Bản rút gọn (ít câu, giải thích ngắn) khi bản đầy đủ quá dài làm hỏng JSON
+    parsed = await withRetry(() => ai.callAiJson(SYSTEM, `Create a COMPACT grammar lesson for Unit ${unit.unit} "${unit.title}" of Tiếng Anh 9 Global Success (grammar focus of "A Closer Look 2"). Keep every text field short (explanation <= 2 sentences, explanation of exercises <= 1 sentence). Avoid double quotes inside strings.
+Return JSON: {"points":[{"name":"...","explanation":"(tiếng Việt)","formula":"...","notes":[],"examples":[{"en":"...","vi":"..."}]}],
+ "exercises":[{"type":"mc","level":"easy|medium|hard","prompt":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":0,"explanation":"(tiếng Việt)"}],
+ "rewrite":[{"level":"medium","prompt":"...","answer":"...","accepted":[],"explanation":"(tiếng Việt)"}]}
+Exactly 9 "mc" (3 easy, 3 medium, 3 hard) and 3 "rewrite".`, null, 120000), `U${unit.unit} grammar-compact`, 2);
+  }
   if (parsed) writeCache(unit.unit, "grammar", parsed); return parsed;
 }
 
