@@ -457,7 +457,7 @@
           <button class="healing-tab${term === 2 ? " active" : ""}" data-term="2">Học kì II · Unit 7–12</button>
         </div>
         <div class="table-wrap" style="margin-top:12px">
-          <table>
+          <table class="unit-exam-table">
             <thead><tr><th>Bài kiểm tra</th><th>Loại</th><th>Phạm vi</th><th>Thời gian</th><th>Cấu trúc</th><th>Ma trận NB–TH–VD–VDC</th><th>Ngân hàng đề</th></tr></thead>
             <tbody>
               ${specs.map(s => `
@@ -466,7 +466,7 @@
                   <td><span class="unit-code">${esc(TYPEN[s.type])}</span></td>
                   <td>Unit ${s.units.join(", ")}</td>
                   <td>${s.minutes} phút</td>
-                  <td class="small">${s.sections.map(x => `${esc(x.skill)} <b>${x.n}</b> câu · ${x.pts} đ`).join("<br>")}</td>
+                  <td class="small"><div class="unit-struct">${s.sections.map(x => `<span>${esc(x.skill)}</span><span><b>${x.n}</b> câu</span><span class="muted">${x.pts} đ</span>`).join("")}</div></td>
                   <td class="small">${s.matrix.NB}% – ${s.matrix.TH}% – ${s.matrix.VD}% – ${s.matrix.VDC}%</td>
                   <td>${bankCell(s)}</td>
                 </tr>`).join("")}

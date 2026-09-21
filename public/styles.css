@@ -2126,7 +2126,21 @@
 .unit-no { color: #b91c1c; font-size: 13px; text-decoration: line-through; }
 .unit-codes { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .unit-code { font-size: 12px; font-weight: 700; color: #b45309; border: 1px solid #fcd9a6;
-  background: #fffbeb; border-radius: 5px; padding: 2px 7px; }
+  background: #fffbeb; border-radius: 5px; padding: 2px 7px; white-space: nowrap; display: inline-block; }
+/* Bảng khung đề kiểm tra: cột ngay hàng, chip/giờ/ma trận không xuống dòng */
+.unit-exam-table th, .unit-exam-table td { vertical-align: top; }
+.unit-exam-table td:nth-child(1) { min-width: 220px; }
+.unit-exam-table td:nth-child(2), .unit-exam-table td:nth-child(4), .unit-exam-table td:nth-child(6) { white-space: nowrap; }
+.unit-exam-table td:nth-child(3) { min-width: 120px; }
+.unit-exam-table td:nth-child(5) { min-width: 240px; }
+.unit-exam-table td:nth-child(7) { min-width: 260px; }
+.unit-exam-table .unit-struct { display: grid; grid-template-columns: auto auto auto; column-gap: 10px; row-gap: 2px; align-items: baseline; }
+.unit-exam-table .unit-struct span { white-space: nowrap; }
+.unit-exam-table .unit-struct .muted { text-align: right; }
+.unit-bank-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px;
+  border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; margin-bottom: 6px; }
+.unit-bank-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; font-size: 13px; }
+.unit-bank-row .btn, .unit-bank-row .badge { flex-shrink: 0; white-space: nowrap; }
 .unit-quiz { border-top: 1px dashed #e2e8f0; padding-top: 12px; margin-top: 12px; }
 .unit-quiz h4 { font-size: 14px; margin-bottom: 8px; }
 .unit-q { margin-bottom: 12px; }
