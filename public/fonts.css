@@ -1,0 +1,62 @@
+/* ============================================================================
+ * ENGO — Phông chữ tự lưu trên máy chủ (không phụ thuộc Google Fonts)
+ *   Be Vietnam Pro  : chữ giao diện, hỗ trợ đầy đủ dấu tiếng Việt
+ *   JetBrains Mono  : công thức, phiên âm, mã đề, bảng số liệu
+ * Bản Bold khai báo dải 700-900 để các chỗ dùng font-weight 800/900 không bị
+ * trình duyệt "bôi đậm giả" (faux bold) làm chữ nhoè.
+ * ==========================================================================*/
+@font-face{
+  font-family:"Be Vietnam Pro";
+  src:url("./fonts/BeVietnamPro-Regular.ttf") format("truetype");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:"Be Vietnam Pro";
+  src:url("./fonts/BeVietnamPro-Medium.ttf") format("truetype");
+  font-weight:500;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:"Be Vietnam Pro";
+  src:url("./fonts/BeVietnamPro-SemiBold.ttf") format("truetype");
+  font-weight:600;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:"Be Vietnam Pro";
+  src:url("./fonts/BeVietnamPro-Bold.ttf") format("truetype");
+  font-weight:700 900;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:"JetBrains Mono";
+  src:url("./fonts/JetBrainsMono-Regular.ttf") format("truetype");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:"JetBrains Mono";
+  src:url("./fonts/JetBrainsMono-Bold.ttf") format("truetype");
+  font-weight:700 900;font-style:normal;font-display:swap;
+}
+
+:root{
+  --font-sans:"Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, Consolas, Monaco, monospace;
+}
+
+/* Be Vietnam Pro có thân chữ nhỏ hơn Roboto một chút -> nới nhẹ để dễ đọc */
+body{font-size:15px;line-height:1.6;letter-spacing:.005em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,h4{letter-spacing:-.015em}
+.flash-word,.page-heading h2{letter-spacing:-.02em}
+/* Chữ số trong thẻ thống kê, đồng hồ đếm giờ: dùng chữ số đều bề ngang cho thẳng hàng */
+.stat-card strong,.score-orbit strong,.timer,#quizTimer,.total-score-badge,.score-pill,.unit-struct{font-variant-numeric:tabular-nums}
+/* Phiên âm, công thức, mã đề: chữ đơn cách */
+.flash-phonetic,.unit-word .small.muted,.unit-form,.grammar-formula,pre,code,kbd{font-family:var(--font-mono)}
+.flash-phonetic{letter-spacing:0}
+
+/* Be Vietnam Pro rộng ngang hơn Roboto -> siết lại vài nhãn ngắn cho khỏi xuống dòng */
+body{letter-spacing:0}
+.stat-card span{font-size:12.5px;line-height:1.35}
+.stat-card strong{font-size:24px}
+.brand h1{font-size:16px;line-height:1.25}
+.brand p,.nav-label{letter-spacing:.06em}
+.nav-btn{font-size:14px}
+.badge,.small,.chip{letter-spacing:0}
+.btn{letter-spacing:.01em}
