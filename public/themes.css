@@ -257,3 +257,24 @@ body[data-theme="solarized-dark"]{--nav-active-ink:#8ee0d6}
 /* Số liệu màu ở phòng Chữa lỗi: sáng dùng màu đậm, tối dùng màu nhạt */
 .stat-violet{color:#6d28d9}.stat-red{color:#b91c1c}.stat-amber{color:#b45309}.stat-green{color:#15803d}
 body.dark-mode .stat-violet{color:#c4b5fd}body.dark-mode .stat-red{color:#fca5a5}body.dark-mode .stat-amber{color:#fcd34d}body.dark-mode .stat-green{color:#86efac}
+
+/* Pháo giấy khi hoàn thành nhiệm vụ (sfx.js) */
+.sfx-confetti{position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden}
+.sfx-confetti i{position:absolute;top:-14px;width:9px;height:14px;border-radius:2px;opacity:.95;
+  animation:sfxFall var(--d,1s) cubic-bezier(.25,.6,.35,1) var(--delay,0s) forwards}
+@keyframes sfxFall{
+  0%{transform:translate(0,0) rotate(0);opacity:1}
+  100%{transform:translate(calc(var(--x,0) * 46vw),102vh) rotate(720deg);opacity:.15}
+}
+
+/* ---- Các dạng luyện từ vựng mới ---- */
+.vocab-modes{display:flex;gap:8px;flex-wrap:wrap}
+.vocab-modes .btn{font-size:13.5px;padding:9px 13px}
+.vq-image{display:block;width:min(100%,340px);max-height:210px;object-fit:cover;border-radius:16px;margin:0 auto 14px;box-shadow:var(--shadow)}
+.vq-hint{font-family:var(--font-mono);letter-spacing:.18em;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:2px 8px}
+.vq-spell{font-size:22px!important;font-weight:700;text-align:center;letter-spacing:.02em;min-height:58px}
+.vq-spell.ok{border-color:#22c55e;background:rgba(34,197,94,.10)}
+.vq-spell.bad{border-color:#ef4444;background:rgba(239,68,68,.10)}
+.vq-sentence{font-size:17px;line-height:1.8;font-weight:600}
+.vocab-practice-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2)}
+.vocab-practice-bar>span{font-weight:800;font-size:14px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}

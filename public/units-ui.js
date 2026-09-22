@@ -23,6 +23,9 @@
   const toast = m => (window.showToast ? window.showToast(m) : null);
   const say = (t, rate, onDone) => (window.speakEnglishText ? window.speakEnglishText(t, { rate: rate || 0.85, onDone }) : onDone && onDone());
   const reward = (xp, carrots, why) => { try { window.gainRewards && window.gainRewards(xp, carrots, why || ""); } catch (_) {} };
+  // Âm thanh + pháo giấy khi hoàn thành nhiệm vụ (sfx.js)
+  const cheerUp = kind => { try { window.cheer ? window.cheer(kind) : window.playSfx && window.playSfx(kind); } catch (_) {} };
+  const sfx = name => { try { window.playSfx && window.playSfx(name); } catch (_) {} };
   const $ = (sel, root) => (root || document).querySelector(sel);
   // script.js khai báo bằng let/const nên không nằm trên window -> đọc qua tên toàn cục
   const CU = () => { try { return typeof currentUser !== "undefined" ? currentUser : null; } catch (_) { return null; } };
@@ -109,6 +112,17 @@
     const groups = {};
     deck.cards.forEach(c => { (groups[c.sec] = groups[c.sec] || []).push(c); });
 
+    // Thanh luyện nhanh: mở ngay một dạng luyện từ của Unit đang xem
+    const practiceBar = `
+      <div class="vocab-practice-bar">
+        <span><i class=mi>sports_esports</i> Luyện từ Unit ${u}:</span>
+        <button type="button" class="btn btn-soft btn-sm" data-practice="mc"><i class=mi>quiz</i> Trắc nghiệm</button>
+        <button type="button" class="btn btn-soft btn-sm" data-practice="listen"><i class=mi>hearing</i> Nghe chọn từ</button>
+        <button type="button" class="btn btn-soft btn-sm" data-practice="spell"><i class=mi>keyboard</i> Chính tả</button>
+        <button type="button" class="btn btn-soft btn-sm" data-practice="image"><i class=mi>image</i> Nhìn hình</button>
+        <button type="button" class="btn btn-soft btn-sm" data-practice="gap"><i class=mi>edit_note</i> Điền câu</button>
+        <button type="button" class="btn btn-soft btn-sm" data-practice="match"><i class=mi>link</i> Nối từ</button>
+      </div>`;
     const words = Object.keys(groups).map(sec => `
       <div class="unit-sec">
         <h4 class="unit-sec-title">${esc(SECN[sec] || sec)} <span class="small muted">· ${groups[sec].length} từ</span></h4>
@@ -167,7 +181,7 @@
           <button class="healing-tab${state.vocabTab === "words" ? " active" : ""}" data-vtab="words"><i class=mi>menu_book</i> Từ vựng</button>
           <button class="healing-tab${state.vocabTab === "grammar" ? " active" : ""}" data-vtab="grammar"><i class=mi>edit</i> Ngữ pháp</button>
         </div>
-        <div class="unit-body">${state.vocabTab === "words" ? words : grammar}</div>
+        <div class="unit-body">${state.vocabTab === "words" ? practiceBar + words : grammar}</div>
       </div>`;
   }
 
@@ -234,7 +248,7 @@
     if (wrongList.length && typeof recordUnitGrammarErrors === "function") recordUnitGrammarErrors(u, gram.title || `Unit ${u}`, wrongList);
     wrongList.forEach(() => api.pushError("U" + u));
     logEvent("grammar", "unit" + u, `Ngữ pháp Unit ${u}: ${gram.title || ""}`, right, total, { unit: u, percent: pct });
- if (pct >= 80 && markDone("grammar","u"+ u)) { reward(30, 3,`Ngữ pháp Unit ${u}`); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3`); }
+ if (pct >= 80 && markDone("grammar","u"+ u)) { reward(30, 3,`Ngữ pháp Unit ${u}`); cheerUp(pct === 100 ? "perfect" : "unitDone"); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3`); }
     else if (pct < 80) toast(`Đúng ${right}/${total}. Xem giải thích và làm lại để đạt ≥ 80% nhé!`);
   }
 
@@ -256,6 +270,9 @@
       state.vocabTab = b.dataset.vtab; mountVocab();
     }));
     host.querySelectorAll("[data-say]").forEach(b => b.addEventListener("click", () => say(b.dataset.say, 0.8)));
+    host.querySelectorAll("[data-practice]").forEach(b => b.addEventListener("click", () => {
+      if (typeof window.practiceVocabUnit === "function") window.practiceVocabUnit(state.vocabUnit, b.dataset.practice);
+    }));
 
     host.querySelectorAll(".unit-q").forEach(q => q.querySelectorAll(".unit-opt").forEach(o => o.addEventListener("click", () => {
       q.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked"));
@@ -280,6 +297,7 @@
       $("#unitGrammarScore").textContent = `Đúng ${right}/${qs.length}`;
       if (right === qs.length && markDone("grammar", "u" + state.vocabUnit)) {
         reward(30, 3, `Ngữ pháp Unit ${state.vocabUnit}`);
+        cheerUp("perfect");
  toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3`);
       }
     });
@@ -413,6 +431,7 @@
         logEvent("listening", "u" + u + "t" + ti, `Nghe Unit ${u} · ${t.title}`, right, t.qs.length, { unit: u, level: t.level, ai: Boolean(t.ai) });
         if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", "u" + u + "t" + ti)) {
           reward(30, 3, `Nghe Unit ${u} cấp ${t.level}`);
+          cheerUp(right === t.qs.length ? "perfect" : "taskDone");
  toast(`Hoàn thành đoạn nghe: +30 XP, +3`);
           if (badge) badge.textContent = `${countDone("listen")} / ${totalTasks} đoạn`;
         }

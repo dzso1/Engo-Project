@@ -60,3 +60,17 @@ body{letter-spacing:0}
 .nav-btn{font-size:14px}
 .badge,.small,.chip{letter-spacing:0}
 .btn{letter-spacing:.01em}
+
+/* ---- Từ vựng: chữ to, dễ đọc cho học sinh ---- */
+.flash-word{font-size:clamp(34px,5vw,52px)}
+.flash-meaning{font-size:clamp(22px,3vw,30px)}
+.flash-phonetic{font-size:18px}
+.flash-example,.flash-examples li{font-size:15.5px;line-height:1.65}
+.flash-pos,.flash-pos.back{font-size:13px;padding:3px 11px}
+.flash-word-small{font-size:19px}
+.unit-word-lg b{font-size:19px}
+.unit-word-lg .unit-vi{font-size:16px}
+.unit-word-lg .small.muted{font-size:14px}
+.unit-word-lg .unit-ex,.unit-word-lg .unit-ex em{font-size:14.5px}
+.option-list .option{font-size:15.5px}
+#vocabQuizBody h3{font-size:22px}

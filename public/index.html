@@ -13,9 +13,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-  <link rel="stylesheet" href="./fonts.css?v=2" />
-  <link rel="stylesheet" href="./styles.css?v=16" />
-  <link rel="stylesheet" href="./themes.css?v=9" />
+  <link rel="stylesheet" href="./fonts.css?v=3" />
+  <link rel="stylesheet" href="./styles.css?v=17" />
+  <link rel="stylesheet" href="./themes.css?v=12" />
 </head>
 <body>
 
@@ -375,9 +375,13 @@
               </div>
               <div class="flash-finish" id="flashFinishBox">
                 <div><strong id="flashViewedText">Đã xem 0/8 thẻ</strong><p class="small muted">Xem hết bộ thẻ rồi chọn dạng bài kiểm tra để nhận điểm.</p></div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn btn-primary" id="startVocabQuizMc" disabled>Trắc nghiệm</button>
-                  <button class="btn btn-soft" id="startVocabQuizMatch" disabled>Nối từ</button>
+                <div class="vocab-modes">
+                  <button class="btn btn-primary" id="startVocabQuizMc" disabled title="Chọn nghĩa đúng của từ"><i class=mi>quiz</i> Trắc nghiệm</button>
+                  <button class="btn btn-soft" id="startVocabQuizMatch" disabled title="Nối từ với nghĩa"><i class=mi>link</i> Nối từ</button>
+                  <button class="btn btn-soft" id="startVocabQuizListen" disabled title="Nghe rồi chọn từ đúng"><i class=mi>hearing</i> Nghe chọn từ</button>
+                  <button class="btn btn-soft" id="startVocabQuizSpell" disabled title="Nghe và viết lại từ"><i class=mi>keyboard</i> Viết chính tả</button>
+                  <button class="btn btn-soft" id="startVocabQuizImage" disabled title="Nhìn hình đoán từ"><i class=mi>image</i> Nhìn hình</button>
+                  <button class="btn btn-soft" id="startVocabQuizGap" disabled title="Điền từ vào câu ví dụ"><i class=mi>edit_note</i> Điền câu</button>
                 </div>
               </div>
             </div>
@@ -1070,8 +1074,9 @@
   <script src="./data/listening-units.js?v=5"></script>
   <script src="./data/listening-sets.js?v=5"></script>
   <script src="./data/exam-bank.js?v=5"></script>
-  <script src="./settings.js?v=2" defer></script>
-  <script src="./script.js?v=10" defer></script>
-  <script src="./units-ui.js?v=10" defer></script>
+  <script src="./settings.js?v=4" defer></script>
+  <script src="./sfx.js?v=1" defer></script>
+  <script src="./script.js?v=16" defer></script>
+  <script src="./units-ui.js?v=12" defer></script>
 </body>
 </html>

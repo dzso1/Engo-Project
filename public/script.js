@@ -500,7 +500,7 @@ document.getElementById("feedCapybaraBtn")?.addEventListener("click", () => {
   stats.carrots -= feed; stats.fedCarrots = (stats.fedCarrots || 0) + feed; stats.points = (stats.points || 0) + feed * 5;
   updateStudyStreak(stats); setLearningStats(stats); renderCapybaraCompanion();
   const next = getCapybaraProgress(stats.fedCarrots);
- if (next.lv > old.lv) { playSuccessSound(); showToast(`Capybara đã thăng cấp lên Lv.${next.lv} ${next.name}!`); capybaraSpeak(`Chúc mừng! Mình đã tiến hóa lên cấp ${next.lv} ${next.name} rồi!`); }
+ if (next.lv > old.lv) { cheer("levelUp"); showToast(`Capybara đã thăng cấp lên Lv.${next.lv} ${next.name}!`); capybaraSpeak(`Chúc mừng! Mình đã tiến hóa lên cấp ${next.lv} ${next.name} rồi!`); }
  else { showToast(`Yum! Đã cho Capybara ăn ${feed} củ (+${feed * 5} XP)`); capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt!"); }
 });
 
@@ -727,6 +727,27 @@ function saveAnswers() {
   localStorage.setItem(getUserStorageKey(`engoAnswers_${activeImportedTest.id}`), JSON.stringify({ answers, speakingAnswers }));
   const status = document.getElementById("saveStatus"); status.textContent = "Đang lưu..."; setTimeout(() => status.textContent = "Đã tự lưu", 350);
 }
+// Yêu cầu mặc định cho từng phần / loại câu, dùng khi đề gốc không ghi rõ (Anh + Việt)
+const TASK_FALLBACK = {
+  "Phonetics": { en: "Choose the word whose underlined part is pronounced differently from the others, or whose stress pattern is different.", vi: "Chọn từ có phần gạch chân phát âm khác, hoặc có trọng âm khác với các từ còn lại." },
+  "Grammar and Vocabulary": { en: "Choose the best option (A, B, C or D) to complete each sentence.", vi: "Chọn phương án đúng nhất (A, B, C hoặc D) để hoàn thành câu." },
+  "Reading": { en: "Read the passage carefully, then answer the questions below.", vi: "Đọc kỹ đoạn văn rồi trả lời các câu hỏi bên dưới." },
+  "Listening": { en: "Listen carefully, then answer the questions.", vi: "Nghe kỹ rồi trả lời các câu hỏi." },
+  "Writing": { en: "Write your answer in English. Pay attention to grammar, vocabulary and the required length.", vi: "Viết câu trả lời bằng tiếng Anh, chú ý ngữ pháp, từ vựng và độ dài yêu cầu." },
+  "Speaking": { en: "Press the microphone and speak clearly in English.", vi: "Bấm nút micro và nói rõ ràng bằng tiếng Anh." },
+};
+const TYPE_FALLBACK = {
+  multiple_choice: { en: "Choose the best option (A, B, C or D).", vi: "Chọn phương án đúng nhất (A, B, C hoặc D)." },
+  short_answer: { en: "Write ONE suitable word or the required form in the blank.", vi: "Điền MỘT từ thích hợp hoặc dạng đúng của từ vào chỗ trống." },
+  writing: { en: "Write a complete answer in English.", vi: "Viết câu trả lời hoàn chỉnh bằng tiếng Anh." },
+  speaking: { en: "Speak your answer aloud in English.", vi: "Nói câu trả lời của em bằng tiếng Anh." },
+};
+function taskFor(q) {
+  const own = String(q.instruction || "").trim();
+  const base = TASK_FALLBACK[q.section] || TYPE_FALLBACK[q.type] || TYPE_FALLBACK.multiple_choice;
+  return { text: own || base.en, vi: base.vi, fromPaper: Boolean(own) };
+}
+
 function renderQuestion() {
   const q = questions[currentQuestion]; if (!q) return;
   questionCounter.textContent = `Câu ${currentQuestion + 1} / ${questions.length}`;
@@ -737,8 +758,9 @@ function renderQuestion() {
   document.getElementById("questionSectionTitle").textContent = q.section || "Phần thi";
   document.getElementById("explanationBox").classList.add("hidden");
   let content = "";
-  // Yêu cầu của phần (task): "Choose the word whose underlined part..." - hiện phía trên câu hỏi
-  if (q.instruction) content += `<div class="task-instruction"><i class=mi>assignment</i> <span>${richText(q.instruction)}</span></div>`;
+  // Yêu cầu của phần (task) - đề nào không ghi thì dùng yêu cầu mặc định theo phần
+  const task = taskFor(q);
+  content += `<div class="task-instruction"><i class=mi>assignment</i><div><span>${richText(task.text)}</span><small>${escapeHTML(task.vi)}</small></div></div>`;
   if (q.passage) content += `<div class="reading-passage">${richText(q.passage)}</div>`;
   // Đề gốc hay lặp lại yêu cầu ở từng câu -> không in 2 lần
   const sameAsTask = q.instruction && plainText(q.prompt || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === plainText(q.instruction).replace(/[^a-z0-9]/gi, "").toLowerCase();
@@ -872,7 +894,7 @@ async function submitQuiz() {
     gainRewards(scoreOnTen >= 8 ? 40 : 25, scoreOnTen >= 8 ? 3 : 1, "Hoàn thành bài kiểm tra");
     studentProgress = null;
     openModal("resultModal"); showToast(result.message);
-    if (scoreOnTen >= 6) playSuccessSound(); else playWrongSound();
+    if (scoreOnTen >= 9) cheer("perfect"); else if (scoreOnTen >= 6) cheer("unitDone"); else playSfx("wrong");
   } catch (error) { showToast(error.message); }
 }
 document.getElementById("gotoHealingRoomBtn")?.addEventListener("click", () => { closeModal("resultModal"); switchView("errorHealing"); });
@@ -1005,8 +1027,7 @@ function renderFlashcard() {
   flashViewed.add(flashOrder[flashIndex]);
   const viewedAll = flashViewed.size >= deck.cards.length;
   document.getElementById("flashViewedText").textContent = `Đã xem ${flashViewed.size}/${deck.cards.length} thẻ${viewedAll ? " — sẵn sàng kiểm tra!" : ""}`;
-  document.getElementById("startVocabQuizMc").disabled = !viewedAll;
-  document.getElementById("startVocabQuizMatch").disabled = !viewedAll;
+  document.querySelectorAll(".vocab-modes .btn").forEach(b => { b.disabled = !viewedAll; });
 }
 function flipFlash() { document.getElementById("flashcardInner").classList.toggle("flipped"); }
 document.getElementById("flashcardShell").addEventListener("click", e => { if (!e.target.closest("button")) flipFlash(); });
@@ -1025,40 +1046,149 @@ function exitVocabQuiz() { vocabQuiz = null; document.getElementById("vocabQuizS
 document.getElementById("exitVocabQuiz").addEventListener("click", exitVocabQuiz);
 document.getElementById("startVocabQuizMc").addEventListener("click", () => startVocabQuiz("mc"));
 document.getElementById("startVocabQuizMatch").addEventListener("click", () => startVocabQuiz("match"));
+document.getElementById("startVocabQuizListen")?.addEventListener("click", () => startVocabQuiz("listen"));
+document.getElementById("startVocabQuizSpell")?.addEventListener("click", () => startVocabQuiz("spell"));
+document.getElementById("startVocabQuizImage")?.addEventListener("click", () => startVocabQuiz("image"));
+document.getElementById("startVocabQuizGap")?.addEventListener("click", () => startVocabQuiz("gap"));
+// Ảnh minh hoạ cho từ (data/vocab-images.js) - tra mềm giống units-ui.js
+function vocabImage(word) {
+  const map = window.ENGO_VOCAB_IMAGES || {};
+  const w = String(word || "").toLowerCase().trim();
+  if (map[w]) return map[w];
+  const base = w.replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
+  return map[base] || "";
+}
+// Cho units-ui gọi: chọn bộ thẻ của Unit rồi mở ngay một dạng luyện
+window.practiceVocabUnit = function (unit, mode) {
+  const key = "unit" + unit;
+  if (flashDecks[key]) { activeDeck = key; resetFlashOrder(); renderVocabDecks(); flashOrder.forEach((_, i) => flashViewed.add(i)); }
+  startVocabQuiz(mode || "mc");
+};
 function startVocabQuiz(mode) {
   const deck = flashDecks[activeDeck];
-  vocabQuiz = { mode, deck, cards: shuffleArray(deck.cards), index: 0, correct: 0, total: deck.cards.length, matches: {} };
+  // Lọc trước những từ dùng được cho dạng luyện này (ảnh minh hoạ / câu ví dụ)
+  let pool = deck.cards;
+  if (mode === "image") pool = deck.cards.filter(c => vocabImage(c.word));
+  if (mode === "gap") pool = deck.cards.filter(c => (c.examples || []).some(e => new RegExp("\\b" + c.word.split(" ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(e)));
+  const MIN = mode === "image" ? 4 : mode === "gap" ? 3 : 2;
+  if (pool.length < MIN) {
+    showToast(mode === "image" ? "Bộ từ này chưa đủ ảnh minh hoạ, hãy thử dạng khác nhé." : "Bộ từ này chưa đủ câu ví dụ, hãy thử dạng khác nhé.");
+    return;
+  }
+  // Mỗi lượt luyện lấy ngẫu nhiên một nhóm từ (bộ thẻ có thể tới 60 từ - làm hết một lần sẽ quá dài)
+  const LIMIT = mode === "match" ? 8 : 12;
+  const picked = shuffleArray(pool).slice(0, Math.min(LIMIT, pool.length));
+  vocabQuiz = { mode, deck, cards: picked, index: 0, correct: 0, total: picked.length, matches: {} };
   document.getElementById("flashcardStage").classList.add("hidden");
-  document.getElementById("vocabQuizStage").classList.remove("hidden");
+  const stage = document.getElementById("vocabQuizStage");
+  stage.classList.remove("hidden");
   document.getElementById("vocabQuizDeckName").textContent = deck.name;
-  document.getElementById("vocabQuizTitle").textContent = mode === "mc" ? "Trắc nghiệm nghĩa của từ" : "Nối từ với nghĩa";
-  if (mode === "mc") renderVocabMcQuestion(); else renderVocabMatch();
+  setTimeout(() => { const y = stage.getBoundingClientRect().top + window.scrollY - 80; window.scrollTo({ top: y, behavior: "instant" }); }, 60);
+  const TITLES = { mc: "Trắc nghiệm nghĩa của từ", match: "Nối từ với nghĩa", listen: "Nghe và chọn từ đúng", spell: "Nghe và viết lại từ", image: "Nhìn hình đoán từ", gap: "Điền từ vào câu" };
+  document.getElementById("vocabQuizTitle").textContent = TITLES[mode] || "Kiểm tra từ vựng";
+  if (mode === "match") renderVocabMatch();
+  else if (mode === "spell") renderVocabSpell();
+  else if (mode === "gap") renderVocabGap();
+  else renderVocabMcQuestion();
 }
 function renderVocabMcQuestion() {
   const q = vocabQuiz; const body = document.getElementById("vocabQuizBody");
   document.getElementById("vocabQuizProgress").style.width = `${(q.index / q.total) * 100}%`;
   if (q.index >= q.total) return finishVocabQuiz();
   const card = q.cards[q.index];
-  const askMeaning = Math.random() < 0.6;
+  const askMeaning = q.mode === "mc" ? Math.random() < 0.6 : false;
   const distractors = shuffleArray(q.deck.cards.filter(c => c !== card)).slice(0, 3);
   const options = shuffleArray([card, ...distractors]);
+  const img = q.mode === "image" ? vocabImage(card.word) : "";
+  const head = q.mode === "listen"
+    ? `<h3 style="margin:8px 0 14px;font-size:22px">Nghe rồi chọn từ em vừa nghe <button type="button" class="btn btn-primary btn-sm" id="vqTts"><i class=mi>volume_up</i> Nghe lại</button></h3>`
+    : q.mode === "image"
+    ? `<h3 style="margin:8px 0 10px;font-size:22px">Bức ảnh này nói về từ nào?</h3><img class="vq-image" src="${escapeHTML(img)}" alt="">`
+    : `<h3 style="margin:8px 0 14px;font-size:22px">${askMeaning ? `"${escapeHTML(card.word)}" <span class="flash-pos">${card.pos}</span> nghĩa là gì?` : `Từ nào có nghĩa "${escapeHTML(card.meaning)}"?`} <button type="button" class="btn btn-soft btn-sm" id="vqTts"><i class=mi>volume_up</i></button></h3>`;
   body.innerHTML = `<div class="small muted">Câu ${q.index + 1}/${q.total}</div>
-    <h3 style="margin:8px 0 14px;font-size:22px">${askMeaning ? `"${escapeHTML(card.word)}" <span class="flash-pos">${card.pos}</span> nghĩa là gì?` : `Từ nào có nghĩa "${escapeHTML(card.meaning)}"?`} <button type="button" class="btn btn-soft btn-sm" id="vqTts"><i class=mi>volume_up</i></button></h3>
+    ${head}
     <div class="option-list">${options.map((o, i) => `<div class="option" data-word="${escapeHTML(o.word)}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${escapeHTML(askMeaning ? o.meaning : o.word)}</span></div>`).join("")}</div>
     <div class="explanation hidden" id="vqExplain"></div>
     <button class="btn btn-primary hidden" id="vqNext" style="margin-top:12px">Câu tiếp →</button>`;
-  document.getElementById("vqTts").addEventListener("click", () => speakEnglishText(card.word));
+  document.getElementById("vqTts")?.addEventListener("click", () => speakEnglishText(card.word, { rate: 0.8 }));
+  if (q.mode === "listen") setTimeout(() => speakEnglishText(card.word, { rate: 0.75 }), 350);
   body.querySelectorAll(".option").forEach(el => el.addEventListener("click", () => {
     if (body.dataset.locked) return; body.dataset.locked = "1";
     const right = el.dataset.word === card.word;
     body.querySelectorAll(".option").forEach(o => { if (o.dataset.word === card.word) o.classList.add("correct"); });
-    if (right) { q.correct++; playSuccessSound(); } else { el.classList.add("wrong"); playWrongSound(); }
+    if (right) { q.correct++; playSfx("correct"); } else { el.classList.add("wrong"); playSfx("wrong"); }
     const ex = document.getElementById("vqExplain"); ex.classList.remove("hidden");
     ex.innerHTML = `<strong>${right ? "<i class=mi>check</i> Chính xác!" : "<i class=mi>close</i> Chưa đúng."}</strong> <b>${escapeHTML(card.word)}</b> (${card.pos}) ${card.phonetic}: ${escapeHTML(card.meaning)}<br><em>${escapeHTML(card.examples?.[0] || "")}</em>`;
     document.getElementById("vqNext").classList.remove("hidden");
   }));
   document.getElementById("vqNext").addEventListener("click", () => { delete body.dataset.locked; q.index++; renderVocabMcQuestion(); });
 }
+// ===== Nghe và viết lại từ (chính tả) =====
+function renderVocabSpell() {
+  const q = vocabQuiz, body = document.getElementById("vocabQuizBody");
+  document.getElementById("vocabQuizProgress").style.width = `${(q.index / q.total) * 100}%`;
+  if (q.index >= q.total) return finishVocabQuiz();
+  const card = q.cards[q.index];
+  const hint = card.word.replace(/[A-Za-z]/g, (ch, i) => (i === 0 || i === card.word.length - 1 ? ch : "_"));
+  body.innerHTML = `<div class="small muted">Câu ${q.index + 1}/${q.total}</div>
+    <h3 style="margin:8px 0 6px;font-size:22px">Nghe rồi viết lại từ <button type="button" class="btn btn-primary btn-sm" id="vqTts"><i class=mi>volume_up</i> Nghe</button></h3>
+    <p class="muted" style="margin:0 0 12px">Nghĩa: <b>${escapeHTML(card.meaning)}</b> · Gợi ý: <code class="vq-hint">${escapeHTML(hint)}</code></p>
+    <input class="text-answer vq-spell" id="vqSpell" placeholder="Viết từ em nghe được..." autocomplete="off" spellcheck="false">
+    <div class="explanation hidden" id="vqExplain"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-primary" id="vqCheck">Kiểm tra</button>
+      <button class="btn btn-light hidden" id="vqNext">Câu tiếp →</button>
+    </div>`;
+  const input = document.getElementById("vqSpell");
+  const say = () => speakEnglishText(card.word, { rate: 0.75 });
+  document.getElementById("vqTts").addEventListener("click", say);
+  setTimeout(() => { input.focus(); say(); }, 300);
+  const check = () => {
+    if (body.dataset.locked) return; body.dataset.locked = "1";
+    const right = input.value.trim().toLowerCase() === card.word.toLowerCase();
+    if (right) { q.correct++; playSfx("correct"); } else playSfx("wrong");
+    input.classList.add(right ? "ok" : "bad");
+    const ex = document.getElementById("vqExplain"); ex.classList.remove("hidden");
+    ex.innerHTML = `<strong>${right ? "<i class=mi>check</i> Chính xác!" : "<i class=mi>close</i> Đáp án đúng: "}</strong> <b>${escapeHTML(card.word)}</b> ${escapeHTML(card.phonetic || "")} — ${escapeHTML(card.meaning)}`;
+    document.getElementById("vqCheck").classList.add("hidden");
+    document.getElementById("vqNext").classList.remove("hidden");
+  };
+  document.getElementById("vqCheck").addEventListener("click", check);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") (body.dataset.locked ? document.getElementById("vqNext").click() : check()); });
+  document.getElementById("vqNext").addEventListener("click", () => { delete body.dataset.locked; q.index++; renderVocabSpell(); });
+}
+
+// ===== Điền từ vào câu ví dụ =====
+function renderVocabGap() {
+  const q = vocabQuiz, body = document.getElementById("vocabQuizBody");
+  document.getElementById("vocabQuizProgress").style.width = `${(q.index / q.total) * 100}%`;
+  if (q.index >= q.total) return finishVocabQuiz();
+  const card = q.cards[q.index];
+  const head = card.word.split(" ")[0];
+  const re = new RegExp("\\b" + head.replace(/[.*+?^${}()|[\]\\]/g, "\\function renderVocabMatch() {") + "\\w*", "i");
+  const sentence = (card.examples || []).find(e => re.test(e)) || "";
+  const masked = escapeHTML(sentence).replace(re, "_____");
+  const options = shuffleArray([card, ...shuffleArray(q.deck.cards.filter(c => c !== card)).slice(0, 3)]);
+  body.innerHTML = `<div class="small muted">Câu ${q.index + 1}/${q.total}</div>
+    <h3 style="margin:8px 0 12px;font-size:20px">Chọn từ điền vào chỗ trống</h3>
+    <div class="reading-passage vq-sentence">${masked}</div>
+    <p class="muted small" style="margin:8px 0 12px">Gợi ý nghĩa của câu: ${escapeHTML(card.exampleVi || card.meaning)}</p>
+    <div class="option-list">${options.map((o, i) => `<div class="option" data-word="${escapeHTML(o.word)}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${escapeHTML(o.word)}</span></div>`).join("")}</div>
+    <div class="explanation hidden" id="vqExplain"></div>
+    <button class="btn btn-primary hidden" id="vqNext" style="margin-top:12px">Câu tiếp →</button>`;
+  body.querySelectorAll(".option").forEach(el => el.addEventListener("click", () => {
+    if (body.dataset.locked) return; body.dataset.locked = "1";
+    const right = el.dataset.word === card.word;
+    body.querySelectorAll(".option").forEach(o => { if (o.dataset.word === card.word) o.classList.add("correct"); });
+    if (right) { q.correct++; playSfx("correct"); } else { el.classList.add("wrong"); playSfx("wrong"); }
+    const ex = document.getElementById("vqExplain"); ex.classList.remove("hidden");
+    ex.innerHTML = `<strong>${right ? "<i class=mi>check</i> Chính xác!" : "<i class=mi>close</i> Chưa đúng."}</strong> <em>${escapeHTML(sentence)}</em>`;
+    speakEnglishText(sentence, { rate: 0.85 });
+    document.getElementById("vqNext").classList.remove("hidden");
+  }));
+  document.getElementById("vqNext").addEventListener("click", () => { delete body.dataset.locked; q.index++; renderVocabGap(); });
+}
+
 function renderVocabMatch() {
   const q = vocabQuiz; const body = document.getElementById("vocabQuizBody");
   const words = q.cards, meanings = shuffleArray(q.cards);
@@ -1076,7 +1206,7 @@ function renderVocabMatch() {
   body.querySelectorAll("#matchMeanings .match-item").forEach(b => b.addEventListener("click", () => {
     if (!selectedWord || b.classList.contains("done")) return;
     if (b.dataset.meaning === selectedWord.dataset.word) {
-      b.classList.add("done"); selectedWord.classList.add("done"); selectedWord.classList.remove("selected"); selectedWord = null; done++; playSuccessSound();
+      b.classList.add("done"); selectedWord.classList.add("done"); selectedWord.classList.remove("selected"); selectedWord = null; done++; playSfx("coin");
     } else { wrongCount++; b.classList.add("wrong"); setTimeout(() => b.classList.remove("wrong"), 500); playWrongSound(); }
     document.getElementById("matchStatus").textContent = `Đã nối ${done}/${q.total} · Sai: ${wrongCount}`;
     document.getElementById("vocabQuizProgress").style.width = `${(done / q.total) * 100}%`;
@@ -1099,7 +1229,7 @@ async function finishVocabQuiz() {
     <h3 style="margin:0 0 6px">${good ? "<i class=mi>celebration</i> Xuất sắc! Bạn đã thuộc bộ từ này" : "<i class=mi>thumb_up</i> Hoàn thành! Ôn lại các từ chưa nhớ nhé"}</h3>
     <p class="muted">Đúng ${q.correct}/${q.total} · Thưởng ${good ? "+30 XP & +3 <i class=ico-carrot></i>" : "+10 XP"}</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><button class="btn btn-light" id="vqRetry">Học lại bộ thẻ</button><button class="btn btn-primary" id="vqOther">Làm dạng ${q.mode === "mc" ? "nối từ" : "trắc nghiệm"}</button></div></div>`;
-  if (good) playSuccessSound();
+  if (percent === 100) cheer("perfect"); else if (good) cheer("unitDone"); else playSfx("taskDone");
   document.getElementById("vqRetry").addEventListener("click", () => { exitVocabQuiz(); resetFlashOrder(); });
   document.getElementById("vqOther").addEventListener("click", () => startVocabQuiz(q.mode === "mc" ? "match" : "mc"));
   renderVocabDecks();
@@ -1282,7 +1412,7 @@ async function evaluateSpeakingAttempt(alternatives) {
     recordSpeakingErrorsForHealing(res.errors || [], item.text, item.ipa);
     const stats = getLearningStats();
     stats.speakingAttempts = (stats.speakingAttempts || 0) + 1; stats.bestSpeakingScore = Math.max(stats.bestSpeakingScore || 0, res.accuracy); setLearningStats(stats);
-    if (res.accuracy >= 60) playSuccessSound(); else playWrongSound();
+    if (res.accuracy >= 90) cheer("perfect"); else if (res.accuracy >= 60) playSfx("taskDone"); else playSfx("wrong");
     document.getElementById("speakingItemProgress").style.width = `${(Object.values(speakingItemResults).filter(r => r && !r.tts).length / Math.max(1, task.items.filter(l => !(task.stage === 2 && task.items.some(x => x.speaker)) || (l.speaker || "A") === speakingRole).length)) * 100}%`;
     if (task.stage === 2) renderSpeakingItem();
   } catch (e) { document.getElementById("speakingVerdict").textContent = "Không chấm được"; document.getElementById("speakingFeedback").textContent = e.message; }
@@ -1513,7 +1643,7 @@ document.getElementById("pronDrillMic").addEventListener("click", () => {
           pr.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "pronunciation", title: `Phát âm chuẩn từ "${drillItem.word}"`, healedAt: new Date().toISOString(), score: `${res.accuracy}%` });
           pr.healingStreak = (pr.healingStreak || 0) + 1; saveHealingProfile(pr);
           gainRewards(10, 1, "Chữa khỏi lỗi phát âm"); logHealingEvent(`Chữa lỗi phát âm: ${drillItem.word}`, { category: "pronunciation", accuracy: res.accuracy });
-          playSuccessSound(); setTimeout(() => { closeModal("pronDrillModal"); renderHealingRoom(); }, 1400);
+          cheer("taskDone"); setTimeout(() => { closeModal("pronDrillModal"); renderHealingRoom(); }, 1400);
         } else playWrongSound();
       } catch (e) { out.innerHTML = `<div class="small" style="color:red">${escapeHTML(e.message)}</div>`; }
     }
@@ -1543,7 +1673,7 @@ function renderHealingModalStep() {
       profile.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "grammar", title: s.label, healedAt: new Date().toISOString(), score: `${s.correctCount}/${s.questions.length}` });
       profile.heatmapStatus[s.errorCode] = s.correctCount === 3 ? "mastered" : "shaky";
       profile.healingStreak = (profile.healingStreak || 0) + 1; saveHealingProfile(profile);
-      gainRewards(15, 1, "Chữa khỏi lỗi ngữ pháp"); logHealingEvent(`Chữa lỗi ngữ pháp: ${s.label}`, { category: "grammar", code: s.errorCode, score: s.correctCount }); playSuccessSound();
+      gainRewards(15, 1, "Chữa khỏi lỗi ngữ pháp"); logHealingEvent(`Chữa lỗi ngữ pháp: ${s.label}`, { category: "grammar", code: s.errorCode, score: s.correctCount }); cheer("taskDone");
     }
     modalBody.innerHTML = `<div style="text-align:center;padding:20px 0"><h3 style="color:${passed ? "#16a34a" : "#d97706"};margin:0 0 8px">${passed ? "CHỮA LỖI THÀNH CÔNG!" : "CHƯA ĐẠT — THỬ LẠI NHÉ"}</h3><p style="line-height:1.5">Bạn làm đúng <strong>${s.correctCount}/${s.questions.length}</strong> câu dạng <strong>${escapeHTML(s.label)}</strong>.${passed ? " Lỗi này đã được đánh dấu trên Bản đồ ngữ pháp!" : " Cần đúng ít nhất 2/3 câu để chữa khỏi."}</p>${passed ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:inline-block;margin-bottom:20px"><strong style="color:#15803d"><i class=mi>redeem</i> +15 XP & +1 Cà rốt</strong></div>' : ""}<button class="btn btn-primary" id="finishHealingSessionBtn" style="width:100%;font-weight:700">${passed ? "Hoàn tất" : "Làm lại 3 câu khác"}</button></div>`;
     document.getElementById("finishHealingSessionBtn").addEventListener("click", () => { if (passed) { closeModal("healingExerciseModal"); renderHealingRoom(); } else startHealingExercise(s.errorCode, s.errorId); });
@@ -1555,7 +1685,7 @@ function renderHealingModalStep() {
   options.forEach(btn => btn.addEventListener("click", () => {
     options.forEach(b => b.disabled = true);
     const isRight = Number(btn.dataset.optIndex) === q.answer;
-    if (isRight) { btn.classList.add("correct"); s.correctCount++; playSuccessSound(); } else { btn.classList.add("wrong"); options[q.answer]?.classList.add("correct"); playWrongSound(); }
+    if (isRight) { btn.classList.add("correct"); s.correctCount++; playSfx("correct"); } else { btn.classList.add("wrong"); options[q.answer]?.classList.add("correct"); playSfx("wrong"); }
     feedback.style.display = "block"; feedback.style.background = isRight ? "#f0fdf4" : "#fef2f2"; feedback.style.border = isRight ? "1px solid #bbf7d0" : "1px solid #fecaca"; feedback.style.color = isRight ? "#15803d" : "#991b1b";
     feedback.innerHTML = `<strong>${isRight ? "<i class=mi>check</i> CHÍNH XÁC!" : "<i class=mi>close</i> CHƯA ĐÚNG!"}</strong> ${escapeHTML(q.explanation)}`;
     nextBtn.style.display = "block";

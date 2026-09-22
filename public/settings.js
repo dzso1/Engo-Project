@@ -25,7 +25,7 @@
     { id: "solarized-dark", name: "Solarized Dark", desc: "Xanh biển sâu", group: "dark", bg: "#002b36", surface: "#073642", primary: "#2aa198", ink: "#eee8d5" },
   ];
   const BG_PRESETS = ["#f3f8f5", "#ffffff", "#fdf6e3", "#f2e9d8", "#eef0f3", "#eaf2ff", "#fdf2f8", "#0c0d0f", "#0a1220", "#1e1f29", "#2e3440", "#002b36"];
-  const DEFAULTS = { fontScale: 1, sound: true, ttsSpeed: 1, ttsVoice: "", reduceMotion: false, bgColor: "" };
+  const DEFAULTS = { fontScale: 1, sound: true, sfxVolume: 0.8, ttsSpeed: 1, ttsVoice: "", reduceMotion: false, bgColor: "" };
   const KEY = "engoSettings";
 
   function load() { try { return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) || "{}") || {}) }; } catch (_) { return { ...DEFAULTS }; } }
@@ -156,6 +156,8 @@
       <div class="card panel section">
         <div class="section-head"><div><h3><i class=mi>volume_up</i> Âm thanh & phát âm</h3></div></div>
         <div class="settings-row"><div class="sr-text"><strong>Tiếng bấm nút</strong><span>Âm "tách" khi bấm nút, chọn đáp án</span></div><button type="button" class="switch${s.sound ? " on" : ""}" data-switch="sound" aria-label="Tiếng bấm nút"></button></div>
+        <div class="settings-row"><div class="sr-text"><strong>Âm thanh khi hoàn thành</strong><span>Tiếng reo mừng + pháo giấy khi xong bài nghe, bài nói, bộ từ vựng</span></div>${seg("sfxVolume", [{ v: 0, l: "Tắt" }, { v: 0.5, l: "Nhỏ" }, { v: 0.8, l: "Vừa" }, { v: 1, l: "To" }], s.sfxVolume)}</div>
+        <div class="settings-row"><div class="sr-text"><strong>Nghe thử</strong><span>Bấm để nghe âm thanh khi hoàn thành nhiệm vụ</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-light btn-sm" id="sfxTest1"><i class=mi>check_circle</i> Làm đúng</button><button type="button" class="btn btn-light btn-sm" id="sfxTest2"><i class=mi>celebration</i> Xong nhiệm vụ</button><button type="button" class="btn btn-light btn-sm" id="sfxTest3"><i class=mi>emoji_events</i> Xuất sắc</button></div></div>
         <div class="settings-row"><div class="sr-text"><strong>Tốc độ đọc tiếng Anh</strong><span>Áp dụng cho từ vựng, bài nghe, vai B khi luyện nói</span></div>${seg("ttsSpeed", [{ v: 0.8, l: "Chậm" }, { v: 1, l: "Vừa" }, { v: 1.2, l: "Nhanh" }], s.ttsSpeed)}</div>
         <div class="settings-row"><div class="sr-text"><strong>Giọng đọc</strong><span>Giọng tiếng Anh có sẵn trên thiết bị</span></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select class="role-select" id="ttsVoiceSel" style="max-width:260px"><option value="">Tự động (ưu tiên giọng Mỹ tự nhiên)</option>${voices.map(v => `<option value="${esc(v.name)}" ${s.ttsVoice === v.name ? "selected" : ""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("")}</select><button type="button" class="btn btn-light btn-sm" id="ttsTest"><i class=mi>play_arrow</i> Nghe thử</button></div></div>
@@ -179,6 +181,9 @@
     })));
     host.querySelectorAll("[data-switch]").forEach(sw => sw.addEventListener("click", () => { const v = !window.ENGO_SETTINGS[sw.dataset.switch]; update({ [sw.dataset.switch]: v }); sw.classList.toggle("on", v); }));
     host.querySelector("#ttsVoiceSel")?.addEventListener("change", e => update({ ttsVoice: e.target.value }));
+    host.querySelector("#sfxTest1")?.addEventListener("click", () => window.playSfx && window.playSfx("correct"));
+    host.querySelector("#sfxTest2")?.addEventListener("click", () => window.cheer && window.cheer("taskDone"));
+    host.querySelector("#sfxTest3")?.addEventListener("click", () => window.cheer && window.cheer("perfect"));
     host.querySelector("#ttsTest")?.addEventListener("click", () => { if (window.speakEnglishText) window.speakEnglishText("Hello! This is your English voice. Let's practise together.", { rate: 0.9 }); });
     host.querySelector("#setExport")?.addEventListener("click", () => { if (typeof exportMyData === "function") exportMyData(); });
     host.querySelector("#setImport")?.addEventListener("click", () => document.getElementById("importMyDataInput")?.click());
