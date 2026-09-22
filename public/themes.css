@@ -174,3 +174,86 @@ body.reduce-motion,body.reduce-motion *,body.reduce-motion *::before,body.reduce
 .bg-swatch.custom{display:grid;place-items:center;background:var(--surface-2);color:var(--muted);position:relative;overflow:hidden}
 .bg-swatch.custom input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 @media (max-width:760px){.settings-row{flex-direction:column;align-items:flex-start}.settings-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
+
+/* ============================================================================
+ * LỚP BẢO ĐẢM TƯƠNG PHẢN (áp cho mọi giao diện, kể cả Sáng/Tối mặc định)
+ * Sửa các chỗ chữ bị chìm: chữ dùng biến theme nhưng nền lại cố định (hoặc ngược lại).
+ * ==========================================================================*/
+/* Tối mặc định chưa có --on-primary/--heading -> chữ trắng nằm trên nền xanh nhạt */
+body.dark-mode[data-theme="dark"]{--on-primary:#06231a}
+body:not(.dark-mode){--soft-ink:var(--primary-dark);--btn-a:var(--primary-dark);--btn-b:var(--primary)}
+body.dark-mode{--soft-ink:var(--primary-2);--btn-a:var(--primary);--btn-b:var(--primary-2)}
+
+/* Nút chính: nền đậm hơn ở giao diện sáng, chữ tối ở giao diện tối */
+.btn-primary{background:linear-gradient(135deg,var(--btn-a),var(--btn-b))!important;color:var(--on-primary)!important}
+.btn-soft{color:var(--soft-ink)!important}
+.section-head a,.notice-link a,a.small{color:var(--soft-ink)}
+
+/* Thẻ "Bản đồ năng lực" (nền gradient thương hiệu) bị quy tắc .card của chế độ tối ghi đè -> chữ tối trên nền tối */
+body.dark-mode .card.competency-card,
+body.dark-mode .card.recommendation-card{background:linear-gradient(145deg,var(--primary-dark),var(--primary))!important;color:var(--on-primary)!important;border:0}
+.competency-card *,.recommendation-card *{color:inherit}
+.competency-card .muted,.recommendation-card .muted{opacity:.88}
+.competency-card .skill-icon,.recommendation-card .stat-icon{background:rgba(255,255,255,.18)!important;color:inherit!important}
+
+/* Vòng tròn điểm tổng quan: dùng màu theme thay vì xanh lá cố định */
+.score-orbit{background:conic-gradient(var(--primary) var(--overall-progress,0%),var(--line) 0)!important}
+
+/* Huy hiệu cấp độ & các viên "cà rốt / chuỗi ngày": nền cam nhạt + chữ cam nhạt -> đổi chữ đậm hơn */
+.capybara-badge-lv{background:#b45309!important;color:#fff!important;border-color:var(--surface)!important}
+.streak-top-btn{color:#9a3412}
+body.dark-mode .streak-top-btn{background:linear-gradient(135deg,#3a2a0d,#452f10)!important;border-color:#92400e!important;color:#fdba74}
+body.dark-mode .carrot-count{color:#fcd34d}
+body.dark-mode .streak-count{color:#fdba74}
+body.dark-mode .capybara-title{color:#fde68a}
+body.dark-mode .flash-label{color:var(--primary-2)}
+
+/* Các nhãn màu (dễ/vừa/khó, xanh/cam/đỏ) trong giao diện tối: nền đậm + chữ nhạt */
+body.dark-mode .diff-pill.easy,body.dark-mode .badge.diff-easy,body.dark-mode .total-score-badge.high,body.dark-mode .word-pill.correct,body.dark-mode .q-btn.answered{background:#0d3b2a!important;color:#86efac!important;border-color:#166534!important}
+body.dark-mode .diff-pill.medium,body.dark-mode .badge.diff-medium,body.dark-mode .total-score-badge.mid{background:#3b2a0d!important;color:#fcd34d!important;border-color:#92400e!important}
+body.dark-mode .diff-pill.hard,body.dark-mode .badge.diff-hard,body.dark-mode .total-score-badge.low,body.dark-mode .word-pill.missed{background:#3b171b!important;color:#fca5a5!important;border-color:#991b1b!important}
+body.dark-mode .btn-success{background:#0d3b2a!important;color:#86efac!important}
+body.dark-mode .btn-danger{background:#3b171b!important;color:#fca5a5!important}
+body.dark-mode .healing-stat-card,body.dark-mode .unit-focus{background:var(--surface-2)!important;border-color:var(--line)!important;color:var(--ink)}
+body.dark-mode .unit-lv.lv1{background:#0d3b2a;color:#86efac}
+body.dark-mode .unit-lv.lv2{background:#3b2a0d;color:#fcd34d}
+body.dark-mode .unit-lv.lv3{background:#3b171b;color:#fca5a5}
+body.dark-mode .unit-ok{color:#86efac}
+body.dark-mode .unit-no{color:#fca5a5}
+body.dark-mode .task-instruction{background:#3a2a05!important;border-color:#92400e!important;color:#fde68a!important}
+
+/* Giao diện sáng: nền thương hiệu (nút chính, thẻ gradient) tối thêm một chút để chữ trắng đủ rõ */
+body:not(.dark-mode) .btn-primary{background-image:linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16)),linear-gradient(135deg,var(--btn-a),var(--btn-b))!important}
+body:not(.dark-mode) .competency-card,body:not(.dark-mode) .recommendation-card{background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18)),linear-gradient(145deg,var(--primary-dark),var(--primary))!important;color:#fff!important}
+body:not(.dark-mode) .competency-card *,body:not(.dark-mode) .recommendation-card *{color:inherit}
+body[data-theme="solarized-light"]{--primary-dark:#15706a;--nav-active-ink:#15706a;--heading:#15706a}
+/* Tinh chỉnh vài sắc chữ phụ cho đủ tương phản */
+body[data-theme="parchment"]{--muted:#6d5a40;--muted-2:#756244}
+body[data-theme="onedark"]{--muted-2:#a0a8b4}
+body[data-theme="solarized-dark"]{--nav-active-ink:#7fd6cc}
+
+/* Bề mặt tô màu thương hiệu (nút, tab đang chọn, mặt sau thẻ từ): chữ dùng --on-primary;
+   giao diện sáng thì tối nền thêm 16% để chữ trắng đủ rõ */
+.healing-tab.active,.unit-chip.active,.seg button.active,.data-tab.active,.auth-tab.active{color:var(--on-primary)!important}
+body:not(.dark-mode) .healing-tab.active,body:not(.dark-mode) .unit-chip.active,body:not(.dark-mode) .seg button.active{background-image:linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16))!important;background-color:var(--primary)!important}
+body.dark-mode .healing-tab.active,body.dark-mode .unit-chip.active,body.dark-mode .seg button.active{background-color:var(--primary)!important;background-image:none!important}
+
+/* Mặt sau thẻ từ vựng */
+.flash-face.back{color:var(--on-primary)!important}
+.flash-face.back .flash-label,.flash-face.back .flash-phonetic,.flash-face.back .flash-word-small,.flash-face.back .flash-example,.flash-face.back .flash-examples li,.flash-face.back .flash-meaning,.flash-face.back .flash-pos.back,.flash-face.back .flash-tts-mini,.flash-face.back .mi{color:var(--on-primary)!important}
+.flash-face.back .flash-label,.flash-face.back .flash-phonetic,.flash-face.back .flash-word-small{opacity:.85}
+.flash-face.back .flash-examples li{background:rgba(255,255,255,.16)}
+body:not(.dark-mode) .flash-face.back{background-image:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18)),linear-gradient(145deg,var(--primary-dark),var(--primary))!important}
+.flash-face.front .flash-label{color:var(--soft-ink)}
+.flash-face.front .flash-tts,.flash-face.front .btn-soft{color:var(--soft-ink)!important}
+
+/* Solarized Dark: nền nút sáng nên chữ phải tối */
+body[data-theme="solarized-dark"]{--on-primary:#04262c}
+/* Ô ví dụ / nhãn từ loại trên mặt sau thẻ: nền tương phản với màu chữ của thẻ */
+body:not(.dark-mode) .flash-face.back .flash-examples li,body:not(.dark-mode) .flash-face.back .flash-pos.back,body:not(.dark-mode) .flash-face.back .flash-tts-mini{background:rgba(0,0,0,.20)!important}
+body.dark-mode .flash-face.back .flash-examples li,body.dark-mode .flash-face.back .flash-pos.back,body.dark-mode .flash-face.back .flash-tts-mini{background:rgba(255,255,255,.22)!important}
+.flash-face.back .flash-phonetic,.flash-face.back .flash-word-small{opacity:.95}
+body[data-theme="solarized-dark"]{--nav-active-ink:#8ee0d6}
+/* Số liệu màu ở phòng Chữa lỗi: sáng dùng màu đậm, tối dùng màu nhạt */
+.stat-violet{color:#6d28d9}.stat-red{color:#b91c1c}.stat-amber{color:#b45309}.stat-green{color:#15803d}
+body.dark-mode .stat-violet{color:#c4b5fd}body.dark-mode .stat-red{color:#fca5a5}body.dark-mode .stat-amber{color:#fcd34d}body.dark-mode .stat-green{color:#86efac}
