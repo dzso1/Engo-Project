@@ -24,6 +24,7 @@ const ONLY_GRADE = Number(argOf("--grade", 0)) || null;
 const LIMIT = Number(argOf("--limit", 0)) || Infinity;
 const CONC = Number(argOf("--concurrency", 3)) || 3;
 const DRY = args.includes("--dry");
+const CACHED_ONLY = args.includes("--cached-only"); // chỉ nạp đề đã có kết quả AI trong .import/structured (dùng khi đẩy lên Railway)
 
 const TYPE_LABEL = { kttx: "Thường xuyên", ktgk: "Giữa kì", ktck: "Cuối kì" };
 // Lần KTTX -> unit đầu của khung đề (public/data/exam-bank.js): HK1 TX1..4 = U1, U2, U3-4, U5-6; HK2 = U7, U8, U9-10, U11-12
@@ -97,7 +98,7 @@ async function structure(rec) {
   const [cols] = await pool.query("SHOW COLUMNS FROM imported_tests LIKE 'grade'");
   if (!cols.length) throw new Error("Bảng imported_tests chưa có cột grade - chạy database/migrate-v4.sql hoặc khởi động server một lần.");
 
-  const todo = index.filter(r => !done.has("bank:" + r.hash)).slice(0, LIMIT);
+  const todo = index.filter(r => !done.has("bank:" + r.hash) && (!CACHED_ONLY || fs.existsSync(path.join(OUT_DIR, r.hash + ".json")))).slice(0, LIMIT);
   console.log(`Tổng ${index.length} đề, đã có ${index.length - todo.length - Math.max(0, index.length - done.size - todo.length)} , cần nạp ${todo.length} (concurrency ${CONC}${DRY ? ", DRY" : ""})`);
   let ok = 0, fail = 0, i = 0;
   const log = m => { const line = `[${new Date().toISOString().slice(11, 19)}] ${m}`; console.log(line); fs.appendFileSync(path.join(ROOT, ".import/bank-log.txt"), line + "\n"); };
