@@ -56,10 +56,48 @@
   };
   window.currentThemeId = () => document.body.dataset.theme || "light";
 
+  // ---- màu nền tuỳ chọn: suy ra cả bộ màu (thẻ, viền, chữ, menu) từ màu nền để luôn đọc được ----
+  const hexToRgb = h => { const m = String(h || "").trim().replace("#", ""); const v = m.length === 3 ? m.split("").map(c => c + c).join("") : m; const n = parseInt(v, 16); return isNaN(n) ? null : [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const rgbHex = c => "#" + c.map(x => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, "0")).join("");
+  const mix = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+  const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const BG_TOKENS = ["--bg", "--surface", "--surface-2", "--surface-3", "--line", "--line-2", "--ink", "--ink-2", "--muted", "--muted-2", "--sidebar-bg", "--topbar-bg", "--nav-ink", "--nav-hover", "--nav-active-ink", "--heading", "--primary-soft", "--glow-1", "--glow-2", "--glow-3", "--shadow", "color-scheme"];
   function applyBg() {
     const s = window.ENGO_SETTINGS;
-    if (s.bgColor) { document.body.style.setProperty("--bg", s.bgColor); document.body.classList.add("custom-bg"); }
-    else { document.body.style.removeProperty("--bg"); document.body.classList.remove("custom-bg"); }
+    const st = document.body.style;
+    const theme = themeById(window.currentThemeId()) || THEMES[0];
+    const bg = s.bgColor ? hexToRgb(s.bgColor) : null;
+    if (!bg) {
+      BG_TOKENS.forEach(t => st.removeProperty(t));
+      document.body.classList.remove("custom-bg");
+      document.body.classList.toggle("dark-mode", theme.group === "dark");
+      return;
+    }
+    const W = [255, 255, 255], K = [0, 0, 0];
+    const dark = lum(bg) < 0.32;
+    const primary = hexToRgb(theme.primary) || [5, 150, 105];
+    const veryLight = lum(bg) > 0.85;
+    const p = dark ? {
+      surface: mix(bg, W, 0.07), surface2: mix(bg, W, 0.12), surface3: mix(bg, W, 0.18), line: mix(bg, W, 0.22),
+      ink: mix(bg, W, 0.93), ink2: mix(bg, W, 0.82), muted: mix(bg, W, 0.64), muted2: mix(bg, W, 0.56),
+      navActive: mix(primary, W, 0.35), heading: mix(bg, W, 0.93), soft: mix(primary, bg, 0.72), shadow: "0 14px 34px rgba(0,0,0,.45)"
+    } : {
+      surface: veryLight ? W : mix(bg, W, 0.72), surface2: veryLight ? mix(bg, K, 0.03) : mix(bg, W, 0.4), surface3: mix(bg, K, 0.06), line: mix(bg, K, 0.13),
+      ink: mix(bg, K, 0.9), ink2: mix(bg, K, 0.76), muted: mix(bg, K, 0.56), muted2: mix(bg, K, 0.5),
+      navActive: mix(primary, K, 0.3), heading: mix(primary, K, 0.35), soft: mix(primary, W, 0.86), shadow: "0 14px 34px rgba(0,0,0,.08)"
+    };
+    const set = (k, v) => st.setProperty(k, v);
+    set("--bg", rgbHex(bg)); set("--surface", rgbHex(p.surface)); set("--surface-2", rgbHex(p.surface2)); set("--surface-3", rgbHex(p.surface3));
+    set("--line", rgbHex(p.line)); set("--line-2", rgbHex(p.line)); set("--ink", rgbHex(p.ink)); set("--ink-2", rgbHex(p.ink2));
+    set("--muted", rgbHex(p.muted)); set("--muted-2", rgbHex(p.muted2));
+    set("--sidebar-bg", rgbHex(p.surface)); set("--topbar-bg", rgbHex(dark ? mix(bg, W, 0.03) : mix(bg, W, 0.5)));
+    set("--nav-ink", rgbHex(p.ink2)); set("--nav-hover", rgbHex(p.surface2)); set("--nav-active-ink", rgbHex(p.navActive));
+    set("--heading", rgbHex(p.heading)); set("--primary-soft", rgbHex(p.soft));
+    set("--glow-1", "transparent"); set("--glow-2", "transparent"); set("--glow-3", "transparent"); set("--shadow", p.shadow);
+    set("color-scheme", dark ? "dark" : "light");
+    document.body.classList.add("custom-bg");
+    // Nền tối thì dùng luôn bộ quy tắc tối (ô nhập, bảng, thẻ...) dù theme đang chọn là sáng
+    document.body.classList.toggle("dark-mode", dark);
   }
   function applyAll() {
     const s = window.ENGO_SETTINGS;
