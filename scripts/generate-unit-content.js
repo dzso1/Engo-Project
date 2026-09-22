@@ -1,13 +1,3 @@
-// ============================================================
-// Sinh nội dung học theo Unit 1-12 (Tiếng Anh 9 Global Success) bằng AI:
-//   - câu ví dụ cho từ vựng (từ file "TỪ VỰNG 9.docx")
-//   - ngữ pháp: lý thuyết + bài tập
-//   - luyện nghe: 3 mức (dễ / trung bình / khó) + câu hỏi
-//   - luyện nói: câu đơn (dễ -> khó) + hội thoại
-// Dùng: node scripts/generate-unit-content.js "<đường dẫn TỪ VỰNG 9.docx>" [unitTừ] [unitĐến]
-// Kết quả ghi vào public/data/{vocab-decks,grammar-units,listening-sets,speaking-sets}.js
-// Có thể chạy lại nhiều lần: unit đã sinh xong (cache trong data/unit-cache/) sẽ được bỏ qua.
-// ============================================================
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -60,7 +50,6 @@ Return JSON:
  "rewrite":[{"level":"medium|hard","prompt":"(rewrite / fill-in instruction + sentence)","answer":"(đáp án chuẩn)","accepted":["(các đáp án chấp nhận khác, có thể rỗng)"],"explanation":"(tiếng Việt)"}]}
 Requirements: 1-3 grammar points; exactly 12 "mc" exercises ordered easy(4) -> medium(4) -> hard(4) covering all points; 4 "rewrite" items. Options must include the letter prefix. Sentences use the unit's vocabulary and topic.`, null, 120000), `U${unit.unit} grammar`);
   if (!parsed) {
-    // Bản rút gọn (ít câu, giải thích ngắn) khi bản đầy đủ quá dài làm hỏng JSON
     parsed = await withRetry(() => ai.callAiJson(SYSTEM, `Create a COMPACT grammar lesson for Unit ${unit.unit} "${unit.title}" of Tiếng Anh 9 Global Success (grammar focus of "A Closer Look 2"). Keep every text field short (explanation <= 2 sentences, explanation of exercises <= 1 sentence). Avoid double quotes inside strings.
 Return JSON: {"points":[{"name":"...","explanation":"(tiếng Việt)","formula":"...","notes":[],"examples":[{"en":"...","vi":"..."}]}],
  "exercises":[{"type":"mc","level":"easy|medium|hard","prompt":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":0,"explanation":"(tiếng Việt)"}],

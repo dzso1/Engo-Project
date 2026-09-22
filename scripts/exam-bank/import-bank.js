@@ -1,11 +1,3 @@
-// ============================================================
-// Bước 2: cấu trúc hoá từng đề bằng AI (services/test-structurer) + phân tích độ khó,
-// rồi nạp vào bảng imported_tests theo khối (grade 6-9), học kì, loại đề, lần KTTX.
-//   node scripts/exam-bank/import-bank.js [--grade 9] [--limit 20] [--dry] [--concurrency 3]
-// Chạy lại được nhiều lần: đề đã nạp (source_file_name = "bank:<hash>") sẽ bỏ qua;
-// kết quả AI được cache ở .import/structured/<hash>.json nên nạp lên Railway không tốn AI lần 2.
-// Nạp lên Railway: set DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME rồi chạy lệnh trên.
-// ============================================================
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -24,10 +16,9 @@ const ONLY_GRADE = Number(argOf("--grade", 0)) || null;
 const LIMIT = Number(argOf("--limit", 0)) || Infinity;
 const CONC = Number(argOf("--concurrency", 3)) || 3;
 const DRY = args.includes("--dry");
-const CACHED_ONLY = args.includes("--cached-only"); // chỉ nạp đề đã có kết quả AI trong .import/structured (dùng khi đẩy lên Railway)
+const CACHED_ONLY = args.includes("--cached-only");
 
 const TYPE_LABEL = { kttx: "Thường xuyên", ktgk: "Giữa kì", ktck: "Cuối kì" };
-// Lần KTTX -> unit đầu của khung đề (public/data/exam-bank.js): HK1 TX1..4 = U1, U2, U3-4, U5-6; HK2 = U7, U8, U9-10, U11-12
 const UNIT_OF_TX = { 1: { 1: 1, 2: 2, 3: 3, 4: 5, 5: 6 }, 2: { 1: 7, 2: 8, 3: 9, 4: 11, 5: 12 } };
 
 function titleOf(rec, structured) {
@@ -49,7 +40,6 @@ function durationFor(rec, test, analysis) {
   return n <= 20 ? 15 : Math.max(15, Math.min(45, aiFull || 15));
 }
 
-// buildTestVariants nằm trong server.js (không export) -> bản rút gọn tương đương
 const DEFAULT_TIERS = { advanced: { easy: 25, medium: 35, hard: 40, timeFactor: 0.9 }, regular: { easy: 45, medium: 40, hard: 15, timeFactor: 1.1 } };
 function buildVariants(questions, analysis) {
   const ids = questions.map(q => q.id);

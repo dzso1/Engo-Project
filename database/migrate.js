@@ -58,12 +58,10 @@ async function migrateWithConn(conn) {
     await conn.query("FLUSH PRIVILEGES");
     console.log('-> OK: Permissions granted to engo_app');
   } catch (err) {
-    // Ignore if not root
   }
 }
 
 async function main() {
-  // First try with engo_app credentials
   console.log('--- Đang thử cập nhật CSDL bằng tài khoản engo_app ---');
   try {
     const conn = await mysql.createConnection({
@@ -102,4 +100,3 @@ async function main() {
 }
 
 main();
-

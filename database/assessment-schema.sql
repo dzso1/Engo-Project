@@ -1,10 +1,8 @@
 USE engo;
 
--- 1. Thêm cột class_name và parent_student_id vào bảng users
 ALTER TABLE users ADD COLUMN IF NOT EXISTS class_name VARCHAR(50) NULL AFTER role;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS parent_student_id BIGINT UNSIGNED NULL;
 
--- 2. Tạo bảng imported_tests (đề thi DOCX)
 CREATE TABLE IF NOT EXISTS imported_tests (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   teacher_id BIGINT UNSIGNED NOT NULL,
@@ -19,7 +17,6 @@ CREATE TABLE IF NOT EXISTS imported_tests (
   CONSTRAINT fk_imported_tests_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 3. Tạo bảng writing_submissions (bài nộp của học sinh có giám sát thi)
 CREATE TABLE IF NOT EXISTS writing_submissions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   test_id BIGINT UNSIGNED NOT NULL,
@@ -41,12 +38,10 @@ CREATE TABLE IF NOT EXISTS writing_submissions (
   CONSTRAINT fk_writing_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. Bổ sung các cột nếu bảng đã tồn tại từ trước
 ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS tab_violations INT NOT NULL DEFAULT 0;
 ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS violation_penalty DECIMAL(5,2) NOT NULL DEFAULT 0;
 ALTER TABLE writing_submissions ADD COLUMN IF NOT EXISTS is_forced_submit TINYINT(1) NOT NULL DEFAULT 0;
 
--- 5. Tạo bảng speaking_assignments (bài tập speaking do giáo viên giao)
 CREATE TABLE IF NOT EXISTS speaking_assignments (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   teacher_id BIGINT UNSIGNED NOT NULL,
@@ -61,7 +56,6 @@ CREATE TABLE IF NOT EXISTS speaking_assignments (
   CONSTRAINT fk_speaking_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6. Tạo bảng speaking_submissions (bài nộp luyện nói của học sinh)
 CREATE TABLE IF NOT EXISTS speaking_submissions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   assignment_id BIGINT UNSIGNED NOT NULL,
@@ -75,6 +69,5 @@ CREATE TABLE IF NOT EXISTS speaking_submissions (
   CONSTRAINT fk_speaking_sub_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7. Cấp quyền đầy đủ cho tài khoản engo_app
 GRANT ALL PRIVILEGES ON engo.* TO 'engo_app'@'localhost';
 FLUSH PRIVILEGES;

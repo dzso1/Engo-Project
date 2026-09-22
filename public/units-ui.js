@@ -1,14 +1,3 @@
-/* ============================================================================
- * ENGO Learning Hub — Lớp giao diện "học theo Unit 1–12"
- * ----------------------------------------------------------------------------
- * Gắn thêm vào các màn hình sẵn có mà không sửa script.js:
- *   #vocabulary    → Từ vựng & Ngữ pháp theo Unit (data/vocab-units.js, grammar-units.js)
- *   #speaking-lab  → Luyện nói theo Unit, 3 cấp độ dễ → khó (data/speaking-units.js)
- *   #listening-lab → Luyện nghe theo Unit, 3 cấp độ + bài tập (data/listening-units.js)
- *   #tests         → Khung KTTX / KTGK / KTCK cho HK1 và HK2 (data/exam-bank.js)
- *   #overview      → Gộp Tiến độ học tập và Đánh giá kết quả thành một phần cuối
- * Dùng lại speakEnglishText(), gainRewards(), showToast() của script.js khi có.
- * ==========================================================================*/
 (function () {
   "use strict";
 
@@ -23,14 +12,11 @@
   const toast = m => (window.showToast ? window.showToast(m) : null);
   const say = (t, rate, onDone) => (window.speakEnglishText ? window.speakEnglishText(t, { rate: rate || 0.85, onDone }) : onDone && onDone());
   const reward = (xp, carrots, why) => { try { window.gainRewards && window.gainRewards(xp, carrots, why || ""); } catch (_) {} };
-  // Âm thanh + pháo giấy khi hoàn thành nhiệm vụ (sfx.js)
   const cheerUp = kind => { try { window.cheer ? window.cheer(kind) : window.playSfx && window.playSfx(kind); } catch (_) {} };
   const sfx = name => { try { window.playSfx && window.playSfx(name); } catch (_) {} };
   const $ = (sel, root) => (root || document).querySelector(sel);
-  // script.js khai báo bằng let/const nên không nằm trên window -> đọc qua tên toàn cục
   const CU = () => { try { return typeof currentUser !== "undefined" ? currentUser : null; } catch (_) { return null; } };
   const TESTS = () => { try { if (typeof testsCache !== "undefined" && Array.isArray(testsCache) && testsCache.length) return testsCache; } catch (_) {} try { if (typeof teacherTestsCache !== "undefined" && Array.isArray(teacherTestsCache)) return teacherTestsCache; } catch (_) {} return []; };
-  // Ghi nhận kết quả lên server (tiến độ, danh hiệu) — bỏ qua nếu chưa đăng nhập
   async function logEvent(type, refId, title, score, maxScore, meta) {
     try {
       const cu = CU();
@@ -39,7 +25,6 @@
       if (typeof invalidateProgress === "function") invalidateProgress();
     } catch (_) {}
   }
-  // Câu ví dụ do AI sinh sẵn (data/vocab-decks.js) tra theo từ
   function exampleFor(unit, word) {
     const deck = (window.ENGO_VOCAB_DECKS || {})["unit" + unit];
     if (!deck) return null;
@@ -47,7 +32,6 @@
     const c = deck.cards.find(x => x.word.toLowerCase() === key) || deck.cards.find(x => key.startsWith(x.word.toLowerCase()) || x.word.toLowerCase().startsWith(key));
     return c && c.examples && c.examples[0] ? { en: c.examples[0], vi: c.exampleVi || "" } : null;
   }
-  // Ảnh minh hoạ (data/vocab-images.js, khoá là từ trong vocab-decks.js) - tra mềm theo từ
   function imageFor(word) {
     const map = window.ENGO_VOCAB_IMAGES || {};
     const w = String(word || "").toLowerCase().trim();
@@ -57,7 +41,6 @@
     const k = Object.keys(map).find(x => map[x] && (base.startsWith(x.toLowerCase()) || x.toLowerCase().startsWith(base)) && Math.abs(x.length - base.length) <= 3);
     return k ? map[k] : "";
   }
-  // Gộp bài nghe do AI sinh (data/listening-sets.js) vào bộ nghe theo unit (cùng định dạng tasks)
   function listeningTasks(u) {
     const base = (LISTEN()["unit" + u] || {}).tasks || [];
     const ai = ((window.ENGO_LISTENING_SETS || {})["unit" + u] || {}).levels || [];
@@ -71,7 +54,6 @@
     return [...base, ...extra].sort((a, b) => a.level - b.level);
   }
 
-  /* ---------------------------- lưu tiến độ ---------------------------- */
   function storeKey() {
     try { if (window.getUserStorageKey) return window.getUserStorageKey("engoUnitsProgressV1"); } catch (_) {}
     return "engoUnitsProgressV1_guest";
@@ -92,7 +74,6 @@
   }
   const countDone = bucket => Object.keys(loadProg()[bucket] || {}).length;
 
-  /* ------------------------- bộ chọn Unit dùng chung ------------------------- */
   const state = { vocabUnit: 1, vocabTab: "words", speakUnit: 1, listenUnit: 1, examTerm: 1, examGrade: 9 };
 
   function unitChips(current, attr) {
@@ -101,7 +82,6 @@
     ).join("") + "</div>";
   }
 
-  /* ============================== 1. TỪ VỰNG ============================== */
   function vocabPanelHTML() {
     const u = state.vocabUnit;
     const deck = VOCAB()["unit" + u];
@@ -112,7 +92,6 @@
     const groups = {};
     deck.cards.forEach(c => { (groups[c.sec] = groups[c.sec] || []).push(c); });
 
-    // Thanh luyện nhanh: mở ngay một dạng luyện từ của Unit đang xem
     const practiceBar = `
       <div class="vocab-practice-bar">
         <span><i class=mi>sports_esports</i> Luyện từ Unit ${u}:</span>
@@ -185,7 +164,6 @@
       </div>`;
   }
 
-  // Ngữ pháp định dạng AI (scripts/generate-unit-content.js): points / exercises / rewrite
   const LVN = { easy: "Dễ", medium: "Vừa", hard: "Khó" };
   function grammarAiHTML(u, gram) {
     const theory = (gram.points || []).map(pt => `
@@ -303,7 +281,6 @@
     });
   }
 
-  /* ============================== 2. LUYỆN NÓI ============================== */
   function mountSpeaking() {
     const view = document.getElementById("speaking-lab");
     if (!view) return;
@@ -343,7 +320,6 @@
     host.querySelectorAll("[data-say]").forEach(b => b.addEventListener("click", () => say(b.dataset.say, 0.8)));
   }
 
-  /* ============================== 3. LUYỆN NGHE ============================== */
   function mountListening() {
     const host = document.getElementById("listeningMount");
     if (!host) return;
@@ -446,7 +422,6 @@
     return `<div class="unit-q" data-q="${qi}">${head}<div class="unit-opts">${opts.map(o => `<button type="button" class="unit-opt" data-val="${esc(o)}">${esc(o)}</button>`).join("")}</div>${q.why ? `<div class="unit-why hidden">${esc(q.why)}</div>` : ""}</div>`;
   }
 
-  /* ============================== 4. NGÂN HÀNG ĐỀ ============================== */
   function mountExams() {
     const view = document.getElementById("tests");
     const B = EXAM();
@@ -462,7 +437,6 @@
     const TYPEN = { KTTX: "Thường xuyên", KTGK: "Giữa kì", KTCK: "Cuối kì" };
     const cu = CU();
     const isTeacher = cu && (cu.role === "teacher" || cu.role === "admin");
-    // Khối: học sinh theo lớp của mình (9A5 -> 9); giáo viên chọn khối bằng nút
     const myGrade = cu && cu.className ? Number(String(cu.className).match(/^([6-9])/)?.[1]) : null;
     const grade = isTeacher ? state.examGrade : (myGrade || 9);
     const tests = TESTS().filter(t => !t.grade || Number(t.grade) === grade);
@@ -517,7 +491,6 @@
     }));
   }
 
-  /* ============================== 5. TỔNG KẾT ============================== */
   function bindOverview() {
     const tabs = document.querySelectorAll("[data-ov-tab]");
     if (!tabs.length || tabs[0].dataset.bound) return;
@@ -538,7 +511,6 @@
     });
   }
 
-  /* ------------------------------ điều phối ------------------------------ */
   const api = {
     onView(id) {
       try {

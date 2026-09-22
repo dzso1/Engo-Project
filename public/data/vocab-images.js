@@ -1,5 +1,3 @@
-// Ảnh minh hoạ từ vựng (Wikimedia Commons qua Wikipedia summary API). Sinh bởi scripts/fetch-vocab-images.js
-// null = đã tra nhưng không có ảnh phù hợp
 window.ENGO_VOCAB_IMAGES = {
  "local": null,
  "community": null,

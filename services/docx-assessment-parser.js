@@ -31,17 +31,11 @@ function sectionFor(number) {
   return "Writing";
 }
 
-// ==========================================================
-// NHẬN DIỆN PHẦN SPEAKING TRONG ĐỀ DOCX
-// Hỗ trợ các tiêu đề: "V. SPEAKING", "PART 5: SPEAKING", "D. Speaking",
-// "SPEAKING (2 points)"... Mỗi dòng đánh số / gạch đầu dòng bên dưới là 1 câu.
-// ==========================================================
 const SPEAKING_HEADING = /(?:^|\n)[ \t]*(?:(?:[IVX]+|\d+|[A-H])[.)]\s*|PART\s*\d+\s*[:.)-]?\s*|SECTION\s*\d+\s*[:.)-]?\s*)?(?:SPEAKING|PHẦN\s+NÓI|NÓI)\b[^\n]*/i;
 const NEXT_SECTION = /\n[ \t]*(?:(?:[IVX]+|[A-H])[.)]\s+(?:[A-ZÀ-Ỹ][A-ZÀ-Ỹ\s&]{3,}|LISTENING|READING|WRITING|PRONUNCIATION|PHONETICS|GRAMMAR|VOCABULARY|LANGUAGE)|PART\s*\d+|SECTION\s*\d+|---\s*THE END|THE END)/i;
 
 function classifySpeakingPrompt(prompt) {
   const p = prompt.trim();
-  // Câu hỏi / yêu cầu nói tự do -> chấm theo nội dung; câu trần thuật -> đọc to theo mẫu
   if (/\?$/.test(p) || /^(talk|speak|tell|describe|introduce|discuss|say|give|present|explain|answer)\b/i.test(p) || /\b(about|your|you)\b/i.test(p) && /^(what|why|how|where|when|who|do|does|did|are|is|can|could|would|have)\b/i.test(p)) {
     return "free";
   }
@@ -58,7 +52,6 @@ function extractSpeakingSection(questionText) {
   const block = afterHeading.slice(0, blockEnd);
   const remaining = (questionText.slice(0, start) + "\n" + afterHeading.slice(blockEnd)).trim();
 
-  // Điểm mỗi câu (nếu ghi trong tiêu đề, vd: "SPEAKING (2 points)" / "(2 điểm)")
   const pointsMatch = headingMatch[0].match(/(\d+(?:[.,]\d+)?)\s*(?:points?|điểm|pts?)/i);
   const sectionPoints = pointsMatch ? Number(pointsMatch[1].replace(",", ".")) : 0;
 
@@ -73,7 +66,6 @@ function extractSpeakingSection(questionText) {
     } else if (buffer && /^[a-z(]/i.test(line) && line.length < 200) {
       buffer += " " + line;
     } else if (!buffer && /[A-Za-z]{3,}/.test(line) && !/^(instruction|hướng dẫn|yêu cầu)/i.test(line) && line.length > 12) {
-      // Không đánh số: mỗi dòng đủ dài là một câu
       items.push(line);
     }
   }
@@ -87,7 +79,6 @@ function extractSpeakingSection(questionText) {
   const perItem = cleaned.length ? Number(((sectionPoints || Math.min(2, cleaned.length * 0.5)) / cleaned.length).toFixed(2)) : 0;
   const speakingQuestions = cleaned.map((prompt, idx) => ({
     id: `speaking-${idx + 1}`,
-    // Câu cần đọc to: bỏ phần hướng dẫn "Read aloud:" để lấy đúng câu mẫu chấm phát âm
     target: prompt.replace(/^(?:read\s+(?:aloud|the\s+(?:sentence|text|paragraph))|đọc(?:\s+to)?|say)\s*[:\-–]?\s*/i, "").trim(),
     number: 100 + idx + 1,
     section: "Speaking",

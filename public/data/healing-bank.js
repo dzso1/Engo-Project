@@ -1,4 +1,3 @@
-// Ngân hàng bài tập chữa lỗi ngữ pháp trọng tâm THCS (12 dạng lỗi) — dùng bởi Phòng Chữa Lỗi
 window.ENGO_HEALING_BANK = {
       "PS_AFF": {
         label: "Hiện tại đơn — Khẳng định (+s/es)",

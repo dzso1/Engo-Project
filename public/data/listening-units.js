@@ -1,11 +1,3 @@
-// Luyện nghe theo Unit 1–12 — Tiếng Anh 9 Global Success (Unit 1–12)
-// Mỗi unit có 3 cấp độ nghe tăng dần, mỗi cấp gồm một đoạn nghe và 3 bài tập áp dụng.
-//   L1 (dễ)  ~35–45 từ, tốc độ chậm  — nghe lấy thông tin chính
-//   L2 (vừa) ~55–70 từ, tốc độ bình thường — nghe lấy chi tiết
-//   L3 (khó) ~80–95 từ, tốc độ tự nhiên — nghe suy luận
-// Âm thanh phát bằng Web Speech API (SpeechSynthesis) nên không cần tệp mp3;
-// trường rate điều chỉnh tốc độ đọc, học sinh được nghe lại tối đa 3 lần mỗi cấp.
-// Dạng bài tập: mcq (chọn đáp án), tf (đúng/sai), gap (điền từ nghe được).
 window.ENGO_LISTENING_UNITS = {
   unit1: {
     unit: 1, name: "Unit 1 · Local Community",

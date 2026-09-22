@@ -1,7 +1,3 @@
-// ==========================================================
-// TỔNG HỢP TIẾN ĐỘ HỌC TẬP CỦA TỪNG HỌC SINH
-// (bài kiểm tra, luyện nói theo giai đoạn, từ vựng, chữa lỗi)
-// ==========================================================
 const pool = require("../database/db");
 
 function parseJson(value, fallback) {
@@ -12,7 +8,6 @@ function parseJson(value, fallback) {
 
 function round1(n) { return Number((Number(n) || 0).toFixed(1)); }
 
-// Cột hiện có của từng bảng (cache) -> truy vấn vẫn chạy khi CSDL chưa migrate đủ cột
 const colCache = {};
 async function tableCols(table) {
   if (colCache[table]) return colCache[table];
@@ -44,7 +39,6 @@ function scoreSubmissionRow(row) {
   const objectiveScore = Number(row.objective_score || 0);
   const manualScore = row.manual_score !== null && row.manual_score !== undefined ? Number(row.manual_score) : null;
   const totalScore = manualScore !== null ? Number((objectiveScore + manualScore).toFixed(2)) : objectiveScore;
-  // Điểm tối đa: theo biến thể đề (nếu có) hoặc tổng điểm của đề
   const maxScore = Number(row.objective_max || 0) > 0
     ? Number(row.objective_max) + Number(summary.manualPoints || (summary.totalPoints ? Math.max(0, summary.totalPoints - Number(row.objective_max)) : 0))
     : Number(summary.totalPoints || 10);
@@ -93,7 +87,6 @@ async function getSpeakingProgress(studentId) {
     };
   }
 
-  // Xu hướng theo ngày (điểm trung bình mỗi ngày, tối đa 14 ngày gần nhất)
   const byDay = {};
   attempts.forEach(a => {
     const d = new Date(a.created_at).toISOString().slice(0, 10);
@@ -102,7 +95,6 @@ async function getSpeakingProgress(studentId) {
   });
   const trend = Object.keys(byDay).sort().slice(-14).map(d => ({ date: d, accuracy: Math.round(byDay[d].sum / byDay[d].n), attempts: byDay[d].n }));
 
-  // Từ hay sai nhất
   const wordErrors = {};
   const grammarErrors = {};
   attempts.slice(-60).forEach(a => {
@@ -177,8 +169,6 @@ async function getEventProgress(studentId) {
   };
 }
 
-// Năng lực = chất lượng (điểm trung bình) x mức hoàn thiện (đã làm bao nhiêu so với mục tiêu)
-// -> làm 1 bài chỉ cộng một phần nhỏ, không nhảy thẳng lên 100%
 const COVERAGE_TARGETS = { tests: 8, speakingAttempts: 40, listening: 24, grammar: 12, vocab: 12, writing: 6 };
 function coverage(done, target) { return Math.min(1, (Number(done) || 0) / target); }
 function skill(quality, cov) { return Math.max(0, Math.min(100, Math.round((Number(quality) || 0) * cov))); }
@@ -191,7 +181,6 @@ function buildSkillScores({ tests, speaking, eventsInfo }) {
   const vocabCov = coverage(eventsInfo.vocab.sessions, COVERAGE_TARGETS.vocab);
   const writingScored = tests.history.filter(h => h.status === "graded");
   const writingPct = writingScored.length ? writingScored.reduce((s, h) => s + h.scoreOnTen, 0) / writingScored.length * 10 : 0;
-  // Ngữ pháp: trung bình có trọng số của bài tập ngữ pháp theo unit và bài kiểm tra
   const gramParts = [];
   if (eventsInfo.grammar.sessions) gramParts.push({ q: eventsInfo.grammar.avgPercent, w: gramCov });
   if (tests.count) gramParts.push({ q: testPct, w: testCov });

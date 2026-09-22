@@ -1,8 +1,3 @@
-// ============================================================
-// Tải ảnh minh hoạ cho từ vựng (Wikipedia/Wikimedia Commons, không cần API key) -> public/data/vocab-images.js
-//   node scripts/fetch-vocab-images.js
-// Chạy lại được: từ đã có ảnh (hoặc đã tra mà không có) sẽ bỏ qua. Nghỉ 1.2 s giữa các request để không bị chặn.
-// ============================================================
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -31,7 +26,6 @@ async function lookup(title) {
   if (!res.ok) return null;
   const j = await res.json();
   if (j.type !== "standard" || !j.thumbnail || !j.thumbnail.source) return null;
-  // Ảnh kích thước ~400px cho thẻ từ
   return j.thumbnail.source.replace(/\/\d+px-/, "/400px-");
 }
 function save() {

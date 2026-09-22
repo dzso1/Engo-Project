@@ -1,5 +1,3 @@
-// Bộ từ vựng Tiếng Anh 9 Global Success theo Unit 1-12
-// Sinh tự động bởi scripts/generate-unit-content.js (nguồn: TỪ VỰNG 9 Global Success + AI). Chỉnh tay được.
 window.ENGO_VOCAB_DECKS = {
  "unit1": {
   "name": "Unit 1 · Local Community",

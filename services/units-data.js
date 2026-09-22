@@ -1,9 +1,3 @@
-/**
- * services/units-data.js
- * Nạp các tệp học liệu theo Unit 1–12 nằm trong public/data/ để phía máy chủ dùng lại.
- * Các tệp đó viết cho trình duyệt (gán vào window) nên ở đây ta dựng một đối tượng
- * window giả rồi chạy chúng trong một sandbox của Node — không phải chép dữ liệu ra hai nơi.
- */
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -37,7 +31,6 @@ function load() {
   return cache;
 }
 
-/** Số liệu tổng quan của 12 unit — dùng cho trang giáo viên và báo cáo. */
 function summary() {
   const d = load();
   const units = [];
@@ -69,7 +62,6 @@ function summary() {
   };
 }
 
-/** Toàn bộ học liệu của một unit. */
 function unit(n) {
   const d = load();
   const k = "unit" + Number(n);
@@ -83,7 +75,6 @@ function unit(n) {
   };
 }
 
-/** Khung 12 bài kiểm tra KTTX / KTGK / KTCK của hai học kì. */
 function examSpecs(term) {
   const d = load();
   const specs = d.exam.specs || [];
@@ -99,7 +90,6 @@ function examSpec(id) {
   return examSpecs().find(s => s.id === id) || null;
 }
 
-/** Danh sách mã lỗi ngữ pháp theo unit, để Phòng Chữa Lỗi gom nhóm. */
 function errorCodes() {
   const d = load();
   const out = [];

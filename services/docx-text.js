@@ -1,11 +1,3 @@
-// ============================================================
-// DOCX -> văn bản thuần có giữ:
-//   - phần GẠCH CHÂN  -> <u>...</u>   (đề ngữ âm: "underlined part pronounced differently")
-//   - phần IN ĐẬM     -> <b>...</b>   (tiêu đề phần / yêu cầu task)
-//   - bảng            -> mỗi hàng một dòng, các ô cách nhau " | " (đáp án dạng bảng không bị dính)
-//   - tab / xuống dòng trong đoạn
-// mammoth.extractRawText bỏ hết định dạng nên học sinh không biết chữ nào được gạch chân.
-// ============================================================
 const JSZip = require("jszip");
 
 const XML_ENT = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'" };
@@ -13,14 +5,12 @@ function decodeXml(s) {
   return String(s || "").replace(/&(amp|lt|gt|quot|apos);/g, m => XML_ENT[m]).replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
 }
 
-// Đọc một đoạn <w:p>...</w:p> -> chuỗi có <u>/<b>
 function paragraphText(pXml) {
   const out = [];
   let curU = false, curB = false;
   const runRe = /<w:r\b[^>]*>([\s\S]*?)<\/w:r>|<w:hyperlink\b[^>]*>([\s\S]*?)<\/w:hyperlink>/g;
   const pieces = [];
   let m;
-  // Hyperlink chứa run bên trong: xử lý đệ quy đơn giản bằng cách bung ra
   const flat = pXml.replace(/<w:hyperlink\b[^>]*>([\s\S]*?)<\/w:hyperlink>/g, "$1");
   while ((m = runRe.exec(flat))) {
     const run = m[1] || "";
@@ -38,7 +28,6 @@ function paragraphText(pXml) {
     if (!text) continue;
     pieces.push({ text, u, b });
   }
-  // Gộp các run liền nhau cùng định dạng
   for (const p of pieces) {
     if (p.u !== curU) { out.push(p.u ? "<u>" : "</u>"); curU = p.u; }
     if (p.b !== curB) { out.push(p.b ? "<b>" : "</b>"); curB = p.b; }
@@ -47,16 +36,12 @@ function paragraphText(pXml) {
   if (curU) out.push("</u>");
   if (curB) out.push("</b>");
   return out.join("")
-    // Gạch chân/đậm chỉ bao khoảng trắng thì bỏ
     .replace(/<u>(\s*)<\/u>/g, "$1").replace(/<b>(\s*)<\/b>/g, "$1")
-    // </u> <u> liền nhau -> nối
     .replace(/<\/u>(\s*)<u>/g, "$1").replace(/<\/b>(\s*)<b>/g, "$1");
 }
 
-// Chuyển thân document (đã bỏ bảng lồng nhau ở mức đơn giản) -> các dòng
 function bodyToLines(xml) {
   const lines = [];
-  // Tách theo bảng và đoạn ở mức cao nhất
   const tokenRe = /<w:tbl\b[\s\S]*?<\/w:tbl>|<w:p\b[\s\S]*?<\/w:p>/g;
   let m;
   while ((m = tokenRe.exec(xml))) {
@@ -90,7 +75,6 @@ async function docxToText(buffer) {
     .trim();
 }
 
-// Bỏ thẻ định dạng khi cần văn bản thuần (vd. so khớp đáp án, TTS)
 function stripMarks(s) { return String(s || "").replace(/<\/?[ub]>/g, ""); }
 
 module.exports = { docxToText, stripMarks };

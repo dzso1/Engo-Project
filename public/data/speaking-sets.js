@@ -1,5 +1,3 @@
-// Bộ bài luyện nói mặc định theo Unit 1-12 (GĐ1 câu đơn, GĐ2 hội thoại)
-// Sinh tự động bởi scripts/generate-unit-content.js (nguồn: TỪ VỰNG 9 Global Success + AI). Chỉnh tay được.
 window.ENGO_SPEAKING_SETS = [
  {
   "id": "unit1-s1",

@@ -1,19 +1,12 @@
-/* ============================================================================
- * ENGO — Giao diện (14 theme) + trang Cài đặt
- * Lưu ở localStorage theo thiết bị: engoTheme (tên theme), engoSettings (cỡ chữ, âm thanh, TTS, nền...).
- * script.js gọi: applyTheme(id), getPreferredTheme(), renderSettings(); playClickSound/speakEnglishText đọc ENGO_SETTINGS.
- * ==========================================================================*/
 (function () {
   "use strict";
 
   const THEMES = [
-    // sáng
     { id: "light", name: "Sáng mặc định", desc: "Xanh lá ENGO", group: "light", bg: "#f3f8f5", surface: "#ffffff", primary: "#059669", ink: "#0f291e" },
     { id: "offwhite", name: "Off-White", desc: "Trắng sữa / Trắng mềm", group: "light", bg: "#fafaf7", surface: "#ffffff", primary: "#0f9d76", ink: "#1f2933" },
     { id: "parchment", name: "Warm Beige", desc: "Kem ấm / Giấy da", group: "light", bg: "#f2e9d8", surface: "#fbf6ea", primary: "#b0621a", ink: "#3b2f1e" },
     { id: "coolgray", name: "Cool Gray", desc: "Xám nhạt trung tính", group: "light", bg: "#eef0f3", surface: "#ffffff", primary: "#2f6fed", ink: "#1f2328" },
     { id: "solarized-light", name: "Solarized Light", desc: "Vàng kem dịu mắt", group: "light", bg: "#fdf6e3", surface: "#fffcf2", primary: "#2aa198", ink: "#073642" },
-    // tối
     { id: "dark", name: "Tối mặc định", desc: "Xanh rừng đêm", group: "dark", bg: "#06140e", surface: "#0a2318", primary: "#34d399", ink: "#ecfdf5" },
     { id: "charcoal", name: "Charcoal", desc: "Xám than / Đen tuyền", group: "dark", bg: "#0c0d0f", surface: "#151719", primary: "#34d399", ink: "#ededf0" },
     { id: "midnight", name: "Midnight Blue", desc: "Xanh đêm / Xanh than", group: "dark", bg: "#0a1220", surface: "#111b2f", primary: "#5aa8ff", ink: "#e6edf7" },
@@ -35,7 +28,6 @@
 
   const themeById = id => THEMES.find(t => t.id === id);
 
-  // ---- áp dụng giao diện ----
   window.applyTheme = function (id) {
     const theme = themeById(id) || THEMES[0];
     const dark = theme.group === "dark";
@@ -51,12 +43,10 @@
   };
   window.getPreferredTheme = function () {
     const saved = localStorage.getItem("engoTheme");
-    // Mặc định luôn sáng (không theo chế độ tối của hệ điều hành)
     return themeById(saved) ? saved : "light";
   };
   window.currentThemeId = () => document.body.dataset.theme || "light";
 
-  // ---- màu nền tuỳ chọn: suy ra cả bộ màu (thẻ, viền, chữ, menu) từ màu nền để luôn đọc được ----
   const hexToRgb = h => { const m = String(h || "").trim().replace("#", ""); const v = m.length === 3 ? m.split("").map(c => c + c).join("") : m; const n = parseInt(v, 16); return isNaN(n) ? null : [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
   const rgbHex = c => "#" + c.map(x => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, "0")).join("");
   const mix = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
@@ -96,7 +86,6 @@
     set("--glow-1", "transparent"); set("--glow-2", "transparent"); set("--glow-3", "transparent"); set("--shadow", p.shadow);
     set("color-scheme", dark ? "dark" : "light");
     document.body.classList.add("custom-bg");
-    // Nền tối thì dùng luôn bộ quy tắc tối (ô nhập, bảng, thẻ...) dù theme đang chọn là sáng
     document.body.classList.toggle("dark-mode", dark);
   }
   function applyAll() {
@@ -107,7 +96,6 @@
   }
   function update(patch) { window.ENGO_SETTINGS = { ...window.ENGO_SETTINGS, ...patch }; save(window.ENGO_SETTINGS); applyAll(); }
 
-  // ---- trang Cài đặt ----
   const esc = s => String(s ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m]));
   function tile(t) {
     return `<button type="button" class="theme-tile${window.currentThemeId() === t.id ? " active" : ""}" data-theme="${t.id}" title="${esc(t.desc)}">

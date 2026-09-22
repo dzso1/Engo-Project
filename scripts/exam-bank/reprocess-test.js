@@ -1,5 +1,3 @@
-// Đọc lại một đề đã nạp bằng pipeline AI mới (giữ nguyên id để không mất bài nộp)
-//   node scripts/exam-bank/reprocess-test.js <id> <đường dẫn file .docx/.pdf> [tên đề]
 require("dotenv").config();
 const fs = require("fs");
 const pool = require("../../database/db");

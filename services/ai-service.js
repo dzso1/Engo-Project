@@ -1,15 +1,12 @@
 const https = require('https');
 
-// Extensive IPA Dictionary for secondary school English
 const EXTENSIVE_IPA_DICT = {
-  // Pronouns & Articles
   "i": "aɪ", "you": "juː", "he": "hiː", "she": "ʃiː", "it": "ɪt", "we": "wiː", "they": "ðeɪ",
   "me": "miː", "him": "hɪm", "her": "hɜːr", "us": "ʌs", "them": "ðem",
   "my": "maɪ", "your": "jɔːr", "his": "hɪz", "our": "ˈaʊər", "their": "ðeər", "its": "ɪts",
   "this": "ðɪs", "that": "ðæt", "these": "ðiːz", "those": "ðəʊz",
   "a": "ə", "an": "æn", "the": "ðə",
 
-  // Verbs (Present, Past, V3, Continuous)
   "be": "biː", "is": "ɪz", "am": "æm", "are": "ɑːr", "was": "wɒz", "were": "wɜːr", "been": "biːn", "being": "ˈbiːɪŋ",
   "do": "duː", "does": "dʌz", "did": "dɪd", "done": "dʌn", "doing": "ˈduːɪŋ",
   "have": "hæv", "has": "hæz", "had": "hæd", "having": "ˈhævɪŋ",
@@ -48,13 +45,11 @@ const EXTENSIVE_IPA_DICT = {
   "reduce": "rɪˈdjuːs", "reduces": "rɪˈdjuːsɪz", "reduced": "rɪˈdjuːst",
   "reuse": "ˌriːˈjuːz", "pollute": "pəˈluːt", "polluted": "pəˈluːtɪd",
 
-  // Modals & Auxiliaries
   "can": "kæn", "could": "kʊd", "will": "wɪl", "would": "wʊd",
   "shall": "ʃæl", "should": "ʃʊd", "may": "meɪ", "might": "maɪt", "must": "mʌst",
   "cannot": "ˈkænɒt", "can't": "kɑːnt", "don't": "dəʊnt", "doesn't": "ˈdʌznt", "didn't": "ˈdɪdnt",
   "won't": "wəʊnt", "wouldn't": "ˈwʊdnt", "shouldn't": "ˈʃʊdnt", "isn't": "ˈɪznt", "aren't": "ɑːnt", "wasn't": "ˈwɒznt", "weren't": "wɜːnt",
 
-  // Nouns
   "badminton": "ˈbædmɪntən", "football": "ˈfʊtbɔːl", "soccer": "ˈsɒkər", "volleyball": "ˈvɒlibɔːl", "tennis": "ˈtɛnɪs", "basketball": "ˈbɑːskɪtbɔːl", "swimming": "ˈswɪmɪŋ",
   "school": "skuːl", "class": "klɑːs", "classroom": "ˈklɑːsrʊm", "student": "ˈstjuːdnt", "students": "ˈstjuːdnts", "teacher": "ˈtiːtʃər", "teachers": "ˈtiːtʃərz",
   "friend": "frɛnd", "friends": "frɛndz", "family": "ˈfæmɪli", "parent": "ˈpeərənt", "parents": "ˈpeərənts",
@@ -69,7 +64,6 @@ const EXTENSIVE_IPA_DICT = {
   "environment": "ɪnˈvaɪrənmənt", "energy": "ˈɛnədʒi", "pollution": "pəˈluːʃn", "water": "ˈwɔːtər", "air": "eər", "plastic": "ˈplæstɪk",
   "city": "ˈsɪti", "village": "ˈvɪlɪdʒ", "country": "ˈkʌntri", "nature": "ˈneɪtʃər",
 
-  // Adjectives
   "good": "ɡʊd", "better": "ˈbɛtər", "best": "bɛst",
   "bad": "bæd", "worse": "wɜːs", "worst": "wɜːst",
   "big": "bɪɡ", "bigger": "ˈbɪɡər", "biggest": "ˈbɪɡɪst",
@@ -80,7 +74,6 @@ const EXTENSIVE_IPA_DICT = {
   "beautiful": "ˈbjuːtəfʊl", "important": "ɪmˈpɔːtənt", "interesting": "ˈɪntrəstɪŋ", "expensive": "ɪkˈspɛnsɪv", "difficult": "ˈdɪfɪkəlt", "easy": "ˈiːzi",
   "clean": "kliːn", "dirty": "ˈdɜːti", "healthy": "ˈhɛlθi", "famous": "ˈfeɪməs", "favourite": "ˈfeɪvərɪt",
 
-  // Prepositions, Conjunctions & Adverbs
   "in": "ɪn", "on": "ɒn", "at": "æt", "to": "tuː", "from": "frɒm", "with": "wɪð", "without": "wɪˈðaʊt",
   "for": "fɔːr", "of": "ɒv", "about": "əˈbaʊt", "by": "baɪ", "under": "ˈʌndər", "over": "ˈəʊvər",
   "and": "ænd", "but": "bʌt", "or": "ɔːr", "so": "səʊ", "because": "bɪˈkɒz", "although": "ɔːlˈðəʊ",
@@ -90,13 +83,11 @@ const EXTENSIVE_IPA_DICT = {
   "well": "wɛl", "early": "ˈɜːli", "late": "leɪt", "hard": "hɑːd"
 };
 
-// Rule-based phonetic converter for English words to standard IPA
 function convertWordToIpa(word) {
   let w = word.toLowerCase().trim().replace(/[^a-z']/g, "");
   if (!w) return "";
   if (EXTENSIVE_IPA_DICT[w]) return EXTENSIVE_IPA_DICT[w];
 
-  // Check common suffixes
   if (w.endsWith("ing") && EXTENSIVE_IPA_DICT[w.slice(0, -3)]) {
     return EXTENSIVE_IPA_DICT[w.slice(0, -3)] + "ɪŋ";
   }
@@ -113,7 +104,6 @@ function convertWordToIpa(word) {
     return EXTENSIVE_IPA_DICT[w.slice(0, -1)] + "z";
   }
 
-  // Phonetic rule replacement pipeline
   let p = w;
   if (p === "supercalifragilisticexpialidocious") {
     return "ˌsuːpərˌkælɪˌfrædʒɪˌlɪstɪkˌɛkspiːˌælɪˈdoʊʃəs";
@@ -175,7 +165,6 @@ async function translateAndGenerateIpa(sentence) {
     return { translation: "", ipa: "" };
   }
 
-  // 1. Check in-memory cache
   const cacheKey = "ipa_trans_" + text.toLowerCase();
   const cached = getCachedResponse(cacheKey);
   if (cached) {
@@ -184,7 +173,6 @@ async function translateAndGenerateIpa(sentence) {
     } catch(e) {}
   }
 
-  // 2. Call AI Engine (Gemini / Groq / OpenAI / Ollama)
   try {
     const prompt = `Task:
 1. Provide the accurate, standard International Phonetic Alphabet (IPA) transcription for this English text (include stress marks ˈ and ˌ, enclosed in slashes /.../).
@@ -233,11 +221,9 @@ You must respond ONLY with a raw JSON object in this exact schema (no markdown f
     console.warn("AI translateAndGenerateIpa failed, switching to linguistic fallback:", err.message);
   }
 
-  // 3. Robust Linguistic Fallback
   let translation = "";
   let ipa = generateIpaFromDictionary(text);
 
-  // Fallback translation via MyMemory API
   try {
     const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`, {
       signal: AbortSignal.timeout(5000)
@@ -278,7 +264,6 @@ You must respond ONLY with a raw JSON object in this exact schema (no markdown f
 async function callLocalOllama(messages) {
   const host = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
   try {
-    // 1. Get model name from Ollama tags if not explicitly set
     let model = process.env.OLLAMA_MODEL;
     if (!model) {
       const tagsRes = await fetch(host + "/api/tags", { signal: AbortSignal.timeout(1200) });
@@ -309,14 +294,12 @@ async function callLocalOllama(messages) {
       if (content && content.trim()) return content.trim();
     }
   } catch (e) {
-    // Ollama not reachable or timed out
   }
   return null;
 }
 
-// In-Memory Cache for fast responses & 0-token cost for repeated queries
 const aiResponseCache = new Map();
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 function getCachedResponse(prompt) {
   const key = prompt.trim().toLowerCase();
@@ -337,7 +320,6 @@ function setCachedResponse(prompt, content) {
   }
 }
 
-// Multi-Key Rotating Pools (Supports comma-separated keys for entire school scale)
 let geminiKeyIndex = 0;
 let groqKeyIndex = 0;
 let openAiKeyIndex = 0;
@@ -360,18 +342,7 @@ function getOpenAiKeys() {
   return raw.split(",").map(k => k.trim()).filter(Boolean);
 }
 
-// ==========================================================
-// CHUỖI NHÀ CUNG CẤP LLM (đều có gói miễn phí) - thử lần lượt theo AI_PROVIDER_ORDER,
-// nhà cung cấp nào bị 429/hết hạn mức thì tạm "nghỉ" (cooldown) để không làm chậm các request sau.
-//   ollama      máy cục bộ / máy chủ tự host, hoàn toàn miễn phí (OLLAMA_HOST, OLLAMA_MODEL)
-//   gemini      Google AI Studio  (GEMINI_API_KEY[S])       https://aistudio.google.com/apikey
-//   groq        Groq              (GROQ_API_KEY[S])         https://console.groq.com/keys      14.400 req/ngày, rất nhanh
-//   cerebras    Cerebras          (CEREBRAS_API_KEY)        https://cloud.cerebras.ai           1 triệu token/ngày
-//   mistral     Mistral           (MISTRAL_API_KEY)         https://console.mistral.ai          gói Experiment miễn phí
-//   openrouter  OpenRouter        (OPENROUTER_API_KEY)      https://openrouter.ai/keys          các model đuôi :free
-//   openai      OpenAI            (OPENAI_API_KEY[S])       trả phí
-// ==========================================================
-const providerCooldown = {}; // name -> timestamp hết cooldown
+const providerCooldown = {};
 const COOLDOWN_MS = { 429: 90 * 1000, 402: 30 * 60 * 1000, 401: 30 * 60 * 1000, 403: 30 * 60 * 1000 };
 function keysOf(...names) {
   try { require("dotenv").config(); } catch (e) {}
@@ -384,7 +355,6 @@ function onCooldown(name) { return providerCooldown[name] && providerCooldown[na
 function markCooldown(name, status) { const ms = COOLDOWN_MS[status]; if (ms) providerCooldown[name] = Date.now() + ms; }
 function dbg(...a) { if (process.env.AI_DEBUG === "1") console.log("[AI_DEBUG]", ...a); }
 
-// Gọi API kiểu OpenAI (Groq / Cerebras / Mistral / OpenRouter / OpenAI). Trả về text hoặc null; ném status khi lỗi HTTP.
 async function openAiCompatible(name, url, key, model, messages, timeoutMs, extraHeaders = {}) {
   const res = await fetch(url, {
     method: "POST",
@@ -403,7 +373,6 @@ async function callGemini(messages, timeoutMs) {
   if (!keys.length) return null;
   const contents = messages.filter(m => m.role !== "system").map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
   const systemInstruction = messages.find(m => m.role === "system")?.content || "You are Capybara, a friendly, witty, smart AI tutor & companion on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, humorously and concisely in Vietnamese or English with emojis and carrots 🥕.";
-  // Thứ tự dự phòng: model cấu hình -> flash -> flash-lite (hạn mức riêng)
   const candidateModels = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"].filter(Boolean))];
   let sawQuota = 0;
   for (const model of candidateModels) {
@@ -427,7 +396,6 @@ async function callGemini(messages, timeoutMs) {
       } catch (e) {}
     }
   }
-  // Mọi model đều hết hạn mức -> nghỉ Gemini một lúc
   if (sawQuota >= candidateModels.length) markCooldown("gemini", 429);
   return null;
 }
@@ -449,7 +417,6 @@ const PROVIDERS = {
   },
   openrouter: async (messages, t) => {
     const keys = keysOf("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY"); if (!keys.length) return null;
-    // Danh sách model miễn phí, thử lần lượt (model nào không còn thì 404 -> model kế)
     const models = [...new Set([process.env.OPENROUTER_MODEL, "meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "mistralai/mistral-small-3.2-24b-instruct:free", "meta-llama/llama-3.2-3b-instruct:free"].filter(Boolean))];
     for (const model of models) {
       try { return await openAiCompatible("openrouter", "https://openrouter.ai/api/v1/chat/completions", pickKey("openrouter", keys), model, messages, t, { "HTTP-Referer": "https://engo.web", "X-Title": "ENGO Learning Hub" }); }
@@ -479,7 +446,6 @@ async function callCloudLlm(messages, timeoutMs = 20000) {
   return null;
 }
 
-// Trạng thái để hiển thị ở trang quản trị / kiểm tra nhanh
 function aiProviderStatus() {
   const order = String(process.env.AI_PROVIDER_ORDER || DEFAULT_ORDER).split(",").map(x => x.trim().toLowerCase());
   const configured = {
@@ -505,28 +471,23 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
     { role: "user", content: text }
   ];
 
-  // 0. Fast Cache Check for High-Concurrency School Scale
   const cached = getCachedResponse(text);
   if (cached) return cached;
 
-  // 1. First, try Local / Remote Ollama if running
   const ollamaReply = await callLocalOllama(formattedMessages);
   if (ollamaReply) {
     setCachedResponse(text, ollamaReply);
     return ollamaReply;
   }
 
-  // 2. Second, try Cloud LLM (Gemini 3.6 Flash / Groq / OpenAI)
   const cloudReply = await callCloudLlm(formattedMessages);
   if (cloudReply) {
     setCachedResponse(text, cloudReply);
     return cloudReply;
   }
 
-  // 3. Fallback: Intelligent Natural Dialogue Resolver (If Gemini Key is temporarily revoked or offline)
   const lower = text.toLowerCase().replace(/['"?!,.]/g, "").trim();
 
-  // Greetings
   if (!lower || lower === "chao" || lower === "chào" || lower === "hello" || lower === "hi" || lower === "hey" || lower === "alo" || lower.startsWith("chào") || lower.startsWith("hello") || lower.startsWith("hi ")) {
     const greetings = [
       "Chào bạn nha! 🦫✨ Bé Capybara đã sẵn sàng đồng hành cùng bạn rồi nè! Hôm nay bạn muốn luyện tiếng Anh, viết code hay trò chuyện gì với mình nào? 🥕",
@@ -536,12 +497,11 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
     return greetings[Math.floor(Math.random() * greetings.length)];
   }
 
-  // Translation command detector
-  const translateMatch = text.match(/dịch(?: giúp| hộ| cho)?(?: câu| từ| nghĩa)?[:\s]+(.+)/i) || 
+  const translateMatch = text.match(/dịch(?: giúp| hộ| cho)?(?: câu| từ| nghĩa)?[:\s]+(.+)/i) ||
                          text.match(/translate[:\s]+(.+)/i) ||
                          text.match(/(?:nghĩa là gì|có nghĩa là gì|nghĩa của từ)\s*(.+)/i) ||
                          text.match(/(.+)\s+(?:nghĩa là gì|có nghĩa là gì)/i);
-                         
+
   if (translateMatch) {
     let toTranslate = (translateMatch[1] || '')
       .replace(/^(từ|cụm từ|câu)\s+/i, '')
@@ -563,12 +523,10 @@ async function chatWithCapybara(userMessage, conversationHistory = []) {
     }
   }
 
-  // Coding inquiries
   if (lower.includes("coding") || lower.includes("code") || lower.includes("lập trình") || lower.includes("javascript") || lower.includes("python") || lower.includes("html") || lower.includes("css")) {
     return "Có chứ bạn ơi! 🦫💻 Mình rất thành thạo lập trình (JavaScript, Python, C++, HTML/CSS...). Bạn cần mình viết code mẫu cho tính năng nào hay đang gặp lỗi ở đoạn nào, cứ gửi qua đây nha! ✨";
   }
 
-  // General questions
   return `Chào bạn! 🦫✨ Bé Capybara đã nhận được câu hỏi: **"${text}"** của bạn.
 
 *(Lưu ý: API Key Gemini hiện tại vừa bị Google tạm khóa do đăng tải công khai. Để mở khóa toàn bộ trí tuệ Gemini/ChatGPT không giới hạn, bạn chỉ cần vào **https://aistudio.google.com/apikey** tạo 1 key mới và dán vào file \`.env\` là xong ngay nha! 🥕)*`;
@@ -597,7 +555,6 @@ async function gradeWritingEssay({ prompt, content, level = "grade9" }) {
     };
   }
 
-  // 1. Call Generative AI Engine (Gemini Flash / Groq Llama 3.3 / Ollama)
   try {
     const cacheKey = "grade_writing_" + text.toLowerCase().slice(0, 100) + "_" + text.length;
     const cached = getCachedResponse(cacheKey);
@@ -659,7 +616,6 @@ Student's Paragraph (${wordCount} words):
       if (match) {
         const parsed = JSON.parse(match[0]);
         if (parsed.score && parsed.improvedVersion) {
-          // Double check improvedVersion is truly upgraded
           if (parsed.improvedVersion.trim().toLowerCase() === text.toLowerCase()) {
             parsed.improvedVersion = "From my perspective, " + text.charAt(0).toLowerCase() + text.slice(1);
           }
@@ -693,7 +649,6 @@ Student's Paragraph (${wordCount} words):
     console.warn("AI grading error, falling back to rule engine:", err.message);
   }
 
-  // 2. Intelligent Rule-based Fallback (if AI is temporarily unreachable)
   const mistakes = [];
   const lowerText = text.toLowerCase();
 
@@ -750,7 +705,6 @@ Student's Paragraph (${wordCount} words):
   else if (finalScore >= 6.0) band = "B1 - Đạt yêu cầu";
   else band = "A2 - Cần củng cố";
 
-  // Naturally upgrade student's text while preserving ideas
   let upgraded = text
     .replace(/\b(he|she|it)\s+don't\b/gi, (m, p1) => p1 + " doesn't")
     .replace(/\bin the weekend\b/gi, "at the weekend")
@@ -901,9 +855,6 @@ function generateTestOnDemand({ topic = "tenses", gradeLevel = "9", count = 10, 
   };
 }
 
-// ==========================================================
-// TIỆN ÍCH GỌI AI TRẢ VỀ JSON (dùng chung cho các tính năng mới)
-// ==========================================================
 function extractJson(reply) {
   if (!reply) return null;
   const clean = String(reply).replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -919,7 +870,6 @@ function extractJson(reply) {
   if (end <= start) return null;
   const slice = clean.slice(start, end + 1);
   try { return JSON.parse(slice); } catch (e) {}
-  // Sửa các lỗi JSON hay gặp của LLM: dấu phẩy thừa, ký tự điều khiển trong chuỗi
   try {
     const repaired = slice.replace(/,s*([}]])/g, "$1").replace(/[ --]/g, " ");
     return JSON.parse(repaired);
@@ -959,7 +909,6 @@ function trimSource(text, maxChars = 14000, focus = "") {
   return t.slice(0, maxChars);
 }
 
-// Tách các câu tiếng Anh "sạch" từ văn bản SGK (dùng làm fallback khi AI offline)
 function extractEnglishSentences(text, { min = 5, max = 14 } = {}) {
   const sentences = String(text || "")
     .replace(/\n+/g, " ")
@@ -980,9 +929,6 @@ function extractEnglishSentences(text, { min = 5, max = 14 } = {}) {
   return out;
 }
 
-// ==========================================================
-// 1. SINH BÀI LUYỆN NÓI TỪ SGK (GIAI ĐOẠN 1: CÂU ĐƠN, GIAI ĐOẠN 2: HỘI THOẠI)
-// ==========================================================
 async function generateSpeakingItems({ sourceText = "", unitTitle = "", stage = 1, count = 8 }) {
   const stageNum = Number(stage) === 2 ? 2 : 1;
   const wanted = Math.min(12, Math.max(3, Number(count) || 8));
@@ -1061,7 +1007,6 @@ ${source}
     if (dialogues.length) return { stage: 2, dialogues, source: "ai" };
   }
 
-  // Fallback không cần AI: lấy các câu sạch từ chính văn bản (kém "sáng tạo" hơn nhưng vẫn dùng được)
   const sentences = extractEnglishSentences(source);
   if (stageNum === 1) {
     const sorted = sentences.sort((a, b) => a.length - b.length).slice(0, wanted);
@@ -1089,9 +1034,6 @@ ${source}
   };
 }
 
-// ==========================================================
-// 2. AI PHÂN TÍCH ĐỘ KHÓ & THỜI GIAN LÀM TỪNG CÂU HỎI
-// ==========================================================
 const DEFAULT_SECONDS = { Phonetics: 30, "Grammar and Vocabulary": 45, Reading: 90, Writing: 300, Speaking: 120 };
 
 function heuristicQuestionAnalysis(q) {
@@ -1108,13 +1050,6 @@ function heuristicQuestionAnalysis(q) {
   return { difficulty, seconds, reason: "Ước lượng theo dạng câu hỏi và độ dài" };
 }
 
-// ==========================================================
-// CHẤM CÂU ĐIỀN TỪ / VIẾT LẠI CÂU KHI KHÔNG KHỚP ĐÁP ÁN MẪU
-// Đáp án của đề thường chỉ ghi 1 cách; học sinh có thể viết cách khác vẫn đúng
-// (đồng nghĩa, dạng rút gọn, thêm/bớt từ tuỳ chọn). AI xét đúng/sai theo ngữ pháp + nghĩa.
-// items: [{ id, instruction, context, prompt, accepted[], student }]
-// -> { [id]: { correct: boolean, note: string } }
-// ==========================================================
 async function judgeShortAnswers(items = []) {
   const list = (Array.isArray(items) ? items : []).filter(i => i && i.id && String(i.student || "").trim());
   const result = {};
@@ -1184,9 +1119,6 @@ ${JSON.stringify(compact)}`;
   return fallback;
 }
 
-// ==========================================================
-// 3. AI ĐỌC MA TRẬN ĐỀ (PDF/DOCX) -> CẤU TRÚC JSON
-// ==========================================================
 function heuristicMatrix(text) {
   const t = String(text || "");
   const find = (re, def) => { const m = t.match(re); return m ? Number(m[1]) : def; };
@@ -1256,9 +1188,6 @@ ${source}
   return heuristicMatrix(text);
 }
 
-// ==========================================================
-// 4. AI NHẬN XÉT LƯỢT NÓI (ngắn gọn, tiếng Việt) + phát hiện lỗi ngữ pháp trong câu nói tự do
-// ==========================================================
 async function speakingFeedback({ target = "", transcript = "", accuracy = 0, errors = [] }) {
   const fallbackTip = () => {
     const gram = errors.filter(e => e.type === "grammar");
@@ -1284,9 +1213,6 @@ Write ONE short, warm, specific tip in Vietnamese (max 45 words) telling the stu
   return { tip: fallbackTip(), source: "rule" };
 }
 
-// ==========================================================
-// 5. AI CHẤM NÓI TỰ DO (trả lời câu hỏi / nói về chủ đề) — chống nói lạc đề, đọc linh tinh
-// ==========================================================
 async function judgeFreeSpeaking({ prompt = "", transcript = "" }) {
   const words = String(transcript || "").trim().split(/s+/).filter(Boolean);
   const fallback = () => {

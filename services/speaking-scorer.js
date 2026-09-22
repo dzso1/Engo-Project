@@ -1,14 +1,3 @@
-// ==========================================================
-// BỘ CHẤM PHÁT ÂM THÔNG MINH (ACCENT-TOLERANT SPEECH SCORER)
-// So khớp mờ giữa câu mẫu và văn bản nhận diện được từ giọng nói,
-// chấp nhận accent chưa chuẩn của học sinh Việt Nam bằng cách:
-//  1. Chuẩn hoá chính tả + số + dạng rút gọn
-//  2. Sinh khoá ngữ âm (phonetic key) kiểu Metaphone rút gọn
-//  3. Căn chỉnh chuỗi (sequence alignment) để không lệch vị trí từ
-//  4. Cho điểm từng phần theo mức tương đồng thay vì đúng/sai tuyệt đối
-//  5. Phân loại lỗi: phát âm (pronunciation) vs ngữ pháp (thiếu -s/-ed/-ing)
-// ==========================================================
-
 const NUMBER_WORDS = {
   "0": "zero", "1": "one", "2": "two", "3": "three", "4": "four", "5": "five",
   "6": "six", "7": "seven", "8": "eight", "9": "nine", "10": "ten", "11": "eleven",
@@ -29,7 +18,6 @@ const CONTRACTIONS = {
   "what's": "what is", "where's": "where is", "there's": "there is", "who's": "who is", "how's": "how is"
 };
 
-// Các cặp âm học sinh Việt Nam hay nhầm -> gộp về cùng một nhóm khi so khớp ngữ âm
 function phoneticKey(word) {
   let w = String(word || "").toLowerCase().replace(/[^a-z]/g, "");
   if (!w) return "";
@@ -43,9 +31,8 @@ function phoneticKey(word) {
     .replace(/c(?=[eiy])/g, "s").replace(/c/g, "k").replace(/g(?=[eiy])/g, "j").replace(/x/g, "ks")
     .replace(/z/g, "s").replace(/v/g, "f").replace(/w/g, "v").replace(/th/g, "t").replace(/dh/g, "t")
     .replace(/sh/g, "x").replace(/ch/g, "x").replace(/j/g, "x")
-    .replace(/r/g, "l") // r/l thường bị lẫn
+    .replace(/r/g, "l")
     .replace(/(.)\1+/g, "$1");
-  // Bỏ nguyên âm không ở đầu từ (soundex-like)
   const first = w[0];
   const rest = w.slice(1).replace(/[aeiouy]/g, "");
   return (first + rest).replace(/(.)\1+/g, "$1");
@@ -91,17 +78,14 @@ function normalizeWords(text) {
   return out;
 }
 
-// Độ tương đồng 0..1 giữa 2 từ (kết hợp chính tả + ngữ âm)
 function wordSimilarity(a, b) {
   if (a === b) return 1;
   const spell = ratio(a, b);
   const phon = ratio(phoneticKey(a), phoneticKey(b));
-  // Âm đầu giống nhau được ưu tiên (người nghe vẫn hiểu từ)
   const bonus = a[0] === b[0] ? 0.05 : 0;
   return Math.min(1, Math.max(spell, phon * 0.95) + bonus);
 }
 
-// Phát hiện lỗi thiếu đuôi ngữ pháp: target "walks"/"visited"/"going" nhưng nói "walk"/"visit"/"go"
 function detectEndingIssue(target, spoken) {
   if (!target || !spoken || target === spoken) return null;
   const strip = (w) => w.replace(/ies$/, "y").replace(/(es|s)$/, "").replace(/ied$/, "y").replace(/(ed|d)$/, "").replace(/ing$/, "");
@@ -111,7 +95,6 @@ function detectEndingIssue(target, spoken) {
   return null;
 }
 
-// Căn chỉnh chuỗi từ mẫu (T) với chuỗi nói (S) bằng quy hoạch động (giống Needleman–Wunsch)
 function alignWords(targetWords, spokenWords) {
   const n = targetWords.length, m = spokenWords.length;
   const GAP = -0.35;
@@ -141,14 +124,8 @@ function alignWords(targetWords, spokenWords) {
   return pairs;
 }
 
-/**
- * Chấm điểm phát âm.
- * @returns {{accuracy:number, breakdown:Array, errors:Array, spokenWords:string[], targetWords:string[]}}
- */
-// Gộp các token bị tách rời khi nhận diện ("bad mint on" -> "badminton") nếu khớp tốt với từ mẫu
 function mergeSplitTokens(targetWords, spokenWords) {
   const out = [...spokenWords];
-  // Token nào đã khớp tốt với một từ mẫu bất kỳ thì không được đem đi gộp
   const bestSim = (tok) => Math.max(0, ...targetWords.map(tw => wordSimilarity(tw, tok)));
   for (const tw of targetWords) {
     if (tw.length < 5) continue;
@@ -166,7 +143,6 @@ function mergeSplitTokens(targetWords, spokenWords) {
   return out;
 }
 
-// Ánh xạ từ đã chuẩn hoá -> từ gốc để hiển thị (giữ nguyên chữ hoa, bỏ dấu câu)
 function displayTokens(targetSentence) {
   const originals = String(targetSentence || "").trim().split(/\s+/).filter(Boolean);
   const out = [];
@@ -199,7 +175,7 @@ function scorePronunciation(targetSentence, spokenTranscript) {
   const sameLength = targetWords.length === targetOriginal.length;
 
   for (const p of pairs) {
-    if (p.t < 0) continue; // từ thừa học sinh nói thêm -> bỏ qua, không trừ
+    if (p.t < 0) continue;
     const tw = targetWords[p.t];
     const display = sameLength ? targetOriginal[p.t] : tw;
     if (p.s < 0) {
@@ -212,7 +188,7 @@ function scorePronunciation(targetSentence, spokenTranscript) {
     const ending = detectEndingIssue(tw, sw);
     let status = "correct";
     if (ending) {
-      sim = 0.6; // có nhận ra từ nhưng thiếu đuôi ngữ pháp -> nửa điểm
+      sim = 0.6;
       status = "ending";
       errors.push({ type: "grammar", subtype: ending, word: display, heard: sw });
     } else if (sim >= 0.82) {
@@ -229,19 +205,16 @@ function scorePronunciation(targetSentence, spokenTranscript) {
     breakdown.push({ word: display, status, similarity: Number(sim.toFixed(2)), heard: sw });
   }
 
-  // Bonus nhỏ nếu tổng số từ nói được gần bằng câu mẫu (đọc trọn câu)
   let accuracy = (total / targetWords.length) * 100;
   const lengthRatio = Math.min(spokenWords.length, targetWords.length) / Math.max(spokenWords.length, targetWords.length);
   if (lengthRatio > 0.8 && accuracy > 50 && !errors.length) accuracy += 3;
 
-  // Phạt nói thừa / đọc linh tinh: cho phép dư ~25% (từ đệm), vượt quá thì giảm dần tới tối đa -50%
   const extraRatio = Math.max(0, (spokenWords.length - targetWords.length) / Math.max(1, targetWords.length));
   const extraPenalty = Math.min(0.5, Math.max(0, extraRatio - 0.25) * 0.7);
   if (extraPenalty > 0) {
     accuracy *= 1 - extraPenalty;
     errors.push({ type: "fluency", subtype: "extra_words", word: "", heard: "", extra: spokenWords.length - targetWords.length });
   }
-  // Phạt sai trật tự từ: số cặp khớp theo đúng thứ tự (căn chỉnh đơn điệu) so với số từ nhận ra
   const matchedInOrder = breakdown.filter(b => b.status !== "missed").length;
   const recognized = spokenWords.filter(sw => targetWords.some(tw => wordSimilarity(tw, sw) >= 0.82)).length;
   if (recognized > matchedInOrder + 1) {
@@ -254,7 +227,6 @@ function scorePronunciation(targetSentence, spokenTranscript) {
   return { accuracy, breakdown, errors, spokenWords, targetWords };
 }
 
-// Chọn phương án nhận diện (alternatives) sát câu mẫu nhất
 function pickBestTranscript(targetSentence, alternatives) {
   const list = (Array.isArray(alternatives) ? alternatives : [alternatives]).map(a => String(a || "").trim()).filter(Boolean);
   if (!list.length) return { transcript: "", result: scorePronunciation(targetSentence, "") };

@@ -1,4 +1,3 @@
--- ENGO v4: ngân hàng đề theo khối (6-9) + 52 lớp 6A1..9A13. Chạy bằng root (Railway: đổi USE thành tên database).
 USE railway;
 DROP PROCEDURE IF EXISTS engo_add_column;
 DELIMITER $$
@@ -12,4 +11,3 @@ END$$
 DELIMITER ;
 CALL engo_add_column('imported_tests', 'grade', 'TINYINT NULL');
 DROP PROCEDURE IF EXISTS engo_add_column;
--- (Các lớp 6A1..9A13 được server tự chèn vào class_settings khi khởi động.)

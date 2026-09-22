@@ -1,7 +1,3 @@
-// Từ vựng Tiếng Anh 9 — Global Success, Unit 1–12
-// Nguồn: bộ từ vựng do tổ chuyên môn cung cấp; mỗi thẻ gồm từ, phiên âm, từ loại,
-// nghĩa tiếng Việt và mục xuất hiện trong bài (GS / CL1 / CL2 / COM / SK1 / SK2 / LB).
-// Câu ví dụ do AI sinh tại thời điểm học (xem services/ai-service.js) nên không lưu cứng ở đây.
 window.ENGO_VOCAB_UNITS = {
   unit1: {
     unit: 1,
@@ -776,5 +772,3 @@ window.ENGO_VOCAB_UNITS = {
     ]
   }
 };
-
-// Tổng: 700 thẻ / 12 unit

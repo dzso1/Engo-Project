@@ -1,10 +1,3 @@
-/* ============================================================================
- * ENGO — Hiệu ứng âm thanh vui nhộn khi học sinh hoàn thành nhiệm vụ.
- * Tự sinh bằng Web Audio (không cần tải file mp3), tôn trọng Cài đặt → Âm thanh.
- *   playSfx("correct" | "wrong" | "taskDone" | "unitDone" | "levelUp" | "streak"
- *           | "coin" | "record" | "stopRecord" | "countdown" | "perfect")
- * Gọi kèm hiệu ứng nhìn: window.celebrate() bắn pháo giấy nhỏ ở giữa màn hình.
- * ==========================================================================*/
 (function () {
   "use strict";
   let ctx = null;
@@ -19,7 +12,6 @@
     return v === undefined || v === null ? 0.8 : Math.max(0, Math.min(1, Number(v)));
   };
 
-  // Một nốt nhạc: tần số, thời điểm bắt đầu, độ dài, dáng sóng, âm lượng
   function note(freq, at, dur, type = "sine", gainPeak = 0.16, slideTo) {
     const c = audio(); if (!c) return;
     const t = c.currentTime + at;
@@ -33,7 +25,6 @@
     osc.connect(g); g.connect(c.destination);
     osc.start(t); osc.stop(t + dur + 0.02);
   }
-  // Tiếng "xì" ngắn (tiếng vỗ tay / pháo giấy) bằng nhiễu trắng
   function noise(at, dur, gainPeak = 0.1, hp = 900) {
     const c = audio(); if (!c) return;
     const t = c.currentTime + at;
@@ -50,39 +41,29 @@
 
   const N = { C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880, B5: 987.77, C6: 1046.5, D6: 1174.7, E6: 1318.5, G6: 1568, C4: 261.63, G4: 392 };
   const SFX = {
-    // Trả lời đúng: hai nốt đi lên, gọn
     correct() { note(N.E5, 0, .12, "sine", .15); note(N.A5, .08, .18, "sine", .14); },
-    // Trả lời sai: hai nốt đi xuống, nhẹ nhàng (không gây nản)
     wrong() { note(330, 0, .12, "triangle", .1); note(247, .09, .16, "triangle", .09); },
-    // Nhặt được cà rốt / cộng điểm
     coin() { note(N.C6, 0, .07, "square", .09); note(N.E6, .06, .12, "square", .08); },
-    // Xong một nhiệm vụ (đoạn nghe, câu nói, bộ thẻ): kèn ngắn vui tai
     taskDone() {
       [[N.C5, 0], [N.E5, .1], [N.G5, .2], [N.C6, .3]].forEach(([f, t]) => note(f, t, .28, "triangle", .15));
       noise(.3, .25, .05, 1500);
     },
-    // Xong cả unit / cả bài: kèn dài + vỗ tay
     unitDone() {
       [[N.C5, 0, .18], [N.E5, .12, .18], [N.G5, .24, .18], [N.C6, .36, .34], [N.G5, .62, .16], [N.C6, .74, .45]]
         .forEach(([f, t, d]) => note(f, t, d, "triangle", .16));
       for (let i = 0; i < 16; i++) noise(.36 + i * 0.045 + Math.random() * .03, .09, .05, 1200);
     },
-    // Làm đúng tuyệt đối
     perfect() {
       [[N.G5, 0], [N.C6, .09], [N.E6, .18], [N.G6, .27]].forEach(([f, t]) => note(f, t, .4, "sine", .16));
       for (let i = 0; i < 20; i++) noise(.25 + i * 0.04, .1, .055, 1000);
     },
-    // Lên cấp Capybara
     levelUp() {
       [[N.C5, 0], [N.G5, .1], [N.C6, .2], [N.E6, .3], [N.G6, .42]].forEach(([f, t]) => note(f, t, .45, "square", .1));
       note(N.C4, 0, .7, "sine", .08);
     },
-    // Giữ chuỗi ngày học
     streak() { note(N.A5, 0, .12, "sine", .13); note(N.C6, .1, .12, "sine", .13); note(N.E6, .2, .3, "sine", .13); },
-    // Bắt đầu / dừng ghi âm
     record() { note(N.G4, 0, .1, "sine", .12, N.C5); },
     stopRecord() { note(N.C5, 0, .1, "sine", .12, N.G4); },
-    // Đếm ngược trước khi nói
     countdown() { note(N.E5, 0, .09, "square", .09); },
   };
 
@@ -91,7 +72,6 @@
     try { (SFX[name] || SFX.correct)(); } catch (e) {}
   };
 
-  // Pháo giấy nhẹ ở giữa màn hình (tự tắt sau 1.6 giây, bỏ qua nếu bật "giảm chuyển động")
   window.celebrate = function (count) {
     if (document.body.classList.contains("reduce-motion")) return;
     const n = count || 26;
@@ -111,7 +91,6 @@
     setTimeout(() => wrap.remove(), 2200);
   };
 
-  // Hoàn thành nhiệm vụ = âm thanh + pháo giấy, dùng một lệnh
   window.cheer = function (kind) {
     window.playSfx(kind || "taskDone");
     window.celebrate(kind === "unitDone" || kind === "perfect" ? 40 : 22);

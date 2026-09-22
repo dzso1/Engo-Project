@@ -1,9 +1,3 @@
-// ============================================================
-// Bước 1: đọc toàn bộ đề Word/PDF trong thư mục ngân hàng đề của tổ,
-// phân loại theo đường dẫn (khối, học kì, loại KTTX/KTGK/KTCK, lần, giáo viên, lớp, mã đề)
-// và ghi văn bản thuần ra .import/text/<id>.json để bước 2 dùng AI cấu trúc hoá.
-//   node scripts/exam-bank/extract-texts.js [thư mục nguồn]   (mặc định .import/kt)
-// ============================================================
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -68,7 +62,6 @@ async function extract(file) {
   for (const f of files) {
     const rel = path.relative(SRC, f);
     if (SKIP.test(stripVN(rel))) { skipped++; continue; }
-    // .doc đã chuyển sang .docx: bỏ qua bản .doc gốc (không đọc được), bản .docx cùng tên đã có
     let text;
     try { text = await extract(f); } catch (e) { console.warn("ERR", rel, e.message); continue; }
     text = String(text || "").replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();

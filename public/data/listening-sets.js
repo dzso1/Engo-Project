@@ -1,5 +1,3 @@
-// Luyện nghe theo Unit 1-12: 3 mức độ + câu hỏi
-// Sinh tự động bởi scripts/generate-unit-content.js (nguồn: TỪ VỰNG 9 Global Success + AI). Chỉnh tay được.
 window.ENGO_LISTENING_SETS = {
  "unit1": {
   "unit": 1,

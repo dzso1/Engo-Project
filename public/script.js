@@ -1,12 +1,8 @@
-
-
-
 const views = [...document.querySelectorAll(".view")];
 const sidebar = document.getElementById("sidebar");
 const roleSelect = document.getElementById("roleSelect");
 const avatar = document.getElementById("avatar");
 const toast = document.getElementById("toast");
-
 
 let audioCtx = null;
 function getAudioContext() {
@@ -55,11 +51,8 @@ document.addEventListener("click", e => {
   if (e.target.closest("button, .btn, .nav-btn, .auth-tab, .option, .deck-item, [data-view]")) playClickSound();
 }, true);
 
-
-// Giao diện: 14 theme + trang Cài đặt nằm ở settings.js (applyTheme / getPreferredTheme / renderSettings)
 const THEME_STORAGE_KEY = "engoTheme";
 applyTheme(getPreferredTheme());
-// Nút mặt trăng: đảo giữa theme sáng/tối gần nhất đã dùng (mặc định light <-> dark)
 document.querySelectorAll(".theme-toggle").forEach(button => button.addEventListener("click", () => {
   const cur = currentThemeId(); const dark = document.body.classList.contains("dark-mode");
   const next = dark ? (localStorage.getItem("engoLastLight") || "light") : (localStorage.getItem("engoLastDark") || "dark");
@@ -73,7 +66,6 @@ function showToast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
 }
 function escapeHTML(value) { return String(value ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m])); }
-// Văn bản đề thi: chỉ cho phép <u> (phần gạch chân - câu ngữ âm) và <b>, mọi thứ khác đều escape
 function richText(value) { return escapeHTML(value).replace(/&lt;(\/?)(u|b)&gt;/g, "<$1$2>").replace(/\n/g, "<br>"); }
 function plainText(value) { return String(value ?? "").replace(/<\/?[ub]>/g, ""); }
 function fmtDate(v, withTime = false) {
@@ -85,7 +77,6 @@ function openModal(id) { document.getElementById(id)?.classList.remove("hidden")
 function closeModal(id) { document.getElementById(id)?.classList.add("hidden"); }
 document.querySelectorAll("[data-close-modal]").forEach(btn => btn.addEventListener("click", () => closeModal(btn.dataset.closeModal)));
 document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); }));
-
 
 const ROUTE_MAP = {
   "student-home": "/dashboard", "settings": "/settings", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
@@ -102,11 +93,10 @@ const STUDENT_VIEWS = new Set(["student-home", "quiz", "achievements", "tests", 
 const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
 
 function switchView(id, pushHistory = true) {
-  // "results" đã gộp vào Dashboard: chuyển về dashboard rồi cuộn tới phần kết quả
   const scrollToResults = id === "results";
   if (scrollToResults) id = "student-home";
   if (!id || !document.getElementById(id)) return;
-  
+
   if (currentUser && currentUser.role !== "student" && STUDENT_VIEWS.has(id)) id = ROLE_HOME[currentUser.role] || id;
   views.forEach(v => v.classList.toggle("active", v.id === id));
   document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.view === id));
@@ -152,13 +142,12 @@ function applyRole(role, switchPage = true) {
   if (!switchPage) return;
   const currentPath = (window.location.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
   const fromUrl = REVERSE_ROUTE_MAP[currentPath];
-  
+
   if (fromUrl && (isStudent ? STUDENT_VIEWS.has(fromUrl) : !STUDENT_VIEWS.has(fromUrl))) { switchView(fromUrl, false); return; }
   switchView(ROLE_HOME[role] || "student-home");
 }
 roleSelect.disabled = true;
 document.getElementById("dashboardBtn").addEventListener("click", () => switchView(ROLE_HOME[currentUser?.role] || "student-home"));
-
 
 const authScreen = document.getElementById("authScreen");
 let currentUser = null;
@@ -212,7 +201,6 @@ function updateUserUI(user) {
     setTimeout(() => renderDailyStreakModal(false), 800);
   }
 }
-// ---------- CHUYỂN ĐỔI ĐỊNH DẠNG DỮ LIỆU CỤC BỘ (giữ XP / cà rốt / lỗi đang chữa khi cập nhật phiên bản) ----------
 const LOCAL_DATA_VERSION = 4;
 const USER_KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoNotificationsReadV3"];
 function migrateLocalData() {
@@ -221,13 +209,11 @@ function migrateLocalData() {
   const cur = Number(localStorage.getItem(vKey) || 0);
   if (cur >= LOCAL_DATA_VERSION) return;
   try {
-    // v1: thống kê cũ chưa gắn theo tài khoản -> chuyển sang khóa của tài khoản này
     const statsKey = getUserStorageKey("engoLearningStatsV3");
     if (!localStorage.getItem(statsKey)) {
       const legacy = localStorage.getItem("engoLearningStatsV3") || localStorage.getItem("engoLearningStats");
       if (legacy) localStorage.setItem(statsKey, legacy);
     }
-    // v2: phòng chữa lỗi cũ (V2: pendingErrors/healedHistory) -> V3 phân mục
     const h3 = getUserStorageKey("engoHealingProfileV3");
     if (!localStorage.getItem(h3)) {
       const oldRaw = localStorage.getItem(getUserStorageKey("engoHealingProfileV2")) || localStorage.getItem("engoHealingProfileV2");
@@ -241,9 +227,7 @@ function migrateLocalData() {
         localStorage.setItem(h3, JSON.stringify(next));
       }
     }
-    // v3: bổ sung trường mới cho thống kê (mặc định) để không lỗi khi đọc
     const st = getLearningStats(); setLearningStats({ ...defaultLearningStats, ...st });
-    // v4: điểm danh cũ (engoStreak) -> engoStreakCheckinV2
     const skKey = getUserStorageKey("engoStreakCheckinV2");
     if (!localStorage.getItem(skKey)) { const old = localStorage.getItem("engoStreakCheckin") || localStorage.getItem("engoStreakCheckinV2"); if (old) localStorage.setItem(skKey, old); }
     localStorage.setItem(vKey, String(LOCAL_DATA_VERSION));
@@ -262,7 +246,6 @@ function importMyData(file) {
     try {
       const parsed = JSON.parse(reader.result);
       if (!parsed || parsed.app !== "ENGO" || !parsed.data) throw new Error("File không đúng định dạng sao lưu ENGO.");
-      // Hợp nhất: giữ giá trị lớn hơn cho XP / cà rốt, gộp danh sách lỗi & lịch sử
       const cur = getLearningStats(); const inc = parsed.data.engoLearningStatsV3 || {};
       setLearningStats({ ...defaultLearningStats, ...cur, ...inc, points: Math.max(cur.points || 0, inc.points || 0), carrots: Math.max(cur.carrots || 0, inc.carrots || 0), fedCarrots: Math.max(cur.fedCarrots || 0, inc.fedCarrots || 0), bestSpeakingScore: Math.max(cur.bestSpeakingScore || 0, inc.bestSpeakingScore || 0) });
       ["engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1"].forEach(k => { if (parsed.data[k] && !localStorage.getItem(getUserStorageKey(k))) localStorage.setItem(getUserStorageKey(k), JSON.stringify(parsed.data[k])); });
@@ -345,7 +328,6 @@ async function restoreSession() {
   } catch { authScreen.classList.remove("hidden"); }
 }
 
-
 function getUserStorageKey(baseKey) { return currentUser && currentUser.id ? `${baseKey}_user_${currentUser.id}` : `${baseKey}_guest`; }
 const defaultLearningStats = { points: 0, streak: 1, lastStudyDate: "", carrots: 15, fedCarrots: 0, bestSpeakingScore: 0, speakingAttempts: 0, quizCount: 0, bestScore: 0, vocabSets: 0 };
 function getLearningStats() {
@@ -375,7 +357,6 @@ function gainRewards(xp = 0, carrots = 0, reason = "") {
 }
 function gainCarrots(amount, reason) { gainRewards(0, amount, reason); }
 function gainXP(amount) { gainRewards(amount, 0, ""); }
-
 
 const STREAK_CHECKIN_REWARDS = [
   { day: 1, carrots: 2, xp: 20, icon: "<i class=ico-carrot></i>" }, { day: 2, carrots: 3, xp: 30, icon: "<i class=ico-carrot></i>" }, { day: 3, carrots: 4, xp: 40, icon: "<i class=ico-carrot></i>" },
@@ -435,7 +416,6 @@ document.getElementById("streakModalClose")?.addEventListener("click", () => clo
 document.getElementById("streakTopBtn")?.addEventListener("click", () => renderDailyStreakModal(true));
 document.getElementById("streakClaimBtn")?.addEventListener("click", claimDailyStreakReward);
 document.getElementById("capybaraStreakCount")?.addEventListener("click", () => renderDailyStreakModal(true));
-
 
 const capybaraQuotesByLevel = {
  1: ["Chào bạn mới! Cùng mình bắt đầu từ những câu đơn giản nhé!","Đừng ngại phát âm chưa chuẩn, mình luôn lắng nghe bạn!","Mỗi ngày học 5 từ vựng mới là bạn đã giỏi hơn hôm qua!"],
@@ -504,9 +484,6 @@ document.getElementById("feedCapybaraBtn")?.addEventListener("click", () => {
  else { showToast(`Yum! Đã cho Capybara ăn ${feed} củ (+${feed * 5} XP)`); capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt!"); }
 });
 
-
-
-
 async function loadStudentProgress(force = false) {
   if (!currentUser || currentUser.role !== "student") return null;
   if (studentProgress && !force) return studentProgress;
@@ -574,19 +551,16 @@ async function renderStudentDashboard(force = false) {
   document.getElementById("skillStatList").innerHTML = Object.keys(SKILL_LABELS).map(name => `<div class="skill-stat"><div class="skill-stat-head"><span>${SKILL_LABELS[name]}</span><b>${p.skills[name] || 0}%</b></div><div class="progress"><span style="width:${p.skills[name] || 0}%"></span></div></div>`).join("");
   document.getElementById("dashboardTitleChips").innerHTML = p.earnedTitles.length ? p.earnedTitles.map(titleChip).join("") : "";
 
-  
   const hist = p.tests.history.slice(-8);
   barChart(document.getElementById("testTrendChart"), hist.map((h, i) => ({ label: `#${p.tests.history.length - hist.length + i + 1}`, value: h.scoreOnTen, title: `${h.title}: ${h.scoreOnTen}/10`, cls: h.scoreOnTen >= 8 ? "good" : h.scoreOnTen < 5 ? "bad" : "" })), { max: 10 });
   set("testTrendHint", p.tests.count ? `${p.tests.count} bài · TB ${p.tests.avgScore} · ${p.tests.improvement >= 0 ? "tăng" : "giảm"} ${Math.abs(p.tests.improvement)} điểm so với lúc bắt đầu` : "Điểm hệ 10 của các bài gần nhất");
 
-  
   document.getElementById("dashStageGrid").innerHTML = [1, 2].map(s => {
     const st = p.speaking.stages[s] || {};
     return `<div class="stage-mini ${st.unlocked === false ? "locked" : ""}"><span class="small muted">Giai đoạn ${s} · ${s === 1 ? "Câu đơn" : "Hội thoại"}</span><strong>${st.attempts ? `${st.avgAccuracy}%` : "--"}</strong><span class="small">${st.attempts || 0} lượt · tốt nhất ${st.bestAccuracy || 0}% ${st.improvement ? `· ${st.improvement > 0 ? "▲" : "▼"} ${Math.abs(st.improvement)}%` : ""}</span></div>`;
   }).join("");
   barChart(document.getElementById("speakingTrendChart"), p.speaking.trend.map(t => ({ label: t.date.slice(5), value: t.accuracy, title: `${t.date}: ${t.accuracy}% (${t.attempts} lượt)` })), { suffix: "%" });
 
-  
   const recent = p.events.slice(0, 6);
   const typeLabel = { test: "Bài kiểm tra", speaking: "Luyện nói", vocab: "Từ vựng", healing: "Chữa lỗi" };
   document.getElementById("recentHomeSubmissionsBody").innerHTML = recent.length ? recent.map(e => {
@@ -594,7 +568,6 @@ async function renderStudentDashboard(force = false) {
     return `<tr><td><strong>${escapeHTML(e.title || typeLabel[e.type])}</strong></td><td>${fmtDate(e.createdAt)}</td><td><span class="score-pill">${result}</span></td><td><span class="badge">${typeLabel[e.type] || e.type}</span></td></tr>`;
   }).join("") : '<tr><td colspan="4" class="small muted" style="text-align:center;padding:20px">Chưa có hoạt động nào. Hãy bắt đầu với một bài luyện nói!</td></tr>';
 
-  
   const todos = [];
   try {
     const t = await apiRequest("/api/tests/latest");
@@ -612,9 +585,6 @@ async function renderStudentDashboard(force = false) {
   document.querySelectorAll("#dashboardTodoList [data-view]").forEach(el => el.addEventListener("click", () => switchView(el.dataset.view)));
 }
 document.getElementById("refreshDashboardBtn")?.addEventListener("click", () => { renderStudentDashboard(true); renderStudentResults(); showToast("Đã làm mới dashboard."); });
-
-
-
 
 let testsCache = [];
 const DIFF_LABEL = { easy: "Dễ", medium: "TB", hard: "Khó" };
@@ -656,15 +626,12 @@ async function renderTestsPage() {
 document.getElementById("refreshTestsBtn")?.addEventListener("click", () => { renderTestsPage(); showToast("Đã làm mới danh sách đề."); });
 ["testsStatusFilter", "testsSemesterFilter", "testsTypeFilter"].forEach(id => document.getElementById(id)?.addEventListener("change", renderTestsPage));
 
-
-
-
 function createRecognizer({ onInterim, onEnd, onError } = {}) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) return null;
   const rec = new SpeechRec();
   rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 3;
-  const finals = []; 
+  const finals = [];
   let interim = "";
   let stoppedByUser = false;
   rec.onresult = event => {
@@ -705,9 +672,6 @@ function speakEnglishText(text, { rate = 0.85, onDone } = {}) {
   window.speechSynthesis.speak(u);
 }
 
-
-
-
 let questions = [];
 let activeImportedTest = null;
 let currentQuestion = 0;
@@ -727,7 +691,6 @@ function saveAnswers() {
   localStorage.setItem(getUserStorageKey(`engoAnswers_${activeImportedTest.id}`), JSON.stringify({ answers, speakingAnswers }));
   const status = document.getElementById("saveStatus"); status.textContent = "Đang lưu..."; setTimeout(() => status.textContent = "Đã tự lưu", 350);
 }
-// Yêu cầu mặc định cho từng phần / loại câu, dùng khi đề gốc không ghi rõ (Anh + Việt)
 const TASK_FALLBACK = {
   "Phonetics": { en: "Choose the word whose underlined part is pronounced differently from the others, or whose stress pattern is different.", vi: "Chọn từ có phần gạch chân phát âm khác, hoặc có trọng âm khác với các từ còn lại." },
   "Grammar and Vocabulary": { en: "Choose the best option (A, B, C or D) to complete each sentence.", vi: "Chọn phương án đúng nhất (A, B, C hoặc D) để hoàn thành câu." },
@@ -758,11 +721,9 @@ function renderQuestion() {
   document.getElementById("questionSectionTitle").textContent = q.section || "Phần thi";
   document.getElementById("explanationBox").classList.add("hidden");
   let content = "";
-  // Yêu cầu của phần (task) - đề nào không ghi thì dùng yêu cầu mặc định theo phần
   const task = taskFor(q);
   content += `<div class="task-instruction"><i class=mi>assignment</i><div><span>${richText(task.text)}</span><small>${escapeHTML(task.vi)}</small></div></div>`;
   if (q.passage) content += `<div class="reading-passage">${richText(q.passage)}</div>`;
-  // Đề gốc hay lặp lại yêu cầu ở từng câu -> không in 2 lần
   const sameAsTask = q.instruction && plainText(q.prompt || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === plainText(q.instruction).replace(/[^a-z0-9]/gi, "").toLowerCase();
   content += `<h4>${sameAsTask ? `Câu ${q.number || currentQuestion + 1}` : richText(q.prompt || "")}</h4>`;
   questionContent.innerHTML = content;
@@ -901,7 +862,6 @@ document.getElementById("gotoHealingRoomBtn")?.addEventListener("click", () => {
 document.querySelectorAll(".modal-close").forEach(btn => btn.addEventListener("click", () => { closeModal("resultModal"); switchView("results"); }));
 setInterval(() => { if (document.getElementById("quiz").classList.contains("active")) saveAnswers(); }, 15000);
 
-
 let examTabSwitches = 0, antiCheatActive = false, lastViolationTime = 0;
 function startAntiCheatGuard() { examTabSwitches = 0; antiCheatActive = true; updateAntiCheatUI(); }
 function stopAntiCheatGuard() { antiCheatActive = false; document.getElementById("antiCheatModal")?.classList.add("hidden"); }
@@ -923,9 +883,6 @@ window.addEventListener("blur", handleAntiCheatViolation);
 document.getElementById("dismissAntiCheatModal")?.addEventListener("click", () => { if (examTabSwitches < 3) closeModal("antiCheatModal"); });
 const quizCardEl = document.getElementById("quizExamCard");
 ["copy","contextmenu"].forEach(evt => quizCardEl?.addEventListener(evt, e => { if (document.getElementById("quiz").classList.contains("active")) { e.preventDefault(); showToast("Thao tác này bị khóa trong phòng thi!"); } }));
-
-
-
 
 let studentSubmissionsCache = [];
 async function renderStudentResults() {
@@ -956,9 +913,6 @@ async function renderStudentResults() {
   }
 }
 
-
-
-
 const achievementDefs = [
  { icon:"target", name:"Bước đầu tiên", desc:"Hoàn thành bài kiểm tra đầu tiên", rule: (s, p) => (p?.tests.count || 0) >= 1 || s.quizCount >= 1 },
  { icon:"star", name:"Điểm số nổi bật", desc:"Đạt ít nhất 8 điểm", rule: (s, p) => (p?.tests.bestScore || s.bestScore) >= 8 },
@@ -988,9 +942,6 @@ async function renderAchievements() {
   document.getElementById("achievementCount").textContent = `${unlocked}/${achievementDefs.length} đã mở khóa`;
 }
 
-
-
-
 const flashDecks = window.ENGO_VOCAB_DECKS || {};
 const POS_LABEL = { n: "danh từ", v: "động từ", adj: "tính từ", adv: "trạng từ", phr: "cụm từ", "phr v": "cụm động từ", modal: "động từ khuyết thiếu", "v/n": "động từ / danh từ" };
 let activeDeck = Object.keys(flashDecks)[0] || "unit1", flashOrder = [], flashIndex = 0, flashViewed = new Set();
@@ -1015,7 +966,6 @@ function renderFlashcard() {
   document.getElementById("flashProgressBar").style.width = `${((flashIndex + 1) / deck.cards.length) * 100}%`;
   document.getElementById("flashWord").textContent = card.word;
   document.getElementById("flashWordBack").textContent = card.word;
-  // Ảnh minh hoạ (Wikimedia) nếu có cho từ này
   const flashImg = (window.ENGO_VOCAB_IMAGES || {})[card.word] || "";
   document.querySelectorAll(".flash-img").forEach(el => { el.src = flashImg; el.classList.toggle("hidden", !flashImg); });
   document.getElementById("flashPhonetic").textContent = card.phonetic;
@@ -1039,7 +989,6 @@ document.getElementById("shuffleCards").addEventListener("click", () => { flashO
 document.getElementById("restartCards").addEventListener("click", () => { exitVocabQuiz(); resetFlashOrder(); });
 document.getElementById("flashTtsFront").addEventListener("click", e => { e.stopPropagation(); speakEnglishText(currentFlash().word, { rate: 0.8 }); });
 
-
 let vocabQuiz = null;
 function shuffleArray(array) { const c = [...array]; for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; } return c; }
 function exitVocabQuiz() { vocabQuiz = null; document.getElementById("vocabQuizStage").classList.add("hidden"); document.getElementById("flashcardStage").classList.remove("hidden"); }
@@ -1050,7 +999,6 @@ document.getElementById("startVocabQuizListen")?.addEventListener("click", () =>
 document.getElementById("startVocabQuizSpell")?.addEventListener("click", () => startVocabQuiz("spell"));
 document.getElementById("startVocabQuizImage")?.addEventListener("click", () => startVocabQuiz("image"));
 document.getElementById("startVocabQuizGap")?.addEventListener("click", () => startVocabQuiz("gap"));
-// Ảnh minh hoạ cho từ (data/vocab-images.js) - tra mềm giống units-ui.js
 function vocabImage(word) {
   const map = window.ENGO_VOCAB_IMAGES || {};
   const w = String(word || "").toLowerCase().trim();
@@ -1058,7 +1006,6 @@ function vocabImage(word) {
   const base = w.replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
   return map[base] || "";
 }
-// Cho units-ui gọi: chọn bộ thẻ của Unit rồi mở ngay một dạng luyện
 window.practiceVocabUnit = function (unit, mode) {
   const key = "unit" + unit;
   if (flashDecks[key]) { activeDeck = key; resetFlashOrder(); renderVocabDecks(); flashOrder.forEach((_, i) => flashViewed.add(i)); }
@@ -1066,7 +1013,6 @@ window.practiceVocabUnit = function (unit, mode) {
 };
 function startVocabQuiz(mode) {
   const deck = flashDecks[activeDeck];
-  // Lọc trước những từ dùng được cho dạng luyện này (ảnh minh hoạ / câu ví dụ)
   let pool = deck.cards;
   if (mode === "image") pool = deck.cards.filter(c => vocabImage(c.word));
   if (mode === "gap") pool = deck.cards.filter(c => (c.examples || []).some(e => new RegExp("\\b" + c.word.split(" ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(e)));
@@ -1075,7 +1021,6 @@ function startVocabQuiz(mode) {
     showToast(mode === "image" ? "Bộ từ này chưa đủ ảnh minh hoạ, hãy thử dạng khác nhé." : "Bộ từ này chưa đủ câu ví dụ, hãy thử dạng khác nhé.");
     return;
   }
-  // Mỗi lượt luyện lấy ngẫu nhiên một nhóm từ (bộ thẻ có thể tới 60 từ - làm hết một lần sẽ quá dài)
   const LIMIT = mode === "match" ? 8 : 12;
   const picked = shuffleArray(pool).slice(0, Math.min(LIMIT, pool.length));
   vocabQuiz = { mode, deck, cards: picked, index: 0, correct: 0, total: picked.length, matches: {} };
@@ -1123,7 +1068,6 @@ function renderVocabMcQuestion() {
   }));
   document.getElementById("vqNext").addEventListener("click", () => { delete body.dataset.locked; q.index++; renderVocabMcQuestion(); });
 }
-// ===== Nghe và viết lại từ (chính tả) =====
 function renderVocabSpell() {
   const q = vocabQuiz, body = document.getElementById("vocabQuizBody");
   document.getElementById("vocabQuizProgress").style.width = `${(q.index / q.total) * 100}%`;
@@ -1158,7 +1102,6 @@ function renderVocabSpell() {
   document.getElementById("vqNext").addEventListener("click", () => { delete body.dataset.locked; q.index++; renderVocabSpell(); });
 }
 
-// ===== Điền từ vào câu ví dụ =====
 function renderVocabGap() {
   const q = vocabQuiz, body = document.getElementById("vocabQuizBody");
   document.getElementById("vocabQuizProgress").style.width = `${(q.index / q.total) * 100}%`;
@@ -1235,20 +1178,17 @@ async function finishVocabQuiz() {
   renderVocabDecks();
 }
 
-
-
-
 let speakingTasks = [];
 let speakingProgressData = null;
 let activeSpeakingTask = null, activeItemIndex = 0, speakingItemResults = {};
 let speakingRecognizer = null, lastSpeakingEvaluation = null;
-let speakingRole = "A"; // vai học sinh đóng trong hội thoại; vai còn lại do máy đọc (TTS)
+let speakingRole = "A";
 let ttsAutoTimer = null;
 
 function buildSpeakingTasks(apiAssignments, progress) {
   const system = (window.ENGO_SPEAKING_SETS || []).map(s => ({ ...s, source: s.unit ? `Hệ thống · Unit ${s.unit}` : "Hệ thống", teacherName: "ENGO", progress: null }));
   const teacher = (apiAssignments || []).map(a => ({ id: `t-${a.id}`, assignmentId: a.id, title: a.title, stage: a.stage, system: false, source: a.teacherName || "Giáo viên", className: a.className, situation: a.translation && a.stage === 2 ? a.translation : "", items: a.items || [], progress: a.progress || null, unitTitle: a.unitTitle }));
-  
+
   const local = getLocalSpeakingRecords();
   system.forEach(s => { if (local[s.id]) s.progress = local[s.id]; });
   return [...teacher, ...system].sort((a, b) => a.stage - b.stage);
@@ -1341,7 +1281,6 @@ function renderSpeakingItem() {
   document.getElementById("speakingRetryBtn").disabled = !mine;
   clearTimeout(ttsAutoTimer);
   if (!mine) {
-    // Lời thoại của vai máy: tự đọc rồi chuyển sang câu tiếp theo
     speakingItemResults[activeItemIndex] = { tts: true };
     ttsAutoTimer = setTimeout(() => speakEnglishText(item.text, { rate: 0.9, onDone: () => { ttsAutoTimer = setTimeout(() => { if (activeSpeakingTask === task && activeItemIndex < task.items.length - 1) { activeItemIndex++; renderSpeakingItem(); } }, 700); } }), 350);
   }
@@ -1460,9 +1399,6 @@ async function finishSpeakingTask() {
   renderSpeakingLab();
 }
 
-
-
-
 const healingExercisesBank = window.ENGO_HEALING_BANK || {};
 const defaultHealingProfile = { pronunciation: [], grammar: [], test: [], healedHistory: [], healingStreak: 0, heatmapStatus: {} };
 function getHealingProfile() {
@@ -1509,7 +1445,6 @@ function recordSpeakingErrorsForHealing(errors, sentence, ipa) {
   profile.pronunciation = profile.pronunciation.slice(0, 40);
   saveHealingProfile(profile);
 }
-// Câu sai từ bài tập ngữ pháp theo Unit -> Phòng chữa lỗi (mục Ngữ pháp)
 function recordUnitGrammarErrors(unit, title, wrongList) {
   const profile = getHealingProfile();
   profile.unitGrammar = profile.unitGrammar || [];
@@ -1541,7 +1476,6 @@ function renderHealingRoom() {
   document.getElementById("healingStatTest").textContent = pendingTest.length;
   document.getElementById("healingStatHealed").textContent = profile.healedHistory.length;
 
-  
   const pronList = document.getElementById("healingPronList");
   pronList.innerHTML = profile.pronunciation.length ? profile.pronunciation.map(p => `<div class="healing-error-card pron">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><span class="error-badge purple">Phát âm · sai ${p.count} lần</span><h4 style="margin:6px 0 2px;font-size:22px">${escapeHTML(p.word)} ${p.ipa ? `<span class="small muted" style="font-family:monospace;font-weight:400"></span>` : ""}</h4><div class="small muted">AI nghe thành: "${escapeHTML(p.heard || "…")}" · Trong câu: "${escapeHTML(p.sentence || "")}"</div></div>
@@ -1550,7 +1484,6 @@ function renderHealingRoom() {
   pronList.querySelectorAll(".pron-play").forEach(b => b.addEventListener("click", () => speakEnglishText(b.dataset.word, { rate: 0.75 })));
   pronList.querySelectorAll(".pron-drill").forEach(b => b.addEventListener("click", () => openPronDrill(b.dataset.id)));
 
-  
   const pendingList = document.getElementById("healingPendingList");
   pendingList.innerHTML = profile.grammar.length ? profile.grammar.map(err => {
     const bank = healingExercisesBank[err.code] || { label: "Ngữ pháp", rule: "", mnemonic: "" };
@@ -1564,8 +1497,6 @@ function renderHealingRoom() {
   pendingList.querySelectorAll(".start-healing-btn").forEach(btn => btn.addEventListener("click", () => startHealingExercise(btn.dataset.errorCode, btn.dataset.errorId)));
   pendingList.querySelectorAll(".ask-capybara-err-btn").forEach(btn => btn.addEventListener("click", () => { if (capybaraChatWindow.classList.contains("hidden")) toggleCapybaraChat(); sendCapybaraMessage(`Capybara ơi, giải thích chi tiết quy tắc ngữ pháp '${btn.dataset.errorLabel}' và cho 2 ví dụ dễ hiểu nhé!`); }));
 
-  
-  // 2b. Câu sai từ bài tập ngữ pháp theo Unit
   const ugList = document.getElementById("healingUnitGrammarList");
   const ug = profile.unitGrammar || [];
   if (ugList) {
@@ -1596,12 +1527,10 @@ function renderHealingRoom() {
   testList.querySelectorAll(".review-one").forEach(b => b.addEventListener("click", () => { const t = pendingTest.find(x => x.id === b.dataset.id); markReviewed([b.dataset.id], t?.testTitle || ""); }));
   testList.querySelectorAll(".review-all-test").forEach(b => b.addEventListener("click", () => markReviewed(byTest[b.dataset.title].map(t => t.id), b.dataset.title)));
 
-  
   const groups = [["Thì Hiện tại đơn", [["PS_AFF", "Khẳng định (+s/es)"], ["PS_NEG", "Phủ định (don't/doesn't)"], ["PS_QUE", "Nghi vấn (Do/Does)"], ["PS_ADV", "Trạng từ tần suất"]]], ["Thì Quá khứ đơn", [["PAST_REG", "V-ed có quy tắc"], ["PAST_IRR", "V2 bất quy tắc"], ["PAST_NEG", "Phủ định (didn't + V)"], ["PAST_QUE", "Câu hỏi (Did + S + V)"], ["PAST_BE", "Was / Were"]]], ["Cấu trúc So sánh", [["CMP_SHORT", "Tính từ ngắn (-er/-est)"], ["CMP_LONG", "Tính từ dài (more/most)"], ["CMP_IRR", "So sánh bất quy tắc"]]]];
   const label = st => st === "mastered" ? '<span style="color:#16a34a;font-weight:700">Thành thạo</span>' : st === "weak" ? '<span style="color:#dc2626;font-weight:700">Yếu (cần chữa)</span>' : '<span style="color:#94a3b8">Chưa kiểm tra</span>';
   document.getElementById("grammarHeatmapContainer").innerHTML = groups.map(([g, rows]) => `<div class="healing-heatmap-group"><h4>${g}</h4>${rows.map(([code, name]) => `<div class="healing-heatmap-row"><div class="healing-heatmap-dots"><div class="healing-heatmap-dot ${profile.heatmapStatus[code] || "unknown"}"></div></div><div style="flex:1">${name}</div><div>${label(profile.heatmapStatus[code])}</div></div>`).join("")}</div>`).join("");
 
-  
   const historyList = document.getElementById("healingHistoryList");
   const catLabel = { pronunciation: "<i class=mi>mic</i> Phát âm", grammar: "<i class=mi>menu_book</i> Ngữ pháp", test: "<i class=mi>edit_note</i> Bài kiểm tra" };
   historyList.innerHTML = profile.healedHistory.length ? profile.healedHistory.map(item => `<div class="card panel" style="padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px"><div><span class="badge green">${catLabel[item.category] || "Đã chữa"}</span><div style="font-weight:700;margin-top:4px">${escapeHTML(item.title)}</div><div class="small muted">${fmtDate(item.healedAt, true)}</div></div><div style="text-align:right"><div class="small muted">${escapeHTML(item.score || "")}</div></div></div>`).join("") : '<div class="empty-state">Chưa có lỗi nào được chữa khỏi.</div>';
@@ -1610,7 +1539,6 @@ document.querySelectorAll("[data-healing-tab]").forEach(tab => tab.addEventListe
   document.querySelectorAll("[data-healing-tab]").forEach(t => t.classList.toggle("active", t === tab));
   document.querySelectorAll("#errorHealing .healing-panel").forEach(p => p.classList.toggle("active", p.id === `healingPanel-${tab.dataset.healingTab}`));
 }));
-
 
 let drillItem = null, drillRecognizer = null;
 function openPronDrill(id) {
@@ -1653,7 +1581,6 @@ document.getElementById("pronDrillMic").addEventListener("click", () => {
   drillRecognizer.start();
 });
 
-
 let activeHealingSession = null;
 function startHealingExercise(errorCode, errorId) {
   const bank = healingExercisesBank[errorCode]; if (!bank || !bank.questions?.length) { showToast("Chưa có bài tập cho dạng này."); return; }
@@ -1693,9 +1620,6 @@ function renderHealingModalStep() {
   }));
 }
 document.getElementById("healingModalClose")?.addEventListener("click", () => closeModal("healingExerciseModal"));
-
-
-
 
 async function fileToDataUrl(file) { return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(new Error("Không thể đọc file.")); r.readAsDataURL(file); }); }
 function isTeacherLike() { return currentUser && (currentUser.role === "teacher" || currentUser.role === "admin"); }
@@ -1754,7 +1678,6 @@ async function openStudentProgress(id) {
   } catch (err) { body.innerHTML = `<p class="small" style="color:red">${escapeHTML(err.message)}</p>`; }
 }
 
-
 let teacherTestsCache = [];
 async function renderTeacherRecentTests() {
   const tbody = document.getElementById("teacherRecentTestsBody"); if (!tbody || !isTeacherLike()) return;
@@ -1791,7 +1714,6 @@ async function renderTeacherRecentTests() {
 document.getElementById("refreshTeacherTestsBtn")?.addEventListener("click", () => { renderTeacherRecentTests(); showToast("Đã làm mới danh sách đề."); });
 ["teacherTestsSemesterFilter", "teacherTestsTypeFilter", "teacherTestsGradeFilter"].forEach(id => document.getElementById(id)?.addEventListener("change", renderTeacherRecentTests));
 
-
 let matricesCache = [];
 function matrixSummaryHtml(m) {
   const levels = (m.levels || []).map(l => `<span class="diff-pill ${l.key}">${escapeHTML(l.name)} ${l.ratio}%</span>`).join(" ");
@@ -1822,7 +1744,6 @@ document.getElementById("matrixUploadForm")?.addEventListener("submit", async e 
   } catch (err) { showToast(err.message); } finally { btn.disabled = false; btn.textContent = "AI đọc ma trận"; }
 });
 
-
 let classSettingsDraft = [];
 async function openClassSettings() {
   openModal("classSettingsModal");
@@ -1851,10 +1772,7 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
   try { const res = await apiRequest("/api/teacher/class-settings", { method: "PUT", body: JSON.stringify({ settings: classSettingsDraft }) }); showToast(res.message); closeModal("classSettingsModal"); loadClassNames(); } catch (err) { showToast(err.message); }
 });
 
-
 document.getElementById("createTestBtn")?.addEventListener("click", () => { renderMatricesList(); openModal("createTestModal"); });
-// Mở form nạp đề với loại / học kỳ / unit đặt sẵn theo khung đề (KTTX / KTGK / KTCK)
-// Sau khi nạp đề: báo các câu AI cho là đáp án gốc sai (đã sửa) và các câu bị bỏ (nghe/hình) để giáo viên kiểm tra
 function showImportNotes(result) {
   const issues = result.keyIssues || [], dropped = result.dropped || [];
   if (!issues.length && !dropped.length) return;
@@ -1888,7 +1806,6 @@ document.getElementById("uploadDocxForm")?.addEventListener("submit", async e =>
     closeModal("createTestModal"); e.target.reset(); renderTeacherRecentTests(); renderTeacherStats();
   } catch (error) { showToast(error.message); } finally { submitBtn.disabled = false; submitBtn.textContent = "Tạo & Giao bài"; }
 });
-
 
 let teacherSubmissionsCache = [];
 async function renderTeacherResults() {
@@ -1949,7 +1866,6 @@ function openSubmissionDetail(sub) {
 }
 document.querySelectorAll(".detail-close").forEach(btn => btn.addEventListener("click", () => closeModal("submissionDetailModal")));
 
-
 const createSpeakingTaskModal = document.getElementById("createSpeakingTaskModal");
 [document.getElementById("createSpeakingTaskBtn"), document.getElementById("btnOpenSpeakingModalAgain")].forEach(b => b?.addEventListener("click", () => createSpeakingTaskModal.classList.remove("hidden")));
 [document.getElementById("closeSpeakingTaskModal"), document.getElementById("cancelSpeakingTaskBtn")].forEach(b => b?.addEventListener("click", () => createSpeakingTaskModal.classList.add("hidden")));
@@ -2005,9 +1921,6 @@ async function loadTeacherSpeakingSubmissions() {
   } catch (e) { tbody.innerHTML = `<tr><td colspan="8" class="small muted" style="color:#ef4444;text-align:center;padding:20px">${escapeHTML(e.message)}</td></tr>`; }
 }
 
-
-
-
 async function renderParentDashboard() {
   if (!currentUser || currentUser.role !== "parent") return;
   const tableBody = document.getElementById("parentSubmissionsTableBody");
@@ -2028,9 +1941,6 @@ async function renderParentDashboard() {
   } catch (err) { console.error("renderParentDashboard error:", err); }
 }
 document.getElementById("refreshParentDataBtn")?.addEventListener("click", () => { renderParentDashboard(); showToast("Đã làm mới dữ liệu."); });
-
-
-
 
 const roleLabels = { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị viên" };
 const statusLabels = { active: "Đang hoạt động", pending: "Chờ duyệt", locked: "Đã khóa" };
@@ -2084,9 +1994,6 @@ document.getElementById("backupNow")?.addEventListener("click", () => { document
 document.getElementById("importDataBtn")?.addEventListener("click", () => document.getElementById("jsonImportInput").click());
 document.getElementById("jsonImportInput")?.addEventListener("change", e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const imported = JSON.parse(reader.result); addAdminLog("Nhập JSON", `Đã đọc file ${file.name} (${(imported.users || []).length} tài khoản)`); showToast("Đã đọc file JSON (chỉ ghi nhật ký; tài khoản MySQL không bị thay đổi)."); renderDataAdmin(); } catch { showToast("File JSON không đúng cấu trúc"); } }; reader.readAsText(file); });
 
-
-
-
 const notificationItems = [
  { id:"speaking2", icon:"", title:"Luyện nói 2 giai đoạn", detail:"Câu đơn → hội thoại. AI chấm thân thiện với mọi giọng đọc.", time:"Mới"},
  { id:"tests", icon:"", title:"Bài kiểm tra theo ma trận", detail:"Đề được AI phân tích độ khó và thời gian phù hợp từng lớp.", time:"Mới"},
@@ -2116,7 +2023,6 @@ function appendChatMessage(sender, text) {
   const formatted = escapeHTML(text).replace(/### (.*)/g, '<strong style="display:block;font-size:14px;color:#047857;margin-bottom:6px">$1</strong>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\n\* (.*)/g, '<div style="margin-left:8px">• $1</div>').replace(/\n/g, "<br/>");
   el.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="${sender}" /><div class="chat-bubble"><div>${formatted}</div></div>`;
   capybaraChatMessages.appendChild(el); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
-  // Công thức toán (LaTeX) trong câu trả lời của AI -> KaTeX
   try {
     if (window.renderMathInElement) renderMathInElement(el.querySelector(".chat-bubble"), { delimiters: [{ left: "$", right: "$", display: true }, { left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }, { left: "$", right: "$", display: false }], throwOnError: false });
   } catch (_) {}
@@ -2135,7 +2041,6 @@ async function sendCapybaraMessage(textToSend) {
 document.getElementById("capybaraChatSendBtn")?.addEventListener("click", () => sendCapybaraMessage());
 capybaraChatInput?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendCapybaraMessage(); } });
 document.querySelectorAll(".chat-chip").forEach(chip => chip.addEventListener("click", () => sendCapybaraMessage(chip.dataset.prompt)));
-
 
 document.getElementById("globalSearch")?.addEventListener("keydown", e => {
   if (e.key !== "Enter" || !currentUser) return;

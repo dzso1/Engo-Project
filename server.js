@@ -67,7 +67,7 @@ function requireRole(...roles) {
 const schemaErrors = new Set();
 function logSchemaError(e) {
   const msg = String(e && e.message || e);
-  if (/Duplicate column|already exists|check that column.key exists|Unknown column 'password'/i.test(msg)) return; // migration đã áp dụng
+  if (/Duplicate column|already exists|check that column.key exists|Unknown column 'password'/i.test(msg)) return;
   if (schemaErrors.has(msg)) return;
   schemaErrors.add(msg);
   console.warn("[DB SCHEMA] " + msg);
@@ -78,7 +78,6 @@ function logSchemaError(e) {
 }
 
 async function ensureAssessmentTables() {
-  // 1. Tạo bảng users nếu chưa có
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -97,7 +96,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 2. Tạo bảng imported_tests nếu chưa có
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS imported_tests (
@@ -115,7 +113,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 3. Tạo bảng writing_submissions nếu chưa có
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS writing_submissions (
@@ -139,7 +136,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 4. Tạo bảng speaking_assignments nếu chưa có
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS speaking_assignments (
@@ -157,7 +153,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 5. Tạo bảng speaking_submissions nếu chưa có
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS speaking_submissions (
@@ -173,7 +168,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 6. Bảng lịch sử từng lượt luyện nói (theo dõi tiến bộ theo giai đoạn)
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS speaking_attempts (
@@ -194,7 +188,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 7. Nhật ký kết quả học tập tổng hợp (test / speaking / vocab / healing) của từng học sinh
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS learning_events (
@@ -213,7 +206,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 8. Ma trận đề kiểm tra do giáo viên upload (PDF/DOCX -> JSON)
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS test_matrices (
@@ -228,7 +220,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 9. Phân loại lớp: tăng cường (advanced) / thường (regular)
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS class_settings (
@@ -240,7 +231,6 @@ async function ensureAssessmentTables() {
     `);
   } catch (e) { logSchemaError(e); }
 
-  // 10. Migration: cột mới cho luyện nói nhiều giai đoạn, phân tích độ khó đề và điểm speaking trong bài kiểm tra
   try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN stage TINYINT NOT NULL DEFAULT 1"); } catch (e) {}
   try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN items_json JSON NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE speaking_assignments ADD COLUMN unit_title VARCHAR(255) NULL"); } catch (e) {}
@@ -262,7 +252,6 @@ async function ensureAssessmentTables() {
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN variant VARCHAR(20) NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN time_spent_seconds INT NULL"); } catch (e) {}
 
-  // 11. Migration: Bổ sung các cột nếu bảng đã tồn tại từ trước
   try { await pool.query("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE users MODIFY COLUMN password VARCHAR(255) NULL DEFAULT NULL"); } catch (e) {}
   try { await pool.query("UPDATE users SET password_hash = password WHERE (password_hash IS NULL OR password_hash = '') AND password IS NOT NULL"); } catch (e) {}
@@ -272,13 +261,12 @@ async function ensureAssessmentTables() {
   try { await pool.query("ALTER TABLE users ADD COLUMN parent_student_id BIGINT UNSIGNED NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE users ADD COLUMN class_name VARCHAR(50) NULL"); } catch (e) {}
 
-  // 5. Nếu bảng users hoàn toàn trống, tự tạo tài khoản Admin và Giáo viên mẫu để dùng ngay
   try {
     const [userRows] = await pool.query("SELECT COUNT(*) AS total FROM users");
     if (userRows && userRows[0] && userRows[0].total === 0) {
       const defaultHash = await bcrypt.hash("123456", 12);
       await pool.query(
-        `INSERT INTO users (full_name, email, password_hash, role, status) VALUES 
+        `INSERT INTO users (full_name, email, password_hash, role, status) VALUES
          ('Quản Trị Viên', 'admin@engo.edu.vn', ?, 'admin', 'active'),
          ('Cô Nguyễn Lan Hương', 'teacher@engo.edu.vn', ?, 'teacher', 'active')`,
         [defaultHash, defaultHash]
@@ -287,7 +275,6 @@ async function ensureAssessmentTables() {
     }
   } catch (e) { logSchemaError(e); }
 
-  // 12. Khởi tạo 52 lớp 6A1..9A13 trong bảng phân loại (chỉ chèn lớp chưa có; GV đổi lại trong "Phân loại lớp")
   try {
     const values = DEFAULT_CLASSES.map(c => [c, ["9A5", "9A6"].includes(c) ? "advanced" : "regular"]);
     await pool.query("INSERT IGNORE INTO class_settings (class_name, tier) VALUES " + values.map(() => "(?, ?)").join(", "), values.flat());
@@ -302,7 +289,6 @@ let tableCols = {
   is_forced_submit: false
 };
 
-// Bộ nhớ cột hiện có của từng bảng -> server chạy được cả khi CSDL chưa migrate đủ cột
 const schemaCols = {};
 async function syncSubmissionColumns() {
   for (const table of ["writing_submissions", "imported_tests", "speaking_assignments", "speaking_submissions"]) {
@@ -318,10 +304,8 @@ async function syncSubmissionColumns() {
   tableCols.violation_penalty = ws.has("violation_penalty");
   tableCols.is_forced_submit = ws.has("is_forced_submit");
 }
-// Làm mới cache cột mỗi 60s để server nhận cột mới ngay sau khi migrate, không cần restart
 setInterval(() => { syncSubmissionColumns().catch(() => {}); progressService.invalidateColumnCache(); }, 60000).unref();
 function hasCol(table, col) { return Boolean(schemaCols[table] && schemaCols[table].has(col)); }
-// Trả về "alias.col" nếu cột tồn tại, ngược lại "NULL AS col" (hoặc giá trị mặc định)
 function optCol(table, alias, col, def = "NULL") { return hasCol(table, col) ? `${alias}.${col}` : `${def} AS ${col}`; }
 function optCols(table, alias, cols) { return cols.map(c => optCol(table, alias, c)).join(", "); }
 
@@ -336,11 +320,9 @@ const assessmentReady = ensureAssessmentTables()
   .then(() => true)
   .catch(error => { console.error("Assessment tables unavailable:", error); return false; });
 
-
 function normalizeAnswer(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
-// So khớp "mềm" cho câu điền từ / viết lại câu: bỏ dấu câu cuối, dấu mũi tên, số thứ tự, chuẩn hoá dấu nháy
 function looseAnswer(value) {
   return String(value || "")
     .replace(/<\/?[ub]>/g, "")
@@ -356,14 +338,12 @@ function matchesAccepted(value, accepted) {
   if (!v) return false;
   const list = (accepted || []).map(looseAnswer).filter(Boolean);
   if (list.includes(v)) return true;
-  // Viết lại câu: học sinh có thể chép lại cả phần đầu câu đã cho -> chấp nhận nếu kết thúc bằng đáp án
   return list.some(a => a.length >= 8 && v.endsWith(a));
 }
 
 function getStoredTest(row) {
   const questions = typeof row.questions_json === "string" ? JSON.parse(row.questions_json) : row.questions_json;
   const out = { ...row, questions };
-  // Khi CSDL chưa có cột analysis_json, phân tích được nhúng trong questions_json
   if ((out.analysis_json === null || out.analysis_json === undefined) && questions && questions.analysis) out.analysis_json = questions.analysis;
   return out;
 }
@@ -374,16 +354,13 @@ function parseJsonField(value, fallback) {
   try { return JSON.parse(value); } catch (e) { return fallback; }
 }
 
-// 4 khối 6-9, mỗi khối 13 lớp (6A1 -> 9A13); giáo viên có thể thêm lớp khác trong "Phân loại lớp"
 const DEFAULT_CLASSES = [6, 7, 8, 9].flatMap(g => Array.from({ length: 13 }, (_, i) => `${g}A${i + 1}`));
-// Khối (6-9) suy từ tên lớp, vd "7A12" -> 7
 function gradeOfClass(className) { const m = String(className || "").trim().match(/^([6-9])/); return m ? Number(m[1]) : null; }
 const DEFAULT_TIERS = {
   advanced: { label: "Lớp tăng cường", easy: 25, medium: 35, hard: 40, timeFactor: 0.9 },
   regular: { label: "Lớp thường", easy: 45, medium: 35, hard: 20, timeFactor: 1.1 }
 };
 
-// Lấy phân loại lớp (advanced / regular). Lớp chưa cấu hình -> null (nhận đề đầy đủ)
 async function getClassTier(className) {
   if (!className) return null;
   try {
@@ -392,7 +369,6 @@ async function getClassTier(className) {
   } catch (e) { return null; }
 }
 
-// Xây dựng 2 biến thể đề (nâng cao / cơ bản) từ phân tích độ khó + ma trận
 function buildTestVariants(questions, analysis, matrix) {
   const tiers = matrix && matrix.tiers ? matrix.tiers : DEFAULT_TIERS;
   const ids = questions.map(q => q.id);
@@ -429,7 +405,6 @@ function resolveVariantName(tier, analysis) {
   return "full";
 }
 
-// Đề rút gọn theo tầng lớp chỉ áp dụng khi giáo viên gắn ma trận; mặc định học sinh làm ĐỦ câu như đề gốc
 function isTieredTest(test) {
   const analysis = parseJsonField(test.analysis_json, null);
   return Boolean(test.matrix_id) || Boolean(analysis && analysis.matrixId);
@@ -473,7 +448,6 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
     unitNo: test.unit_no !== null && test.unit_no !== undefined ? Number(test.unit_no) : null,
     grade: test.grade ? Number(test.grade) : null,
     variant: isTieredTest(test) ? variantName : "full",
-    // Thời gian: theo đề / loại đề (GK-CK 60 phút, TX 15 phút) - giáo viên có thể sửa; AI chỉ đề xuất khi chưa có
     durationMinutes: test.duration_minutes || (variantInfo ? variantInfo.durationMinutes : 45),
     difficultyCounts: analysis && analysis.variants ? analysis.variants.counts : null,
     summary: {
@@ -489,7 +463,6 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
   };
 }
 
-// Trạng thái các nhà cung cấp AI (đã cấu hình key chưa, đang bị hết hạn mức không); ?test=1 gửi một câu hỏi thử
 app.get("/api/ai/status", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   const providers = aiService.aiProviderStatus();
   let test = null;
@@ -544,17 +517,13 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "crazymailing.com", "tempail.com", "emailondeck.com", "maildrop.cc"
 ]);
 
-// Cấu hình API Key kiểm tra email thực tế (AbstractAPI, Hunter.io, ZeroBounce...)
-// Bạn có thể đăng ký miễn phí tại https://www.abstractapi.com/api/email-verification-validation-api hoặc https://hunter.io
 const ABSTRACT_EMAIL_API_KEY = process.env.ABSTRACT_EMAIL_API_KEY || "";
 const HUNTER_EMAIL_API_KEY = process.env.HUNTER_EMAIL_API_KEY || "";
 
 function isGibberishUsername(username) {
   const u = String(username || "").toLowerCase();
-  // 1. Quá nhiều phụ âm liên tiếp không thể phát âm (>= 5 phụ âm)
   if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(u)) return true;
-  
-  // 2. Tỉ lệ nguyên âm bất thường với tên dài
+
   const lettersOnly = u.replace(/[^a-z]/g, "");
   if (lettersOnly.length >= 7) {
     const vowels = (lettersOnly.match(/[aeiou]/g) || []).length;
@@ -562,7 +531,6 @@ function isGibberishUsername(username) {
     if (vowelRatio < 0.15) return true;
   }
 
-  // 3. Các chuỗi gõ phím ngẫu nhiên / bàn phím mashing phổ biến (như aksjodajodw, asdfgh, etc.)
   const spamPatterns = [
     "asdf", "dfgh", "ghjk", "hjkl", "jkl;", "qwerty", "werty", "ertyu", "rtyui", "tyuio",
     "zxcv", "xcvb", "cvbn", "vbnm", "aksj", "sjod", "joda", "jodw", "odaw", "dajo", "ajod",
@@ -579,7 +547,6 @@ function isGibberishUsername(username) {
 }
 
 async function verifyEmailWithAPI(email) {
-  // 1. Kiểm tra qua AbstractAPI nếu đã cấu hình key
   if (ABSTRACT_EMAIL_API_KEY) {
     try {
       const res = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${ABSTRACT_EMAIL_API_KEY}&email=${encodeURIComponent(email)}`);
@@ -597,7 +564,6 @@ async function verifyEmailWithAPI(email) {
     }
   }
 
-  // 2. Kiểm tra qua Hunter.io nếu đã cấu hình key
   if (HUNTER_EMAIL_API_KEY) {
     try {
       const res = await fetch(`https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_EMAIL_API_KEY}`);
@@ -615,7 +581,7 @@ async function verifyEmailWithAPI(email) {
     }
   }
 
-  return null; // Không có API key hoặc API bận -> chuyển sang kiểm tra DNS MX + heuristic
+  return null;
 }
 
 async function verifyEmailAddress(email) {
@@ -630,12 +596,10 @@ async function verifyEmailAddress(email) {
     return { valid: false, reason: "Email thiếu tên người dùng hoặc tên miền." };
   }
 
-  // Chặn email tạm thời / rác
   if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
     return { valid: false, reason: "Không được sử dụng email tạm thời / email rác để đăng ký." };
   }
 
-  // Kiểm tra cú pháp chuẩn riêng của Gmail
   if (domain === "gmail.com" || domain === "googlemail.com") {
     if (username.length < 6 || username.length > 30) {
       return { valid: false, reason: "Tên tài khoản Gmail phải có độ dài từ 6 đến 30 ký tự." };
@@ -646,19 +610,16 @@ async function verifyEmailAddress(email) {
     if (username.startsWith(".") || username.endsWith(".") || username.includes("..")) {
       return { valid: false, reason: "Tên tài khoản Gmail không được bắt đầu, kết thúc bằng dấu chấm hoặc chứa 2 dấu chấm liên tiếp." };
     }
-    // Chặn tên tài khoản gõ bàn phím rác ngẫu nhiên (aksjodajodw, asdfgh...)
     if (isGibberishUsername(username)) {
       return { valid: false, reason: "Tên email có dạng gõ phím ngẫu nhiên / không có thật. Vui lòng nhập email thật." };
     }
   }
 
-  // 1. Kiểm tra trực tiếp qua Email Validation API bên thứ 3 (nếu có key)
   const apiResult = await verifyEmailWithAPI(trimmed);
   if (apiResult !== null) {
     return apiResult;
   }
 
-  // 2. Tra cứu bản ghi MX thực tế qua DNS
   try {
     const mxRecords = await dns.resolveMx(domain);
     if (!mxRecords || mxRecords.length === 0) {
@@ -671,7 +632,6 @@ async function verifyEmailAddress(email) {
       mxHost: mxRecords[0].exchange
     };
   } catch (err) {
-    // Dự phòng cho các tên miền phổ biến nếu mất mạng tạm thời
     if (["gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "edu.vn"].includes(domain)) {
       return { valid: true, domain, isGmail: domain.includes("gmail"), isFallback: true };
     }
@@ -679,7 +639,6 @@ async function verifyEmailAddress(email) {
   }
 }
 
-// Hàm mã hóa an toàn HTML
 function escapeHTML(str) {
   return String(str || "")
     .replace(/&/g, "&amp;")
@@ -689,7 +648,6 @@ function escapeHTML(str) {
     .replace(/'/g, "&#039;");
 }
 
-// Bộ nhớ lưu mã OTP tạm thời: email -> { otp, expiresAt, attempts }
 const emailOtpStore = new Map();
 const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 
@@ -707,7 +665,7 @@ async function sendEmailOTP(recipientEmail, fullName, otpCode) {
           Xin chào <strong>${escapeHTML(fullName || "bạn")}</strong>,<br>
           Bạn vừa yêu cầu đăng ký tài khoản tại <strong>ENGO Learning Hub</strong>. Vui lòng sử dụng mã xác nhận (OTP) 6 chữ số dưới đây để kích hoạt tài khoản:
         </p>
-        
+
         <div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
           <span style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:8px">Mã xác thực của bạn</span>
           <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#4f46e5;font-family:monospace">${otpCode}</div>
@@ -742,7 +700,6 @@ async function sendEmailOTP(recipientEmail, fullName, otpCode) {
     const data = await res.json();
     if (!res.ok) {
       console.warn("[Resend Notice]:", data.message || data);
-      // Ghi log mã OTP cho môi trường thử nghiệm
       console.log(`[ENGO OTP DEV] Mã OTP gửi tới ${recipientEmail}: ${otpCode}`);
     }
     return { success: true, resendId: data.id };
@@ -753,7 +710,6 @@ async function sendEmailOTP(recipientEmail, fullName, otpCode) {
   }
 }
 
-// API Gửi mã OTP xác minh qua Email
 app.post("/api/auth/send-otp", async (req, res) => {
   try {
     await assessmentReady;
@@ -764,29 +720,25 @@ app.post("/api/auth/send-otp", async (req, res) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    // 1. Kiểm tra tính hợp lệ cú pháp và máy chủ thư
     const emailCheck = await verifyEmailAddress(normalizedEmail);
     if (!emailCheck.valid) {
       return res.status(400).json({ success: false, message: emailCheck.reason });
     }
 
-    // 2. Kiểm tra xem email đã được đăng ký trong database chưa
     const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);
     if (existing.length) {
       return res.status(409).json({ success: false, message: "Email này đã được đăng ký tài khoản trên hệ thống." });
     }
 
-    // 3. Tạo mã OTP ngẫu nhiên 6 chữ số
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 phút
+    const expiresAt = Date.now() + 5 * 60 * 1000;
 
     emailOtpStore.set(normalizedEmail, { otp, expiresAt, attempts: 0 });
 
-    // 4. Gửi email qua Resend
     const sendResult = await sendEmailOTP(normalizedEmail, fullName, otp);
 
     const isDirectRecipient = normalizedEmail === "khoa1029384756@gmail.com";
-    const devHint = isDirectRecipient 
+    const devHint = isDirectRecipient
       ? `Đã gửi mã xác nhận 6 số đến hộp thư ${normalizedEmail}. Vui lòng kiểm tra hộp thư đến (hoặc thư rác/spam).`
       : `Đã gửi mã xác nhận! [Mã OTP của bạn: ${otp}]. (Mã cũng đã được ghi nhận an toàn trên hệ thống).`;
 
@@ -801,7 +753,6 @@ app.post("/api/auth/send-otp", async (req, res) => {
   }
 });
 
-// API Kiểm tra tính hợp lệ và tồn tại của email
 app.get("/api/auth/verify-email", async (req, res) => {
   const email = req.query.email;
   if (!email) {
@@ -1046,9 +997,6 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
   }
 });
 
-// ==========================================
-// BÀI KIỂM TRA: IMPORT DOCX + AI PHÂN TÍCH ĐỘ KHÓ + BIẾN THỂ THEO MA TRẬN
-// ==========================================
 function testSelect() {
   return "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, " + optCols("imported_tests", "imported_tests", ["analysis_json", "matrix_id", "duration_minutes", "test_type", "semester", "unit_no", "grade"]) + ", created_at FROM imported_tests";
 }
@@ -1068,7 +1016,6 @@ async function analyzeAndBuildVariants(test, matrix) {
   return { perQuestion, variants, matrixId: matrix ? matrix.id : null, analyzedAt: new Date().toISOString() };
 }
 
-// Đọc tệp đề (DOCX giữ gạch chân/bảng, hoặc PDF) rồi cấu trúc hoá bằng AI; AI lỗi thì dùng parser regex cũ
 async function readTestDocument(buffer, fileName, title, hints) {
   const isPdf = /\.pdf$/i.test(String(fileName || "")) || buffer.slice(0, 4).toString() === "%PDF";
   const text = isPdf ? (await pdfParse(buffer)).text : await docxToText(buffer);
@@ -1081,7 +1028,6 @@ async function readTestDocument(buffer, fileName, title, hints) {
   }
 }
 
-// Thời gian làm bài theo loại đề: giữa kì / cuối kì 60 phút, thường xuyên 15 phút (đề ghi thời gian thì theo đề)
 function durationForTest(testType, test, analysis) {
   if (test && test.durationHint) return Math.max(5, Math.min(180, Number(test.durationHint)));
   if (testType === "ktgk" || testType === "ktck") return 60;
@@ -1137,7 +1083,6 @@ app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (
   }
 });
 
-// Danh sách đề (học sinh: kèm trạng thái đã nộp / biến thể theo lớp)
 app.get("/api/tests/latest", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1152,7 +1097,6 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
       if (userClass) {
         query += " WHERE (class_name = ? OR class_name IS NULL OR class_name = '')";
         params.push(userClass);
-        // Đề của ngân hàng tổ gắn theo khối: học sinh chỉ thấy đề đúng khối của lớp mình
         const g = gradeOfClass(userClass);
         if (g && hasCol("imported_tests", "grade")) { query += " AND (grade IS NULL OR grade = ?)"; params.push(g); }
       }
@@ -1195,7 +1139,6 @@ app.get("/api/tests/:id", requireLogin, async (req, res) => {
   }
 });
 
-// Giáo viên phân tích lại độ khó / gắn ma trận cho đề đã có
 app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
@@ -1216,7 +1159,6 @@ app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", 
   }
 });
 
-// Giáo viên sửa phân loại đề (loại KTTX/KTGK/KTCK, học kỳ, unit, lớp)
 app.patch("/api/teacher/tests/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
@@ -1256,7 +1198,6 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     const speaking = questionsInVariant.filter(question => question.type === "speaking");
     const manual = questionsInVariant.filter(question => question.manual);
 
-    // Chấm khách quan: trắc nghiệm so khớp; điền từ so khớp mềm, không khớp thì nhờ AI xét (đáp án khác đề nhưng vẫn đúng)
     const objectiveResult = {};
     const toJudge = [];
     objective.forEach(question => {
@@ -1275,7 +1216,6 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     let earned = 0;
     objective.forEach(question => { if (objectiveResult[question.id]?.correct) earned += Number(question.points || 0); });
 
-    // Speaking: điểm = points x độ chuẩn AI (%)
     let speakingEarned = 0;
     const speakingRecord = {};
     speaking.forEach(question => {
@@ -1324,7 +1264,6 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
       [req.params.id, req.user.userId, JSON.stringify(answers), JSON.stringify(writingAnswers), JSON.stringify(speakingRecord), netObjectiveEarned, speakingEarned, objectiveMax, variantName, timeSpentSeconds !== null ? Number(timeSpentSeconds) : null, violationsCount, penalty, forced, status]
     );
 
-    // Chi tiết từng câu để hiển thị lỗi sai + đưa vào phòng chữa lỗi
     const review = objective.map(question => {
       const value = answers[question.id];
       const res = objectiveResult[question.id] || { correct: false };
@@ -1404,7 +1343,7 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
     const [rows] = await pool.execute(
-      `SELECT 
+      `SELECT
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
         ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()},
         ws.objective_answers_json, ws.writing_answers_json, ${optCols("writing_submissions", "ws", ["speaking_answers_json", "speaking_score", "objective_max", "variant", "time_spent_seconds"])},
@@ -1437,7 +1376,7 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
       if (row.status === "pending_manual") {
         pendingWriting++;
       }
-      
+
       totalScoreSum += scoreOnTen;
       scoredCount++;
 
@@ -1492,8 +1431,8 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
     await assessmentReady;
     const { className, testId } = req.query;
     let query = `
-      SELECT 
-        ws.id, ws.test_id, ws.student_id, ws.objective_score, ws.manual_score, 
+      SELECT
+        ws.id, ws.test_id, ws.student_id, ws.objective_score, ws.manual_score,
         ws.teacher_feedback, ws.status, ws.submitted_at, ws.graded_at,
         ${getViolationSelectCols()},
         ws.objective_answers_json, ws.writing_answers_json, ${optCols("writing_submissions", "ws", ["speaking_answers_json", "speaking_score", "objective_max", "variant", "time_spent_seconds"])},
@@ -1562,7 +1501,6 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
   }
 });
 
-// API Lấy dữ liệu học tập con em cho Phụ huynh
 app.get("/api/parent/student-data", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1580,7 +1518,7 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
     const student = studentRows[0];
 
     const [submissionsRows] = await pool.execute(
-      `SELECT 
+      `SELECT
         ws.id, ws.test_id, ws.objective_score, ws.manual_score, ws.teacher_feedback,
         ws.status, ws.submitted_at, ws.graded_at, ${getViolationSelectCols()}, ${optCol("writing_submissions", "ws", "objective_max")},
         it.title AS test_title, it.summary_json, u.full_name AS teacher_name
@@ -1649,7 +1587,7 @@ app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admi
     const isTeacher = req.user.role === "teacher";
     const teacherId = req.user.userId;
 
-    const testCountQuery = isTeacher 
+    const testCountQuery = isTeacher
       ? "SELECT COUNT(*) AS totalTests FROM imported_tests WHERE teacher_id = ?"
       : "SELECT COUNT(*) AS totalTests FROM imported_tests";
     const [testCountRows] = await pool.execute(testCountQuery, isTeacher ? [teacherId] : []);
@@ -1762,10 +1700,6 @@ app.patch("/api/teacher/writing-submissions/:id", requireLogin, requireRole("tea
   }
 });
 
-// ==========================================
-// API LUYỆN NÓI AI THEO GIAI ĐOẠN (GIAO BÀI, SINH BÀI TỪ SGK, CHẤM, NỘP)
-// ==========================================
-
 function normalizeSpeakingItems(rawItems, fallbackSentence, fallbackIpa, fallbackTranslation) {
   const list = Array.isArray(rawItems) ? rawItems : [];
   const items = list
@@ -1811,7 +1745,6 @@ function publicSpeakingAssignment(row) {
   };
 }
 
-// 1. Giáo viên giao bài Speaking thủ công (1 câu hoặc nhiều câu / hội thoại)
 app.post("/api/teacher/speaking-assignments", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
@@ -1848,7 +1781,6 @@ app.post("/api/teacher/speaking-assignments", requireLogin, requireRole("teacher
   }
 });
 
-// 2. Giáo viên upload SGK (PDF/DOCX) -> AI sinh bài giai đoạn 1 (câu đơn) & giai đoạn 2 (hội thoại)
 app.post("/api/teacher/speaking-units", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
@@ -1890,7 +1822,6 @@ app.post("/api/teacher/speaking-units", requireLogin, requireRole("teacher", "ad
   }
 });
 
-// 3. Danh sách bài Speaking (GV: tất cả bài của mình; HS: bài của lớp + tiến độ cá nhân)
 app.get("/api/speaking/assignments", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1929,7 +1860,6 @@ app.get("/api/speaking/assignments", requireLogin, async (req, res) => {
   }
 });
 
-// 4. Giáo viên xóa bài Speaking
 app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
@@ -1946,7 +1876,6 @@ app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("t
   }
 });
 
-// 5. AI chấm một lượt đọc (dùng cho luyện nói & câu Speaking trong bài kiểm tra)
 app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1958,7 +1887,6 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
     let result, bestTranscript;
     let freeJudge = null;
     if (mode === "free") {
-      // Nói tự do (trả lời câu hỏi): AI chấm mức bám đề + nội dung + ngữ pháp (chống nói lạc đề / đọc linh tinh)
       bestTranscript = String(alts[0] || "").trim();
       const words = speakingScorer.normalizeWords(bestTranscript);
       freeJudge = await Promise.race([
@@ -1975,7 +1903,6 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
     }
 
     const verdict = speakingScorer.verdictFor(result.accuracy);
-    // Nhận xét AI (giới hạn 9s để không làm học sinh chờ lâu)
     let tip = freeJudge && freeJudge.tip ? freeJudge.tip : "";
     if (!tip) try {
       const fb = await Promise.race([
@@ -2005,7 +1932,6 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
   }
 });
 
-// 6. Học sinh nộp kết quả cả bài Speaking (nhiều câu) cho giáo viên
 app.post("/api/student/speaking-submissions", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -2039,7 +1965,6 @@ app.post("/api/student/speaking-submissions", requireLogin, async (req, res) => 
   }
 });
 
-// 7. Giáo viên xem danh sách học sinh đã nộp bài Speaking
 app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
@@ -2066,10 +1991,6 @@ app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher"
   }
 });
 
-// ==========================================
-// MA TRẬN ĐỀ & PHÂN LOẠI LỚP
-// ==========================================
-// Danh sách lớp công khai (dùng cho form đăng ký trước khi đăng nhập)
 app.get("/api/classes", async (req, res) => {
   let classes = [...DEFAULT_CLASSES];
   try {
@@ -2146,9 +2067,6 @@ app.delete("/api/teacher/test-matrices/:id", requireLogin, requireRole("teacher"
   }
 });
 
-// ==========================================
-// TIẾN ĐỘ HỌC TẬP TỪNG HỌC SINH (dashboard, kết quả, giáo viên, phụ huynh)
-// ==========================================
 app.get("/api/student/progress", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -2215,11 +2133,6 @@ app.get("/api/teacher/students/:id/progress", requireLogin, requireRole("teacher
   }
 });
 
-// ==========================================
-// AI SUITE API ENDPOINTS (CHAT, WRITING, TEST GEN)
-// ==========================================
-
-// 1. AI Chatbot Endpoint
 app.post("/api/ai/chat", async (req, res) => {
   try {
     const { message, history } = req.body;
@@ -2234,7 +2147,6 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 });
 
-// 2. AI Writing Grader Endpoint
 app.post("/api/ai/grade-writing", async (req, res) => {
   try {
     const { prompt, content, level } = req.body;
@@ -2249,7 +2161,6 @@ app.post("/api/ai/grade-writing", async (req, res) => {
   }
 });
 
-// 3. AI On-demand Test Generator Endpoint
 app.post("/api/ai/generate-test", async (req, res) => {
   try {
     const { topic, gradeLevel, count, difficulty } = req.body;
@@ -2261,7 +2172,6 @@ app.post("/api/ai/generate-test", async (req, res) => {
   }
 });
 
-// 4. AI Translation and IPA Endpoint (for Teacher Speaking assignments & study)
 app.post("/api/ai/translate-and-ipa", async (req, res) => {
   try {
     const { sentence } = req.body;
@@ -2276,10 +2186,6 @@ app.post("/api/ai/translate-and-ipa", async (req, res) => {
   }
 });
 
-
-/* ==================== HỌC LIỆU THEO UNIT 1–12 ==================== */
-
-// Tổng quan 12 unit: số từ vựng, điểm ngữ pháp, mã lỗi, câu nói, đoạn nghe.
 app.get("/api/units", requireLogin, (req, res) => {
   try {
     return res.json({ success: true, ...unitsData.summary() });
@@ -2289,7 +2195,6 @@ app.get("/api/units", requireLogin, (req, res) => {
   }
 });
 
-// Toàn bộ học liệu của một unit (từ vựng, ngữ pháp, luyện nói, luyện nghe).
 app.get("/api/units/:n", requireLogin, (req, res) => {
   const n = Number(req.params.n);
   if (!Number.isInteger(n) || n < 1 || n > 12) {
@@ -2300,14 +2205,10 @@ app.get("/api/units/:n", requireLogin, (req, res) => {
   return res.json({ success: true, ...data });
 });
 
-// Danh sách mã lỗi ngữ pháp theo unit — Phòng Chữa Lỗi dùng để gom nhóm và vẽ bản đồ nhiệt.
 app.get("/api/units/meta/error-codes", requireLogin, (req, res) => {
   return res.json({ success: true, codes: unitsData.errorCodes() });
 });
 
-/* ==================== KHUNG ĐỀ KTTX / KTGK / KTCK ==================== */
-
-// 12 khung đề của cả hai học kì; ?term=1 hoặc ?term=2 để lọc.
 app.get("/api/exams/specs", requireLogin, (req, res) => {
   const term = req.query.term ? Number(req.query.term) : null;
   if (term !== null && ![1, 2].includes(term)) {
@@ -2316,14 +2217,12 @@ app.get("/api/exams/specs", requireLogin, (req, res) => {
   return res.json({ success: true, specs: unitsData.examSpecs(term) });
 });
 
-// Một khung đề cụ thể, kèm ma trận và cấu trúc điểm.
 app.get("/api/exams/specs/:id", requireLogin, (req, res) => {
   const spec = unitsData.examSpec(String(req.params.id));
   if (!spec) return res.status(404).json({ success: false, message: "Không tìm thấy khung đề này." });
   return res.json({ success: true, spec });
 });
 
-// Giáo viên nạp đề Word thật vào một khung đề (KTTX/KTGK/KTCK): dùng chung pipeline import + AI phân tích
 app.post("/api/exams/specs/:id/import", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;

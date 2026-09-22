@@ -1,4 +1,3 @@
--- ENGO v3: phân loại đề kiểm tra (KTTX / KTGK / KTCK theo học kỳ, unit). Chạy bằng root (Railway: đổi USE thành tên database).
 USE railway;
 DROP PROCEDURE IF EXISTS engo_add_column;
 DELIMITER $$

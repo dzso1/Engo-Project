@@ -11,7 +11,6 @@ async function run() {
     });
     console.log('Connected successfully as engo_app!');
 
-    // 1. Check and add class_name to users
     try {
       const [cols] = await conn.query("SHOW COLUMNS FROM users LIKE 'class_name'");
       if (cols.length === 0) {
@@ -24,9 +23,8 @@ async function run() {
       console.log('ALTER users status:', e.message);
     }
 
-    // 2. Create imported_tests
     try {
-      await conn.query(
+      await conn.query(`
         CREATE TABLE IF NOT EXISTS imported_tests (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
           teacher_id BIGINT UNSIGNED NOT NULL,
@@ -40,13 +38,12 @@ async function run() {
           INDEX idx_imported_tests_class (class_name),
           CONSTRAINT fk_imported_tests_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-      );
+      `);
       console.log('OK: imported_tests created/exists');
     } catch(e) {
       console.log('CREATE imported_tests status:', e.message);
     }
 
-    // 3. Check and add class_name to imported_tests
     try {
       const [cols] = await conn.query("SHOW COLUMNS FROM imported_tests LIKE 'class_name'");
       if (cols.length === 0) {
@@ -59,9 +56,8 @@ async function run() {
       console.log('ALTER imported_tests status:', e.message);
     }
 
-    // 4. Create writing_submissions
     try {
-      await conn.query(
+      await conn.query(`
         CREATE TABLE IF NOT EXISTS writing_submissions (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
           test_id BIGINT UNSIGNED NOT NULL,
@@ -79,7 +75,7 @@ async function run() {
           CONSTRAINT fk_writing_test FOREIGN KEY (test_id) REFERENCES imported_tests(id) ON DELETE CASCADE,
           CONSTRAINT fk_writing_student FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-      );
+      `);
       console.log('OK: writing_submissions created/exists');
     } catch(e) {
       console.log('CREATE writing_submissions status:', e.message);

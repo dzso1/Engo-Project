@@ -30,9 +30,6 @@ function cleanText(text) {
     .trim();
 }
 
-/**
- * Bóc tách văn bản thuần từ file PDF / DOCX / TXT (dạng data URL base64).
- */
 async function extractDocumentText(documentBase64, fileName) {
   const buffer = decodeDataUrl(documentBase64);
   const kind = detectKind(fileName, buffer);

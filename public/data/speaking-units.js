@@ -1,10 +1,3 @@
-// Luyện nói theo Unit 1–12 — Tiếng Anh 9 Global Success
-// Mỗi unit có 3 cấp độ tăng dần:
-//   L1 (dễ)      — cụm từ / câu ngắn, tập trung vào 1 âm hoặc 1 từ khoá của unit
-//   L2 (vừa)     — câu trọn vẹn dùng đúng ngữ pháp trọng tâm của unit
-//   L3 (khó)     — câu dài, câu hỏi hoặc câu ghép, có nối âm và ngữ điệu
-// Phiên âm IPA do services/ai-service.js sinh tại thời điểm học nên không lưu cứng ở đây.
-// Điểm phát âm do services/speaking-scorer.js chấm theo cách ĐỌC, khoan dung với giọng địa phương.
 window.ENGO_SPEAKING_UNITS = {
   unit1: {
     unit: 1, name: "Unit 1 · Local Community",
@@ -235,5 +228,3 @@ window.ENGO_SPEAKING_UNITS = {
     ]
   }
 };
-
-// Tổng: 12 unit · 36 cấp độ · 96 câu luyện nói, sắp xếp từ dễ đến khó trong từng unit.

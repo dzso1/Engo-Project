@@ -1,5 +1,3 @@
-// Ngữ pháp theo Unit 1-12: lý thuyết + bài tập
-// Sinh tự động bởi scripts/generate-unit-content.js (nguồn: TỪ VỰNG 9 Global Success + AI). Chỉnh tay được.
 window.ENGO_GRAMMAR_UNITS = {
  "unit1": {
   "unit": 1,

@@ -1,16 +1,3 @@
-// ============================================================
-// Cấu trúc hoá đề kiểm tra bằng AI (Gemini) từ văn bản đề (Word/PDF).
-// Thay cho docx-assessment-parser (regex cứng, chỉ đúng 1 mẫu đề): đề thật của
-// tổ chuyên môn có đủ kiểu bố cục, đáp án dạng bảng, phần gạch chân ngữ âm...
-//
-// Đầu ra cùng hình dạng với parseDocxAssessment để server/frontend dùng chung:
-//   { title, sourceFormat, sections[], questions[], answerKey, summary }
-// Mỗi câu có thêm:
-//   instruction  yêu cầu của phần (task) - "Choose the word whose underlined part..."
-//   context      đoạn văn đọc hiểu / đoạn điền từ (nếu có)
-//   accepted[]   các đáp án chấp nhận (điền từ / viết lại câu) - AI bổ sung biến thể đúng
-//   keyNote      ghi chú khi AI thấy đáp án gốc sai và đã sửa (giáo viên kiểm tra lại)
-// ============================================================
 const crypto = require("crypto");
 const ai = require("./ai-service");
 const { stripMarks } = require("./docx-text");
@@ -126,13 +113,11 @@ function normalizeStructured(parsed, fallbackTitle) {
         item.target = stripMarks(prompt).replace(/^(?:read\s+(?:aloud|the\s+(?:sentence|text|paragraph))|đọc(?:\s+to)?|say)\s*[:\-–]?\s*/i, "").trim();
         item.referenceAnswer = String(q.referenceAnswer || "").trim();
       }
-      // Chỉ giữ ghi chú khi AI thật sự sửa đáp án (AI hay "lẩm bẩm" rồi kết luận key đúng)
       if (q.keyIssue && !/key is correct|key correct|is correct\.?$/i.test(String(q.keyIssue))) item.keyNote = String(q.keyIssue).slice(0, 300);
       questions.push(item);
     }
   }
   questions.sort((a, b) => a.number - b.number);
-  // Chia điểm nếu đề không ghi: tổng 10
   const withPts = questions.filter(q => q.points > 0);
   if (withPts.length < questions.length) {
     const used = withPts.reduce((s, q) => s + q.points, 0);
@@ -163,16 +148,11 @@ function normalizeStructured(parsed, fallbackTitle) {
   };
 }
 
-/**
- * text: văn bản đề (từ docxToText - có <u>/<b>, hoặc pdf-parse)
- * opts: { title, hints, timeoutMs }
- */
 async function structureTestWithAi(text, opts = {}) {
   const clean = String(text || "").replace(/\r/g, "").trim();
   if (clean.length < 200) throw new Error("Nội dung đề quá ngắn để nhận diện.");
   const body = clean.length > 60000 ? clean.slice(0, 60000) : clean;
   const cacheKey = "test_structure_v1_" + crypto.createHash("md5").update(body).digest("hex");
-  // Thử lại khi AI trả rỗng (thường do 429 quota tạm thời hoặc JSON bị cắt)
   let parsed = null;
   for (let attempt = 0; attempt < 3 && !(parsed && Array.isArray(parsed.parts)); attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, 4000 * attempt));

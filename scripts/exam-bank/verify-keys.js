@@ -1,9 +1,3 @@
-// ============================================================
-// Bước 3: kiểm chứng đáp án của từng đề bằng AI "giải độc lập" (không cho AI xem đáp án gốc),
-// chỗ nào khác nhau thì gọi AI trọng tài phân xử có giải thích -> đáp án cuối + ghi chú cho giáo viên.
-//   node scripts/exam-bank/verify-keys.js [--concurrency 3] [--limit N]      (chạy AI, cập nhật cache + DB theo .env)
-//   node scripts/exam-bank/verify-keys.js --sync-only                          (chỉ đẩy cache đã kiểm chứng vào DB, vd Railway)
-// ============================================================
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -69,7 +63,6 @@ async function verifyOne(file) {
   if (data.verification) return { skipped: true };
   test.sourceHashKey = file.replace(".json", "");
   let solved = {};
-  // AI hay bị 429 khi chạy hàng loạt: thử lại có chờ, không có lời giải thì KHÔNG đánh dấu đã kiểm chứng
   for (let attempt = 0; attempt < 4 && !Object.keys(solved).length; attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, 8000 * attempt));
     solved = await solve(test);

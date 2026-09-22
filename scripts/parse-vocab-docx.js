@@ -1,5 +1,3 @@
-// Bóc tách file "TỪ VỰNG 9.docx" (Global Success) -> JSON theo unit
-// Dùng: node scripts/parse-vocab-docx.js "<đường dẫn docx>" > out.json
 const mammoth = require("mammoth");
 
 const POS_MAP = { n: "n", v: "v", adj: "adj", adv: "adv", "phr.v": "phr v", "ph.v": "phr v", "phr v": "phr v", phr: "phr", prep: "prep", conj: "conj", pron: "pron", idiom: "idiom", exp: "phr", "n.phr": "phr", "n phr": "phr", modal: "modal" };
@@ -26,12 +24,11 @@ async function parseVocabDocx(path) {
     const entry = line.match(/^(\d{1,3})\s*\.\s*(.+)$/);
     if (entry) {
       let rest = cleanSpaces(entry[2]);
-      // Tách IPA (giữa 2 dấu /), từ loại trong ngoặc, nghĩa còn lại
       const ipaMatch = rest.match(/\/([^/]+)\//);
       const ipa = ipaMatch ? `/${cleanSpaces(ipaMatch[1])}/` : "";
       let word = ipaMatch ? cleanSpaces(rest.slice(0, ipaMatch.index)) : rest;
       let after = ipaMatch ? cleanSpaces(rest.slice(ipaMatch.index + ipaMatch[0].length)) : "";
-      if (!ipaMatch) { // không có IPA: "word (n) nghĩa"
+      if (!ipaMatch) {
         const m = rest.match(/^(.+?)\s*\(([^)]+)\)\s*(.*)$/);
         if (m) { word = cleanSpaces(m[1]); after = `(${m[2]}) ${m[3]}`; }
       }
@@ -41,14 +38,12 @@ async function parseVocabDocx(path) {
       const item = { word: word.replace(/\s*\(.*?\)\s*$/, "").trim() || word, ipa, pos, meaning: cleanSpaces(after), section };
       current.words.push(item); last = item; continue;
     }
-    // Dòng tiếp nối: "(phr.v) gợi nhớ ..." hoặc nghĩa xuống dòng
     if (last && (!last.meaning || !last.pos)) {
       const posMatch = line.match(/^\(([^)]{1,8})\)\s*(.*)$/);
       if (posMatch) { last.pos = last.pos || (POS_MAP[posMatch[1].toLowerCase().replace(/\s/g, "")] || posMatch[1].toLowerCase()); last.meaning = cleanSpaces(posMatch[2]) || last.meaning; }
       else if (!last.meaning) last.meaning = cleanSpaces(line);
     }
   }
-  // Suy luận từ loại còn thiếu
   units.forEach(u => u.words.forEach(w => {
     if (!w.pos) w.pos = /\s/.test(w.word) && /^(to |be )/.test(w.word) ? "phr" : /ly$/.test(w.word) ? "adv" : "n";
     w.meaning = w.meaning.replace(/^[:\-–]\s*/, "");

@@ -45,3 +45,6 @@ uploads/
 *.part
 public/data/unit-cache/
 .import/
+
+# Claude Code
+.claude/

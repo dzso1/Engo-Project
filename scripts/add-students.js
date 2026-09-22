@@ -1,10 +1,3 @@
-// ============================================================
-// Thêm hàng loạt tài khoản học sinh vào CSDL (theo .env hiện tại)
-// Email = tên (viết thường, không dấu, viết liền) + hậu tố lớp + @engo.web
-//   node scripts/add-students.js <lớp> [file_ten.txt] [mật_khẩu]
-//   vd: node scripts/add-students.js 9A5 scripts/students-9a5.txt 123456
-// File tên: mỗi dòng một học sinh. Tài khoản đã tồn tại (trùng email) sẽ được bỏ qua.
-// ============================================================
 require("dotenv").config();
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
@@ -30,7 +23,6 @@ async function main() {
   let added = 0, skipped = 0;
   const rows = [];
   for (const fullName of names) {
-    // Trùng email: cùng tên -> bỏ qua; khác tên (vd Hoàng Lam / Hoàng Lâm) -> thêm số 2, 3...
     const base = slugName(fullName);
     let email = base + suffix + "@engo.web", dup = false;
     for (let n = 2; ; n++) {
