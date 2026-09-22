@@ -489,6 +489,18 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
   };
 }
 
+// Trạng thái các nhà cung cấp AI (đã cấu hình key chưa, đang bị hết hạn mức không); ?test=1 gửi một câu hỏi thử
+app.get("/api/ai/status", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+  const providers = aiService.aiProviderStatus();
+  let test = null;
+  if (req.query.test === "1") {
+    const t0 = Date.now();
+    const reply = await aiService.callCloudLlm([{ role: "system", content: "Reply in one short sentence." }, { role: "user", content: "Say hello to an English learner in Vietnam." }], 20000);
+    test = { ok: Boolean(reply), reply: reply ? String(reply).slice(0, 200) : null, ms: Date.now() - t0 };
+  }
+  return res.json({ success: true, order: providers.map(p => p.name), providers, test, hint: "Đặt AI_PROVIDER_ORDER và các *_API_KEY trong biến môi trường (xem .env.example)." });
+});
+
 app.get("/api/health", async (req, res) => {
   try {
     const [rows] = await pool.execute("SELECT NOW() AS databaseTime");

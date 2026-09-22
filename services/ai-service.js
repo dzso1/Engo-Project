@@ -360,137 +360,134 @@ function getOpenAiKeys() {
   return raw.split(",").map(k => k.trim()).filter(Boolean);
 }
 
-async function callCloudLlm(messages, timeoutMs = 20000) {
-  // 1. Google Gemini Multi-Key Pool (Free at https://aistudio.google.com/apikey)
-  const geminiKeys = getGeminiKeys();
-  if (geminiKeys.length > 0) {
-    const contents = messages.filter(m => m.role !== 'system').map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
-    const systemInstruction = messages.find(m => m.role === 'system')?.content || "You are Capybara, a friendly, witty, smart AI tutor & companion on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, humorously and concisely in Vietnamese or English with emojis and carrots 🥕.";
-    // Thứ tự dự phòng: model cấu hình -> flash -> flash-lite (hạn mức riêng, dùng khi flash hết quota trong ngày)
-    const candidateModels = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"].filter(Boolean))];
+// ==========================================================
+// CHUỖI NHÀ CUNG CẤP LLM (đều có gói miễn phí) - thử lần lượt theo AI_PROVIDER_ORDER,
+// nhà cung cấp nào bị 429/hết hạn mức thì tạm "nghỉ" (cooldown) để không làm chậm các request sau.
+//   ollama      máy cục bộ / máy chủ tự host, hoàn toàn miễn phí (OLLAMA_HOST, OLLAMA_MODEL)
+//   gemini      Google AI Studio  (GEMINI_API_KEY[S])       https://aistudio.google.com/apikey
+//   groq        Groq              (GROQ_API_KEY[S])         https://console.groq.com/keys      14.400 req/ngày, rất nhanh
+//   cerebras    Cerebras          (CEREBRAS_API_KEY)        https://cloud.cerebras.ai           1 triệu token/ngày
+//   mistral     Mistral           (MISTRAL_API_KEY)         https://console.mistral.ai          gói Experiment miễn phí
+//   openrouter  OpenRouter        (OPENROUTER_API_KEY)      https://openrouter.ai/keys          các model đuôi :free
+//   openai      OpenAI            (OPENAI_API_KEY[S])       trả phí
+// ==========================================================
+const providerCooldown = {}; // name -> timestamp hết cooldown
+const COOLDOWN_MS = { 429: 90 * 1000, 402: 30 * 60 * 1000, 401: 30 * 60 * 1000, 403: 30 * 60 * 1000 };
+function keysOf(...names) {
+  try { require("dotenv").config(); } catch (e) {}
+  for (const n of names) { const raw = process.env[n]; if (raw) return String(raw).split(",").map(k => k.trim()).filter(Boolean); }
+  return [];
+}
+const rrIndex = {};
+function pickKey(name, keys) { rrIndex[name] = (rrIndex[name] || 0) + 1; return keys[rrIndex[name] % keys.length]; }
+function onCooldown(name) { return providerCooldown[name] && providerCooldown[name] > Date.now(); }
+function markCooldown(name, status) { const ms = COOLDOWN_MS[status]; if (ms) providerCooldown[name] = Date.now() + ms; }
+function dbg(...a) { if (process.env.AI_DEBUG === "1") console.log("[AI_DEBUG]", ...a); }
 
-    // Try rotating keys and models for 100% uptime
-    for (const model of candidateModels) {
-      for (let attempt = 0; attempt < Math.min(geminiKeys.length, 3); attempt++) {
-        const activeKey = geminiKeys[geminiKeyIndex % geminiKeys.length];
-        geminiKeyIndex++;
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
+// Gọi API kiểu OpenAI (Groq / Cerebras / Mistral / OpenRouter / OpenAI). Trả về text hoặc null; ném status khi lỗi HTTP.
+async function openAiCompatible(name, url, key, model, messages, timeoutMs, extraHeaders = {}) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + key, ...extraHeaders },
+    body: JSON.stringify({ model, messages, temperature: 0.7 }),
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+  if (!res.ok) { dbg(name, model, res.status); const err = new Error(name + " " + res.status); err.status = res.status; throw err; }
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  return content && String(content).trim() ? String(content).trim() : null;
+}
 
-        try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents,
-              systemInstruction: { parts: [{ text: systemInstruction }] },
-              generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
-            }),
-            signal: AbortSignal.timeout(timeoutMs)
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-            if (text) return text;
-          } else if (res.status === 404 || res.status === 429) {
-            if (process.env.AI_DEBUG === "1") console.log("[AI_DEBUG] gemini", model, res.status);
-            break; // model không khả dụng / hết hạn mức -> thử model kế tiếp
-          }
-        } catch (e) {}
-      }
-    }
-  }
-
-  // 2. Groq Multi-Key Pool (Free at https://console.groq.com/keys)
-  const groqKeys = getGroqKeys();
-  if (groqKeys.length > 0) {
-    for (let attempt = 0; attempt < Math.min(groqKeys.length, 3); attempt++) {
-      const activeKey = groqKeys[groqKeyIndex % groqKeys.length];
-      groqKeyIndex++;
+async function callGemini(messages, timeoutMs) {
+  const keys = keysOf("GEMINI_API_KEYS", "GEMINI_API_KEY");
+  if (!keys.length) return null;
+  const contents = messages.filter(m => m.role !== "system").map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+  const systemInstruction = messages.find(m => m.role === "system")?.content || "You are Capybara, a friendly, witty, smart AI tutor & companion on ENGO Learning Hub for Vietnamese students. Answer naturally, warmly, humorously and concisely in Vietnamese or English with emojis and carrots 🥕.";
+  // Thứ tự dự phòng: model cấu hình -> flash -> flash-lite (hạn mức riêng)
+  const candidateModels = [...new Set([process.env.GEMINI_MODEL, "gemini-3.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"].filter(Boolean))];
+  let sawQuota = 0;
+  for (const model of candidateModels) {
+    for (let attempt = 0; attempt < Math.min(keys.length, 3); attempt++) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${pickKey("gemini", keys)}`;
       try {
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + activeKey
-          },
-          body: JSON.stringify({
-            model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-            messages,
-            temperature: 0.7
-          }),
-          signal: AbortSignal.timeout(10000)
+        const res = await fetch(url, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemInstruction }] }, generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } }),
+          signal: AbortSignal.timeout(timeoutMs)
         });
         if (res.ok) {
           const data = await res.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content && content.trim()) return content.trim();
+          const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
+          if (text) return text;
+        } else {
+          dbg("gemini", model, res.status);
+          if (res.status === 429) sawQuota++;
+          if (res.status === 404 || res.status === 429) break;
         }
-      } catch (e) {
-        console.log(`Groq Key attempt ${attempt + 1} failed:`, e.message);
-      }
+      } catch (e) {}
     }
   }
-
-  // 3. OpenAI Multi-Key Pool (https://platform.openai.com/api-keys)
-  const openAiKeys = getOpenAiKeys();
-  if (openAiKeys.length > 0) {
-    for (let attempt = 0; attempt < Math.min(openAiKeys.length, 3); attempt++) {
-      const activeKey = openAiKeys[openAiKeyIndex % openAiKeys.length];
-      openAiKeyIndex++;
-      try {
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + activeKey
-          },
-          body: JSON.stringify({
-            model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-            messages,
-            temperature: 0.7
-          }),
-          signal: AbortSignal.timeout(10000)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content && content.trim()) return content.trim();
-        }
-      } catch (e) {
-        console.log(`OpenAI Key attempt ${attempt + 1} failed:`, e.message);
-      }
-    }
-  }
-
-  // 4. OpenRouter API (https://openrouter.ai/keys)
-  if (process.env.OPENROUTER_API_KEY) {
-    try {
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + process.env.OPENROUTER_API_KEY
-        },
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.2-3b-instruct:free",
-          messages,
-          temperature: 0.7
-        }),
-        signal: AbortSignal.timeout(10000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (content && content.trim()) return content.trim();
-      }
-    } catch (e) {}
-  }
-
+  // Mọi model đều hết hạn mức -> nghỉ Gemini một lúc
+  if (sawQuota >= candidateModels.length) markCooldown("gemini", 429);
   return null;
+}
+
+const PROVIDERS = {
+  ollama: async (messages, t) => callLocalOllama(messages),
+  gemini: callGemini,
+  groq: async (messages, t) => {
+    const keys = keysOf("GROQ_API_KEYS", "GROQ_API_KEY"); if (!keys.length) return null;
+    return openAiCompatible("groq", "https://api.groq.com/openai/v1/chat/completions", pickKey("groq", keys), process.env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, t);
+  },
+  cerebras: async (messages, t) => {
+    const keys = keysOf("CEREBRAS_API_KEYS", "CEREBRAS_API_KEY"); if (!keys.length) return null;
+    return openAiCompatible("cerebras", "https://api.cerebras.ai/v1/chat/completions", pickKey("cerebras", keys), process.env.CEREBRAS_MODEL || "llama-3.3-70b", messages, t);
+  },
+  mistral: async (messages, t) => {
+    const keys = keysOf("MISTRAL_API_KEYS", "MISTRAL_API_KEY"); if (!keys.length) return null;
+    return openAiCompatible("mistral", "https://api.mistral.ai/v1/chat/completions", pickKey("mistral", keys), process.env.MISTRAL_MODEL || "mistral-small-latest", messages, t);
+  },
+  openrouter: async (messages, t) => {
+    const keys = keysOf("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY"); if (!keys.length) return null;
+    // Danh sách model miễn phí, thử lần lượt (model nào không còn thì 404 -> model kế)
+    const models = [...new Set([process.env.OPENROUTER_MODEL, "meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-235b-a22b:free", "google/gemma-3-27b-it:free", "mistralai/mistral-small-3.2-24b-instruct:free", "meta-llama/llama-3.2-3b-instruct:free"].filter(Boolean))];
+    for (const model of models) {
+      try { return await openAiCompatible("openrouter", "https://openrouter.ai/api/v1/chat/completions", pickKey("openrouter", keys), model, messages, t, { "HTTP-Referer": "https://engo.web", "X-Title": "ENGO Learning Hub" }); }
+      catch (e) { if (e.status === 404 || e.status === 400) continue; throw e; }
+    }
+    return null;
+  },
+  openai: async (messages, t) => {
+    const keys = keysOf("OPENAI_API_KEYS", "OPENAI_API_KEY"); if (!keys.length) return null;
+    return openAiCompatible("openai", "https://api.openai.com/v1/chat/completions", pickKey("openai", keys), process.env.OPENAI_MODEL || "gpt-4o-mini", messages, t);
+  },
+};
+const DEFAULT_ORDER = "gemini,groq,cerebras,mistral,openrouter,openai";
+
+async function callCloudLlm(messages, timeoutMs = 20000) {
+  const order = String(process.env.AI_PROVIDER_ORDER || DEFAULT_ORDER).split(",").map(x => x.trim().toLowerCase()).filter(x => PROVIDERS[x]);
+  for (const name of order) {
+    if (onCooldown(name)) { dbg(name, "cooldown"); continue; }
+    try {
+      const text = await PROVIDERS[name](messages, Math.max(8000, timeoutMs));
+      if (text) { dbg("answered by", name); return text; }
+    } catch (e) {
+      if (e && e.status) markCooldown(name, e.status);
+      else dbg(name, "error", e && e.message);
+    }
+  }
+  return null;
+}
+
+// Trạng thái để hiển thị ở trang quản trị / kiểm tra nhanh
+function aiProviderStatus() {
+  const order = String(process.env.AI_PROVIDER_ORDER || DEFAULT_ORDER).split(",").map(x => x.trim().toLowerCase());
+  const configured = {
+    ollama: Boolean(process.env.OLLAMA_HOST || true), gemini: keysOf("GEMINI_API_KEYS", "GEMINI_API_KEY").length > 0, groq: keysOf("GROQ_API_KEYS", "GROQ_API_KEY").length > 0,
+    cerebras: keysOf("CEREBRAS_API_KEYS", "CEREBRAS_API_KEY").length > 0, mistral: keysOf("MISTRAL_API_KEYS", "MISTRAL_API_KEY").length > 0,
+    openrouter: keysOf("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY").length > 0, openai: keysOf("OPENAI_API_KEYS", "OPENAI_API_KEY").length > 0,
+  };
+  return order.map(name => ({ name, configured: Boolean(configured[name]), cooldownUntil: providerCooldown[name] && providerCooldown[name] > Date.now() ? new Date(providerCooldown[name]).toISOString() : null }));
 }
 
 async function chatWithCapybara(userMessage, conversationHistory = []) {
@@ -1330,5 +1327,7 @@ module.exports = {
   parseTestMatrix,
   speakingFeedback,
   extractEnglishSentences,
-  callAiJson
+  callAiJson,
+  aiProviderStatus,
+  callCloudLlm
 };
