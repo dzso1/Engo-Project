@@ -18,6 +18,7 @@ function getAudioContext() {
   return audioCtx;
 }
 function playClickSound() {
+  if (window.ENGO_SETTINGS && window.ENGO_SETTINGS.sound === false) return;
   try {
     const ctx = getAudioContext(); if (!ctx) return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
@@ -55,27 +56,16 @@ document.addEventListener("click", e => {
 }, true);
 
 
+// Giao diện: 14 theme + trang Cài đặt nằm ở settings.js (applyTheme / getPreferredTheme / renderSettings)
 const THEME_STORAGE_KEY = "engoTheme";
-function applyTheme(theme) {
-  const dark = theme === "dark";
-  document.body.classList.toggle("dark-mode", dark);
-  document.querySelectorAll(".theme-toggle").forEach(button => {
-    button.setAttribute("aria-pressed", String(dark));
-    button.title = dark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối";
- const icon = button.querySelector(".theme-icon"); if (icon) icon.innerHTML = dark ? "<i class=mi>light_mode</i>" : "<i class=mi>dark_mode</i>";
-  });
-}
-function getPreferredTheme() {
-  const saved = localStorage.getItem(THEME_STORAGE_KEY);
-  if (saved === "dark" || saved === "light") return saved;
-  // Mặc định luôn sáng (không theo chế độ tối của hệ điều hành) - học sinh tự bật tối bằng nút mặt trăng nếu muốn
-  return "light";
-}
 applyTheme(getPreferredTheme());
+// Nút mặt trăng: đảo giữa theme sáng/tối gần nhất đã dùng (mặc định light <-> dark)
 document.querySelectorAll(".theme-toggle").forEach(button => button.addEventListener("click", () => {
-  const next = document.body.classList.contains("dark-mode") ? "light" : "dark";
+  const cur = currentThemeId(); const dark = document.body.classList.contains("dark-mode");
+  const next = dark ? (localStorage.getItem("engoLastLight") || "light") : (localStorage.getItem("engoLastDark") || "dark");
+  localStorage.setItem(dark ? "engoLastDark" : "engoLastLight", cur);
   localStorage.setItem(THEME_STORAGE_KEY, next); applyTheme(next);
-  showToast(next === "dark" ? "Đã bật giao diện tối" : "Đã bật giao diện sáng");
+  showToast(dark ? "Đã bật giao diện sáng" : "Đã bật giao diện tối");
 }));
 let toastTimer = null;
 function showToast(message) {
@@ -98,12 +88,12 @@ document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("cli
 
 
 const ROUTE_MAP = {
-  "student-home": "/dashboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
+  "student-home": "/dashboard", "settings": "/settings", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
   "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
   "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin"
 };
 const REVERSE_ROUTE_MAP = {
-  "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
+  "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/settings": "settings", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
   "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
   "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin"
@@ -139,6 +129,7 @@ function switchView(id, pushHistory = true) {
   if (id === "vocabulary") renderVocabDecks();
   if (window.ENGO_UNITS_UI) window.ENGO_UNITS_UI.onView(id);
   if (id === "teacher-home") renderTeacherHome();
+  if (id === "settings") renderSettings();
   if (id === "parent-home") renderParentDashboard();
   if (id === "data-admin") renderDataAdmin();
 }
@@ -705,9 +696,10 @@ function createRecognizer({ onInterim, onEnd, onError } = {}) {
 function speakEnglishText(text, { rate = 0.85, onDone } = {}) {
   if (!("speechSynthesis" in window)) { showToast("Trình duyệt không hỗ trợ phát âm!"); onDone && onDone(); return; }
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = rate;
+  const prefs = window.ENGO_SETTINGS || {};
+  const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = rate * (Number(prefs.ttsSpeed) || 1);
   const voices = window.speechSynthesis.getVoices();
-  const v = voices.find(x => x.lang.startsWith("en") && /Natural|Google|US/i.test(x.name)) || voices.find(x => x.lang.startsWith("en"));
+  const v = (prefs.ttsVoice && voices.find(x => x.name === prefs.ttsVoice)) || voices.find(x => x.lang.startsWith("en") && /Natural|Google|US/i.test(x.name)) || voices.find(x => x.lang.startsWith("en"));
   if (v) u.voice = v;
   u.onend = () => onDone && onDone(); u.onerror = () => onDone && onDone();
   window.speechSynthesis.speak(u);

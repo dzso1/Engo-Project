@@ -429,10 +429,15 @@ function resolveVariantName(tier, analysis) {
   return "full";
 }
 
+// Đề rút gọn theo tầng lớp chỉ áp dụng khi giáo viên gắn ma trận; mặc định học sinh làm ĐỦ câu như đề gốc
+function isTieredTest(test) {
+  const analysis = parseJsonField(test.analysis_json, null);
+  return Boolean(test.matrix_id) || Boolean(analysis && analysis.matrixId);
+}
 function variantQuestions(test, variantName) {
   const analysis = parseJsonField(test.analysis_json, null);
   const all = test.questions && test.questions.questions ? test.questions.questions : [];
-  if (!analysis || !analysis.variants || !analysis.variants[variantName]) return all;
+  if (!isTieredTest(test) || !analysis || !analysis.variants || !analysis.variants[variantName]) return all;
   const allowed = new Set(analysis.variants[variantName].questionIds);
   return all.filter(q => allowed.has(q.id));
 }
@@ -467,7 +472,7 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
     semester: Number(test.semester) || 1,
     unitNo: test.unit_no !== null && test.unit_no !== undefined ? Number(test.unit_no) : null,
     grade: test.grade ? Number(test.grade) : null,
-    variant: variantName,
+    variant: isTieredTest(test) ? variantName : "full",
     // Thời gian: theo đề / loại đề (GK-CK 60 phút, TX 15 phút) - giáo viên có thể sửa; AI chỉ đề xuất khi chưa có
     durationMinutes: test.duration_minutes || (variantInfo ? variantInfo.durationMinutes : 45),
     difficultyCounts: analysis && analysis.variants ? analysis.variants.counts : null,
