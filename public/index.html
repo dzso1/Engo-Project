@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-  <link rel="stylesheet" href="./styles.css?v=8" />
+  <link rel="stylesheet" href="./styles.css?v=9" />
 </head>
 <body>
 
@@ -346,12 +346,14 @@
                 <div class="flashcard-inner" id="flashcardInner">
                   <div class="flash-face front">
                     <div class="flash-label">Từ vựng</div>
+                    <img class="flash-img hidden" alt="" onerror="this.classList.add('hidden')">
                     <div class="flash-word" id="flashWord">community</div>
                     <div class="flash-meta"><span class="flash-pos" id="flashPos">n</span><span class="flash-phonetic" id="flashPhonetic">/kəˈmjuːnəti/</span></div>
                     <button type="button" class="btn btn-soft btn-sm flash-tts" id="flashTtsFront" title="Nghe phát âm"><i class=mi>volume_up</i> Nghe</button>
                   </div>
                   <div class="flash-face back">
                     <div class="flash-label">Nghĩa · Từ loại · Ví dụ</div>
+                    <img class="flash-img hidden" alt="" onerror="this.classList.add('hidden')">
                     <div class="flash-meaning" id="flashMeaning">cộng đồng</div>
                     <div class="flash-meta"><span class="flash-pos back" id="flashPosBack">n</span><span class="flash-word-small" id="flashWordBack">community</span></div>
                     <ul class="flash-examples" id="flashExamples"></ul>
@@ -595,7 +597,7 @@
           <!-- TAB BÀI KIỂM TRA -->
           <section class="healing-panel" id="teacherPanel-tests">
             <div class="card panel">
-              <div class="section-head"><div><h3>Bài kiểm tra đã tạo</h3><div class="results-controls" style="margin-top:6px"><select class="role-select" id="teacherTestsSemesterFilter"><option value="">Cả 2 học kỳ</option><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select><select class="role-select" id="teacherTestsTypeFilter"><option value="">Tất cả loại</option><option value="kttx">KTTX</option><option value="ktgk">KTGK</option><option value="ktck">KTCK</option></select></div><p class="small muted">AI phân tích độ khó từng câu và đề xuất thời gian; lớp tăng cường nhận bản đầy đủ, lớp thường nhận bản rút gọn theo ma trận.</p></div><button class="btn btn-light btn-sm" id="refreshTeacherTestsBtn">Làm mới</button></div>
+              <div class="section-head"><div><h3>Bài kiểm tra đã tạo</h3><div class="results-controls" style="margin-top:6px"><select class="role-select" id="teacherTestsGradeFilter"><option value="">Tất cả khối</option><option value="6">Khối 6</option><option value="7">Khối 7</option><option value="8">Khối 8</option><option value="9">Khối 9</option></select><select class="role-select" id="teacherTestsSemesterFilter"><option value="">Cả 2 học kỳ</option><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select><select class="role-select" id="teacherTestsTypeFilter"><option value="">Tất cả loại</option><option value="kttx">KTTX</option><option value="ktgk">KTGK</option><option value="ktck">KTCK</option></select></div><p class="small muted">AI phân tích độ khó từng câu và đề xuất thời gian; lớp tăng cường nhận bản đầy đủ, lớp thường nhận bản rút gọn theo ma trận.</p></div><button class="btn btn-light btn-sm" id="refreshTeacherTestsBtn">Làm mới</button></div>
               <div class="table-wrap">
                 <table id="teacherRecentTestsTable">
                   <thead><tr><th>Tên bài</th><th>Loại · HK</th><th>Giao cho</th><th>Cấu trúc</th><th>Độ khó (AI)</th><th>Thời gian</th><th>Ma trận</th><th>Ngày tạo</th><th></th></tr></thead>
@@ -857,15 +859,23 @@
   </div>
 
   <!-- CREATE / UPLOAD TEST MODAL -->
+  <div class="modal hidden" id="importNotesModal">
+    <div class="modal-card" style="max-width:640px">
+      <div class="modal-head"><div><h3>Ghi chú sau khi nạp đề</h3><p class="small muted">AI đối chiếu đáp án gốc với ngữ pháp; giáo viên nên xem lại các câu dưới đây.</p></div><button class="close-btn" onclick="closeModal('importNotesModal')">×</button></div>
+      <div id="importNotesBody" style="line-height:1.5"></div>
+      <div style="margin-top:14px;text-align:right"><button class="btn btn-primary" onclick="closeModal('importNotesModal')">Đã hiểu</button></div>
+    </div>
+  </div>
   <div class="modal hidden" id="createTestModal">
     <div class="modal-card">
-      <div class="modal-head"><div><h3>Tạo & giao bài kiểm tra từ DOCX</h3><p class="small muted">Nhận diện trắc nghiệm, Writing và Speaking; AI phân tích độ khó + thời gian từng câu.</p></div><button class="close-btn create-close">×</button></div>
+      <div class="modal-head"><div><h3>Tạo & giao bài kiểm tra từ tệp đề</h3><p class="small muted">AI đọc đề Word/PDF: giữ phần gạch chân, yêu cầu từng phần, đáp án + biến thể đúng; kiểm tra lại đáp án gốc và báo chỗ nghi sai.</p></div><button class="close-btn create-close">×</button></div>
       <form id="uploadDocxForm" class="form-grid">
-        <div class="field full"><label>Chọn file DOCX đề thi</label><input type="file" id="docxModalFileInput" accept=".docx" required /></div>
+        <div class="field full"><label>Chọn file đề thi (Word .docx hoặc PDF)</label><input type="file" id="docxModalFileInput" accept=".docx,.pdf" required /></div>
         <div class="field full"><label>Tên bài kiểm tra</label><input id="docxModalTitle" placeholder="Ví dụ: Đề kiểm tra học kỳ 2 - Tiếng Anh 9" /></div>
         <div class="field"><label>Loại kiểm tra</label><select id="docxModalType"><option value="kttx">Kiểm tra thường xuyên (KTTX)</option><option value="ktgk">Kiểm tra giữa kỳ (KTGK)</option><option value="ktck">Kiểm tra cuối kỳ (KTCK)</option></select></div>
         <div class="field"><label>Học kỳ</label><select id="docxModalSemester"><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select></div>
         <div class="field"><label>Unit (tuỳ chọn, cho KTTX)</label><select id="docxModalUnit"><option value="">— Không gắn Unit —</option></select></div>
+        <div class="field"><label>Khối</label><select id="docxModalGrade"><option value="">Theo lớp / mọi khối</option><option value="6">Khối 6</option><option value="7">Khối 7</option><option value="8">Khối 8</option><option value="9">Khối 9</option></select></div>
         <div class="field"><label>Giao cho lớp</label><input id="docxModalClass" list="classNameList" placeholder="Bỏ trống = toàn khối" /></div>
         <div class="field full"><label>Ma trận đề (tuỳ chọn)</label><select id="docxModalMatrix"><option value="">Mặc định (AI tự phân tầng)</option></select></div>
         <div class="field full small muted" style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px 12px;line-height:1.5">Lớp được đánh dấu <strong>tăng cường</strong> nhận đề đầy đủ (nhiều câu vận dụng); lớp <strong>thường</strong> nhận bản rút gọn bớt câu khó theo tỉ lệ ma trận, thời gian được AI cân đối. Cấu hình ở nút "Phân loại lớp".</div>
@@ -1036,6 +1046,7 @@
 
   <script src="./data/healing-bank.js?v=5"></script>
   <script src="./data/vocab-decks.js?v=5"></script>
+  <script src="./data/vocab-images.js?v=1"></script>
   <script src="./data/speaking-sets.js?v=5"></script>
   <script src="./data/vocab-units.js?v=5"></script>
   <script src="./data/grammar-units.js?v=5"></script>
@@ -1043,7 +1054,7 @@
   <script src="./data/listening-units.js?v=5"></script>
   <script src="./data/listening-sets.js?v=5"></script>
   <script src="./data/exam-bank.js?v=5"></script>
-  <script src="./script.js?v=8" defer></script>
-  <script src="./units-ui.js?v=8" defer></script>
+  <script src="./script.js?v=9" defer></script>
+  <script src="./units-ui.js?v=9" defer></script>
 </body>
 </html>

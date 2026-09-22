@@ -12,6 +12,9 @@ const mammoth = require("mammoth");
 
 const pool = require("./database/db");
 const { parseDocxAssessment } = require("./services/docx-assessment-parser");
+const { docxToText, stripMarks } = require("./services/docx-text");
+const { structureTestWithAi } = require("./services/test-structurer");
+const pdfParse = require("pdf-parse");
 const aiService = require("./services/ai-service");
 const speakingScorer = require("./services/speaking-scorer");
 const { extractDocumentText } = require("./services/document-text");
@@ -252,6 +255,7 @@ async function ensureAssessmentTables() {
   try { await pool.query("ALTER TABLE imported_tests ADD COLUMN test_type VARCHAR(10) NOT NULL DEFAULT 'kttx'"); } catch (e) {}
   try { await pool.query("ALTER TABLE imported_tests ADD COLUMN semester TINYINT NOT NULL DEFAULT 1"); } catch (e) {}
   try { await pool.query("ALTER TABLE imported_tests ADD COLUMN unit_no INT NULL"); } catch (e) {}
+  try { await pool.query("ALTER TABLE imported_tests ADD COLUMN grade TINYINT NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN speaking_answers_json JSON NULL"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN speaking_score DECIMAL(5,2) NOT NULL DEFAULT 0"); } catch (e) {}
   try { await pool.query("ALTER TABLE writing_submissions ADD COLUMN objective_max DECIMAL(5,2) NULL"); } catch (e) {}
@@ -283,7 +287,7 @@ async function ensureAssessmentTables() {
     }
   } catch (e) { logSchemaError(e); }
 
-  // 12. Khởi tạo 13 lớp 9A1..9A13 trong bảng phân loại (chỉ chèn lớp chưa có; GV đổi lại trong "Phân loại lớp")
+  // 12. Khởi tạo 52 lớp 6A1..9A13 trong bảng phân loại (chỉ chèn lớp chưa có; GV đổi lại trong "Phân loại lớp")
   try {
     const values = DEFAULT_CLASSES.map(c => [c, ["9A5", "9A6"].includes(c) ? "advanced" : "regular"]);
     await pool.query("INSERT IGNORE INTO class_settings (class_name, tier) VALUES " + values.map(() => "(?, ?)").join(", "), values.flat());
@@ -336,6 +340,25 @@ const assessmentReady = ensureAssessmentTables()
 function normalizeAnswer(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
+// So khớp "mềm" cho câu điền từ / viết lại câu: bỏ dấu câu cuối, dấu mũi tên, số thứ tự, chuẩn hoá dấu nháy
+function looseAnswer(value) {
+  return String(value || "")
+    .replace(/<\/?[ub]>/g, "")
+    .replace(/[’‘`´]/g, "'").replace(/[“”]/g, '"')
+    .replace(/^\s*(?:→|->|=>|\d{1,2}\s*[.)])\s*/, "")
+    .toLowerCase()
+    .replace(/[.!?;:,"]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function matchesAccepted(value, accepted) {
+  const v = looseAnswer(value);
+  if (!v) return false;
+  const list = (accepted || []).map(looseAnswer).filter(Boolean);
+  if (list.includes(v)) return true;
+  // Viết lại câu: học sinh có thể chép lại cả phần đầu câu đã cho -> chấp nhận nếu kết thúc bằng đáp án
+  return list.some(a => a.length >= 8 && v.endsWith(a));
+}
 
 function getStoredTest(row) {
   const questions = typeof row.questions_json === "string" ? JSON.parse(row.questions_json) : row.questions_json;
@@ -351,8 +374,10 @@ function parseJsonField(value, fallback) {
   try { return JSON.parse(value); } catch (e) { return fallback; }
 }
 
-// 13 lớp mặc định của khối 9 (9A1 -> 9A13); giáo viên có thể thêm lớp khác trong "Phân loại lớp"
-const DEFAULT_CLASSES = Array.from({ length: 13 }, (_, i) => `9A${i + 1}`);
+// 4 khối 6-9, mỗi khối 13 lớp (6A1 -> 9A13); giáo viên có thể thêm lớp khác trong "Phân loại lớp"
+const DEFAULT_CLASSES = [6, 7, 8, 9].flatMap(g => Array.from({ length: 13 }, (_, i) => `${g}A${i + 1}`));
+// Khối (6-9) suy từ tên lớp, vd "7A12" -> 7
+function gradeOfClass(className) { const m = String(className || "").trim().match(/^([6-9])/); return m ? Number(m[1]) : null; }
 const DEFAULT_TIERS = {
   advanced: { label: "Lớp tăng cường", easy: 25, medium: 35, hard: 40, timeFactor: 0.9 },
   regular: { label: "Lớp thường", easy: 45, medium: 35, hard: 20, timeFactor: 1.1 }
@@ -418,13 +443,13 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
   const questions = variantQuestions(test, variantName);
   const perQuestion = analysis && analysis.perQuestion ? analysis.perQuestion : {};
   const decorate = (question) => {
-    const { answer, accepted, referenceAnswer, ...rest } = question;
+    const { answer, accepted, referenceAnswer, keyNote, ...rest } = question;
     const info = perQuestion[question.id] || {};
     const out = { ...rest, difficulty: info.difficulty || "medium", suggestedSeconds: info.seconds || 45 };
-    if (includeAnswers) { out.answer = answer; out.accepted = accepted; out.referenceAnswer = referenceAnswer; }
+    if (includeAnswers) { out.answer = answer; out.accepted = accepted; out.referenceAnswer = referenceAnswer; if (keyNote) out.keyNote = keyNote; }
     return out;
   };
-  const sectionNames = ["Phonetics", "Grammar and Vocabulary", "Reading", "Writing", "Speaking"];
+  const sectionNames = ["Phonetics", "Grammar and Vocabulary", "Reading", "Listening", "Writing", "Speaking"];
   const sections = sectionNames
     .map(name => ({ name, questions: questions.filter(q => q.section === name).map(decorate) }))
     .filter(section => section.questions.length);
@@ -441,8 +466,10 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
     testType: test.test_type || "kttx",
     semester: Number(test.semester) || 1,
     unitNo: test.unit_no !== null && test.unit_no !== undefined ? Number(test.unit_no) : null,
+    grade: test.grade ? Number(test.grade) : null,
     variant: variantName,
-    durationMinutes: variantInfo ? variantInfo.durationMinutes : (test.duration_minutes || 45),
+    // Thời gian: theo đề / loại đề (GK-CK 60 phút, TX 15 phút) - giáo viên có thể sửa; AI chỉ đề xuất khi chưa có
+    durationMinutes: test.duration_minutes || (variantInfo ? variantInfo.durationMinutes : 45),
     difficultyCounts: analysis && analysis.variants ? analysis.variants.counts : null,
     summary: {
       ...summary,
@@ -1006,7 +1033,7 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
 // BÀI KIỂM TRA: IMPORT DOCX + AI PHÂN TÍCH ĐỘ KHÓ + BIẾN THỂ THEO MA TRẬN
 // ==========================================
 function testSelect() {
-  return "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, " + optCols("imported_tests", "imported_tests", ["analysis_json", "matrix_id", "duration_minutes", "test_type", "semester", "unit_no"]) + ", created_at FROM imported_tests";
+  return "SELECT id, teacher_id, title, source_file_name, class_name, questions_json, summary_json, " + optCols("imported_tests", "imported_tests", ["analysis_json", "matrix_id", "duration_minutes", "test_type", "semester", "unit_no", "grade"]) + ", created_at FROM imported_tests";
 }
 
 async function loadMatrix(matrixId) {
@@ -1024,25 +1051,53 @@ async function analyzeAndBuildVariants(test, matrix) {
   return { perQuestion, variants, matrixId: matrix ? matrix.id : null, analyzedAt: new Date().toISOString() };
 }
 
+// Đọc tệp đề (DOCX giữ gạch chân/bảng, hoặc PDF) rồi cấu trúc hoá bằng AI; AI lỗi thì dùng parser regex cũ
+async function readTestDocument(buffer, fileName, title, hints) {
+  const isPdf = /\.pdf$/i.test(String(fileName || "")) || buffer.slice(0, 4).toString() === "%PDF";
+  const text = isPdf ? (await pdfParse(buffer)).text : await docxToText(buffer);
+  if (!String(text || "").trim()) throw new Error("Tệp không chứa văn bản đọc được.");
+  try {
+    return await structureTestWithAi(text, { title, hints });
+  } catch (e) {
+    console.warn("AI structure failed, fallback regex parser:", e.message);
+    return parseDocxAssessment(stripMarks(text), title);
+  }
+}
+
+// Thời gian làm bài theo loại đề: giữa kì / cuối kì 60 phút, thường xuyên 15 phút (đề ghi thời gian thì theo đề)
+function durationForTest(testType, test, analysis) {
+  if (test && test.durationHint) return Math.max(5, Math.min(180, Number(test.durationHint)));
+  if (testType === "ktgk" || testType === "ktck") return 60;
+  const aiFull = analysis && analysis.variants && analysis.variants.full ? Number(analysis.variants.full.durationMinutes) : 0;
+  const n = test && Array.isArray(test.questions) ? test.questions.length : 0;
+  return n <= 20 ? 15 : Math.max(15, Math.min(45, aiFull || 15));
+}
+
 app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (req, res) => {
   try {
     await assessmentReady;
-    const { documentBase64, fileName = "de-kiem-tra.docx", title, className, matrixId, testType, semester, unitNo } = req.body;
+    const { documentBase64, fileName = "de-kiem-tra.docx", title, className, matrixId, testType, semester, unitNo, grade } = req.body;
     const safeType = ["kttx", "ktgk", "ktck"].includes(String(testType)) ? String(testType) : "kttx";
     const safeSemester = Number(semester) === 2 ? 2 : 1;
     const safeUnit = unitNo ? Math.max(1, Math.min(12, Number(unitNo))) : null;
-    if (!documentBase64 || !String(documentBase64).startsWith("data:")) return res.status(400).json({ success: false, message: "File DOCX không hợp lệ." });
+    if (!documentBase64 || !String(documentBase64).startsWith("data:")) return res.status(400).json({ success: false, message: "File đề không hợp lệ." });
     const buffer = Buffer.from(String(documentBase64).split(",").pop(), "base64");
-    if (buffer.length > 8 * 1024 * 1024) return res.status(413).json({ success: false, message: "File DOCX vượt quá 8 MB." });
-    const extracted = await mammoth.extractRawText({ buffer });
-    const test = parseDocxAssessment(extracted.value, String(title || fileName).replace(/\.docx$/i, ""));
+    if (buffer.length > 12 * 1024 * 1024) return res.status(413).json({ success: false, message: "File đề vượt quá 12 MB." });
+    const test = await readTestDocument(buffer, fileName, String(title || fileName).replace(/\.(docx|pdf)$/i, ""), String(fileName));
     const assignedClass = String(className || "").trim() || null;
+    const safeGrade = [6, 7, 8, 9].includes(Number(grade)) ? Number(grade) : gradeOfClass(assignedClass);
     const matrix = await loadMatrix(matrixId);
     const analysis = await analyzeAndBuildVariants(test, matrix);
-    const [result] = hasCol("imported_tests", "test_type")
+    const duration = durationForTest(safeType, test, analysis);
+    const [result] = hasCol("imported_tests", "grade")
+      ? await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes, test_type, semester, unit_no, grade) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, duration, safeType, safeSemester, safeUnit, safeGrade]
+        )
+      : hasCol("imported_tests", "test_type")
       ? await pool.execute(
           "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes, test_type, semester, unit_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes, safeType, safeSemester, safeUnit]
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify(test), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, duration, safeType, safeSemester, safeUnit]
         )
       : hasCol("imported_tests", "analysis_json")
       ? await pool.execute(
@@ -1055,8 +1110,9 @@ app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (
         );
     return res.status(201).json({
       success: true, testId: result.insertId, title: test.title, className: assignedClass, summary: test.summary,
-      analysis: { counts: analysis.variants.counts, durationMinutes: analysis.variants.full.durationMinutes, regularQuestions: analysis.variants.regular.questionIds.length, totalQuestions: test.questions.length },
-      message: "Đã tạo bài kiểm tra từ DOCX."
+      analysis: { counts: analysis.variants.counts, durationMinutes: duration, regularQuestions: analysis.variants.regular.questionIds.length, totalQuestions: test.questions.length },
+      keyIssues: test.keyIssues || [], dropped: test.dropped || [],
+      message: "Đã tạo bài kiểm tra từ tệp đề."
     });
   } catch (error) {
     console.error("DOCX import error:", error);
@@ -1079,6 +1135,9 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
       if (userClass) {
         query += " WHERE (class_name = ? OR class_name IS NULL OR class_name = '')";
         params.push(userClass);
+        // Đề của ngân hàng tổ gắn theo khối: học sinh chỉ thấy đề đúng khối của lớp mình
+        const g = gradeOfClass(userClass);
+        if (g && hasCol("imported_tests", "grade")) { query += " AND (grade IS NULL OR grade = ?)"; params.push(g); }
       }
       variantName = resolveVariantName(await getClassTier(userClass), { variants: true });
       try {
@@ -1087,7 +1146,7 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
       } catch (e) {}
     }
 
-    query += " ORDER BY created_at DESC LIMIT 100";
+    query += " ORDER BY created_at DESC LIMIT 600";
     const [rows] = await pool.execute(query, params);
     const tests = rows.map(row => {
       const t = publicTest(getStoredTest(row), { variantName });
@@ -1144,11 +1203,13 @@ app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", 
 app.patch("/api/teacher/tests/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
   try {
     await assessmentReady;
-    const { testType, semester, unitNo, className, title } = req.body;
+    const { testType, semester, unitNo, className, title, grade, durationMinutes } = req.body;
     const sets = [], params = [];
     if (hasCol("imported_tests", "test_type") && ["kttx", "ktgk", "ktck"].includes(String(testType))) { sets.push("test_type = ?"); params.push(String(testType)); }
     if (hasCol("imported_tests", "semester") && (Number(semester) === 1 || Number(semester) === 2)) { sets.push("semester = ?"); params.push(Number(semester)); }
     if (hasCol("imported_tests", "unit_no") && unitNo !== undefined) { sets.push("unit_no = ?"); params.push(unitNo ? Math.max(1, Math.min(12, Number(unitNo))) : null); }
+    if (hasCol("imported_tests", "grade") && grade !== undefined) { sets.push("grade = ?"); params.push([6, 7, 8, 9].includes(Number(grade)) ? Number(grade) : null); }
+    if (hasCol("imported_tests", "duration_minutes") && durationMinutes !== undefined) { sets.push("duration_minutes = ?"); params.push(Math.max(5, Math.min(180, Number(durationMinutes) || 45))); }
     if (className !== undefined) { sets.push("class_name = ?"); params.push(String(className || "").trim() || null); }
     if (title) { sets.push("title = ?"); params.push(String(title).trim().slice(0, 255)); }
     if (!sets.length) return res.status(400).json({ success: false, message: "Không có gì để cập nhật." });
@@ -1178,14 +1239,24 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     const speaking = questionsInVariant.filter(question => question.type === "speaking");
     const manual = questionsInVariant.filter(question => question.manual);
 
-    let earned = 0;
+    // Chấm khách quan: trắc nghiệm so khớp; điền từ so khớp mềm, không khớp thì nhờ AI xét (đáp án khác đề nhưng vẫn đúng)
+    const objectiveResult = {};
+    const toJudge = [];
     objective.forEach(question => {
       const value = answers[question.id];
-      const correct = question.type === "multiple_choice"
-        ? normalizeAnswer(value) === normalizeAnswer(question.answer)
-        : (question.accepted || []).map(normalizeAnswer).includes(normalizeAnswer(value));
-      if (correct) earned += Number(question.points || 0);
+      if (question.type === "multiple_choice") { objectiveResult[question.id] = { correct: normalizeAnswer(value) === normalizeAnswer(question.answer) }; return; }
+      if (matchesAccepted(value, question.accepted)) { objectiveResult[question.id] = { correct: true }; return; }
+      objectiveResult[question.id] = { correct: false };
+      if (String(value || "").trim()) toJudge.push({ id: question.id, instruction: question.instruction, context: question.context, prompt: question.prompt, accepted: question.accepted, student: value });
     });
+    if (toJudge.length) {
+      try {
+        const judged = await aiService.judgeShortAnswers(toJudge);
+        for (const [id, v] of Object.entries(judged)) if (objectiveResult[id]) objectiveResult[id] = { correct: Boolean(v.correct), note: v.note, byAi: true };
+      } catch (e) { console.warn("judge short answers:", e.message); }
+    }
+    let earned = 0;
+    objective.forEach(question => { if (objectiveResult[question.id]?.correct) earned += Number(question.points || 0); });
 
     // Speaking: điểm = points x độ chuẩn AI (%)
     let speakingEarned = 0;
@@ -1239,10 +1310,8 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     // Chi tiết từng câu để hiển thị lỗi sai + đưa vào phòng chữa lỗi
     const review = objective.map(question => {
       const value = answers[question.id];
-      const correct = question.type === "multiple_choice"
-        ? normalizeAnswer(value) === normalizeAnswer(question.answer)
-        : (question.accepted || []).map(normalizeAnswer).includes(normalizeAnswer(value));
-      return { id: question.id, section: question.section, prompt: question.prompt, selected: value ?? "", correctAnswer: question.type === "multiple_choice" ? question.answer : (question.accepted || []).join(" / "), correct, options: question.options || [] };
+      const res = objectiveResult[question.id] || { correct: false };
+      return { id: question.id, section: question.section, prompt: question.prompt, instruction: question.instruction || "", selected: value ?? "", correctAnswer: question.type === "multiple_choice" ? question.answer : (question.accepted || []).join(" / "), correct: res.correct, aiNote: res.note || "", options: question.options || [] };
     });
 
     const totalMax = objectiveMax + manualMax;
@@ -2243,27 +2312,33 @@ app.post("/api/exams/specs/:id/import", requireLogin, requireRole("teacher", "ad
     await assessmentReady;
     const spec = unitsData.examSpec(String(req.params.id));
     if (!spec) return res.status(404).json({ success: false, message: "Không tìm thấy khung đề này." });
-    const { fileBase64, documentBase64, fileName = "de.docx", className, matrixId, title } = req.body || {};
+    const { fileBase64, documentBase64, fileName = "de.docx", className, matrixId, title, grade } = req.body || {};
     const raw = fileBase64 || documentBase64;
     if (!raw) return res.status(400).json({ success: false, message: "Vui lòng chọn tệp đề Word." });
     const buffer = Buffer.from(String(raw).split(",").pop(), "base64");
-    const extracted = await mammoth.extractRawText({ buffer });
-    const test = parseDocxAssessment(extracted.value, String(title || spec.name));
+    const test = await readTestDocument(buffer, fileName, String(title || spec.name), String(fileName) + " | " + spec.name);
     const matrix = await loadMatrix(matrixId);
     const analysis = await analyzeAndBuildVariants(test, matrix);
     const safeType = String(spec.type || "KTTX").toLowerCase();
     const unitNo = spec.type === "KTTX" && Array.isArray(spec.units) && spec.units.length === 1 ? spec.units[0] : null;
     const assignedClass = String(className || "").trim() || null;
-    const [result] = hasCol("imported_tests", "test_type")
+    const safeGrade = [6, 7, 8, 9].includes(Number(grade)) ? Number(grade) : gradeOfClass(assignedClass);
+    const duration = durationForTest(safeType, test, analysis);
+    const [result] = hasCol("imported_tests", "grade")
+      ? await pool.execute(
+          "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes, test_type, semester, unit_no, grade) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, specId: spec.id }), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, duration, safeType, Number(spec.term) === 2 ? 2 : 1, unitNo, safeGrade]
+        )
+      : hasCol("imported_tests", "test_type")
       ? await pool.execute(
           "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json, analysis_json, matrix_id, duration_minutes, test_type, semester, unit_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, specId: spec.id }), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, analysis.variants.full.durationMinutes, safeType, Number(spec.term) === 2 ? 2 : 1, unitNo]
+          [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, specId: spec.id }), JSON.stringify(test.summary), JSON.stringify(analysis), matrix ? matrix.id : null, duration, safeType, Number(spec.term) === 2 ? 2 : 1, unitNo]
         )
       : await pool.execute(
           "INSERT INTO imported_tests (teacher_id, title, source_file_name, class_name, questions_json, summary_json) VALUES (?, ?, ?, ?, ?, ?)",
           [req.user.userId, test.title, String(fileName).slice(0, 255), assignedClass, JSON.stringify({ ...test, analysis, specId: spec.id }), JSON.stringify(test.summary)]
         );
-    return res.json({ success: true, testId: result.insertId, specId: spec.id, questionCount: test.questions.length, expected: (spec.sections || []).reduce((a, x) => a + Number(x.n || 0), 0), summary: test.summary, message: `Đã nạp ${test.questions.length} câu vào khung "${spec.name}".` });
+    return res.json({ success: true, testId: result.insertId, specId: spec.id, questionCount: test.questions.length, expected: (spec.sections || []).reduce((a, x) => a + Number(x.n || 0), 0), summary: test.summary, keyIssues: test.keyIssues || [], dropped: test.dropped || [], message: `Đã nạp ${test.questions.length} câu vào khung "${spec.name}".` });
   } catch (error) {
     console.error("Lỗi nạp đề vào khung:", error);
     return res.status(400).json({ success: false, message: error.message || "Không nạp được đề. Kiểm tra lại tệp Word." });

@@ -40,9 +40,19 @@
   function exampleFor(unit, word) {
     const deck = (window.ENGO_VOCAB_DECKS || {})["unit" + unit];
     if (!deck) return null;
-    const key = String(word).toLowerCase().replace(/s*(.*?)s*/g, " ").trim();
+    const key = String(word).toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
     const c = deck.cards.find(x => x.word.toLowerCase() === key) || deck.cards.find(x => key.startsWith(x.word.toLowerCase()) || x.word.toLowerCase().startsWith(key));
     return c && c.examples && c.examples[0] ? { en: c.examples[0], vi: c.exampleVi || "" } : null;
+  }
+  // Ảnh minh hoạ (data/vocab-images.js, khoá là từ trong vocab-decks.js) - tra mềm theo từ
+  function imageFor(word) {
+    const map = window.ENGO_VOCAB_IMAGES || {};
+    const w = String(word || "").toLowerCase().trim();
+    if (map[w]) return map[w];
+    const base = w.replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
+    if (map[base]) return map[base];
+    const k = Object.keys(map).find(x => map[x] && (base.startsWith(x.toLowerCase()) || x.toLowerCase().startsWith(base)) && Math.abs(x.length - base.length) <= 3);
+    return k ? map[k] : "";
   }
   // Gộp bài nghe do AI sinh (data/listening-sets.js) vào bộ nghe theo unit (cùng định dạng tasks)
   function listeningTasks(u) {
@@ -80,7 +90,7 @@
   const countDone = bucket => Object.keys(loadProg()[bucket] || {}).length;
 
   /* ------------------------- bộ chọn Unit dùng chung ------------------------- */
-  const state = { vocabUnit: 1, vocabTab: "words", speakUnit: 1, listenUnit: 1, examTerm: 1 };
+  const state = { vocabUnit: 1, vocabTab: "words", speakUnit: 1, listenUnit: 1, examTerm: 1, examGrade: 9 };
 
   function unitChips(current, attr) {
     return '<div class="unit-chip-row">' + UNITS.map(u =>
@@ -104,7 +114,8 @@
         <h4 class="unit-sec-title">${esc(SECN[sec] || sec)} <span class="small muted">· ${groups[sec].length} từ</span></h4>
         <div class="unit-word-grid">
           ${groups[sec].map(c => `
-            <div class="unit-word">
+            <div class="unit-word unit-word-lg">
+              ${(img => img ? `<img class="unit-word-img" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">` : "")(imageFor(c.w))}
               <button type="button" class="unit-say" data-say="${esc(c.w)}" title="Nghe phát âm"><i class=mi>volume_up</i></button>
               <div>
                 <b>${esc(c.w)}</b> ${c.pos ? `<span class="unit-pos">${esc(c.pos)}</span>` : ""}
@@ -432,17 +443,20 @@
     const TYPEN = { KTTX: "Thường xuyên", KTGK: "Giữa kì", KTCK: "Cuối kì" };
     const cu = CU();
     const isTeacher = cu && (cu.role === "teacher" || cu.role === "admin");
-    const tests = TESTS();
+    // Khối: học sinh theo lớp của mình (9A5 -> 9); giáo viên chọn khối bằng nút
+    const myGrade = cu && cu.className ? Number(String(cu.className).match(/^([6-9])/)?.[1]) : null;
+    const grade = isTeacher ? state.examGrade : (myGrade || 9);
+    const tests = TESTS().filter(t => !t.grade || Number(t.grade) === grade);
     const forSpec = s => tests.filter(t => String(t.testType || "kttx").toUpperCase() === s.type && Number(t.semester || 1) === s.term && (s.type !== "KTTX" || !t.unitNo || (s.units || []).includes(Number(t.unitNo))));
     const bankCell = s => {
       const list = forSpec(s);
-      const rows = list.slice(0, 4).map(t => {
+      const rows = list.map(t => {
         const sub = t.submission;
         const btn = isTeacher ? "" : sub ? `<span class="badge green">${sub.scoreOnTen}/10</span>` : `<button type="button" class="btn btn-primary btn-sm" data-take="${t.id}">Làm bài</button>`;
         return `<div class="unit-bank-row"><span>${esc(t.title)}${t.className ? ` <span class="small muted">(${esc(t.className)})</span>` : ""}</span>${btn}</div>`;
       }).join("");
       const upload = isTeacher ? `<button type="button" class="btn btn-soft btn-sm" data-upload-spec="${esc(s.id)}">＋ Nạp đề Word</button>` : "";
-      return (rows || '<span class="small muted">Chưa có đề — giáo viên nạp từ ngân hàng của tổ.</span>') + (upload ? `<div style="margin-top:6px">${upload}</div>` : "");
+      return (rows ? `<div class="unit-bank-list">${rows}</div><div class="small muted" style="margin-top:4px">${list.length} đề</div>` : '<span class="small muted">Chưa có đề — giáo viên nạp từ ngân hàng của tổ.</span>') + (upload ? `<div style="margin-top:6px">${upload}</div>` : "");
     };
 
     host.innerHTML = `
@@ -450,8 +464,9 @@
         <div class="section-head">
           <div><h3>Ba loại kiểm tra theo Thông tư 22</h3>
             <p class="small muted">Mỗi học kì có 4 đầu điểm thường xuyên, 1 bài giữa kì và 1 bài cuối kì. Khung dưới đây là mặc định; ma trận thật của trường sẽ ghi đè khi giáo viên tải lên.</p></div>
-          <span class="badge" style="background:#fff7ed;color:#b45309;font-weight:700">12 khung đề</span>
+          <span class="badge" style="background:#fff7ed;color:#b45309;font-weight:700">Khối ${grade} · ${tests.length} đề</span>
         </div>
+        ${isTeacher ? `<div class="unit-chip-row" style="margin-bottom:8px">${[6, 7, 8, 9].map(g => `<button type="button" class="unit-chip${g === grade ? " active" : ""}" data-exam-grade="${g}">Khối ${g}</button>`).join("")}</div>` : ""}
         <div class="healing-tabs">
           <button class="healing-tab${term === 1 ? " active" : ""}" data-term="1">Học kì I · Unit 1–6</button>
           <button class="healing-tab${term === 2 ? " active" : ""}" data-term="2">Học kì II · Unit 7–12</button>
@@ -475,6 +490,7 @@
         </div>
       </div>`;
     host.querySelectorAll("[data-term]").forEach(b => b.addEventListener("click", () => { state.examTerm = Number(b.dataset.term); mountExams(); }));
+    host.querySelectorAll("[data-exam-grade]").forEach(b => b.addEventListener("click", () => { state.examGrade = Number(b.dataset.examGrade); mountExams(); }));
     host.querySelectorAll("[data-take]").forEach(b => b.addEventListener("click", () => typeof startImportedTest === "function" && startImportedTest(b.dataset.take)));
     host.querySelectorAll("[data-upload-spec]").forEach(b => b.addEventListener("click", () => {
       const spec = specs.find(x => x.id === b.dataset.uploadSpec);

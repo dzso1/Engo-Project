@@ -1111,6 +1111,44 @@ function heuristicQuestionAnalysis(q) {
   return { difficulty, seconds, reason: "Ước lượng theo dạng câu hỏi và độ dài" };
 }
 
+// ==========================================================
+// CHẤM CÂU ĐIỀN TỪ / VIẾT LẠI CÂU KHI KHÔNG KHỚP ĐÁP ÁN MẪU
+// Đáp án của đề thường chỉ ghi 1 cách; học sinh có thể viết cách khác vẫn đúng
+// (đồng nghĩa, dạng rút gọn, thêm/bớt từ tuỳ chọn). AI xét đúng/sai theo ngữ pháp + nghĩa.
+// items: [{ id, instruction, context, prompt, accepted[], student }]
+// -> { [id]: { correct: boolean, note: string } }
+// ==========================================================
+async function judgeShortAnswers(items = []) {
+  const list = (Array.isArray(items) ? items : []).filter(i => i && i.id && String(i.student || "").trim());
+  const result = {};
+  if (!list.length) return result;
+  const compact = list.map(i => ({
+    id: i.id,
+    task: String(i.instruction || "").slice(0, 160),
+    context: String(i.context || "").slice(0, 600),
+    question: String(i.prompt || "").slice(0, 400),
+    key: (i.accepted || []).slice(0, 6),
+    student: String(i.student || "").slice(0, 300)
+  }));
+  const system = `You are a strict but fair English teacher grading fill-in / word-form / sentence-rewriting answers of Vietnamese secondary students. A student's answer is CORRECT if it fits the blank/task with correct grammar and equivalent meaning, even when it differs from the key (synonym that fits, contracted vs full form, optional words, equivalent tense where allowed). Spelling mistakes, wrong verb form, wrong word class or meaning change = INCORRECT. Answer with valid JSON only.`;
+  const user = `Grade each item. Return JSON: {"results":[{"id":"q-19","correct":true,"note":"short Vietnamese reason"}]}
+
+ITEMS:
+${JSON.stringify(compact)}`;
+  try {
+    const parsed = await callAiJson(system, user, "judge_short_" + compact.map(c => c.id + ":" + c.student.toLowerCase()).join("|").slice(0, 900), 40000);
+    if (parsed && Array.isArray(parsed.results)) {
+      for (const it of parsed.results) {
+        if (!it || !it.id) continue;
+        result[it.id] = { correct: Boolean(it.correct), note: String(it.note || "").slice(0, 160) };
+      }
+    }
+  } catch (e) {
+    console.warn("judgeShortAnswers AI error:", e.message);
+  }
+  return result;
+}
+
 async function analyzeTestQuestions(questions = []) {
   const list = Array.isArray(questions) ? questions : [];
   const fallback = Object.fromEntries(list.map(q => [q.id, heuristicQuestionAnalysis(q)]));
@@ -1288,6 +1326,7 @@ module.exports = {
   translateAndGenerateIpa,
   generateSpeakingItems,
   analyzeTestQuestions,
+  judgeShortAnswers,
   parseTestMatrix,
   speakingFeedback,
   extractEnglishSentences,

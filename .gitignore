@@ -44,3 +44,4 @@ uploads/
 *.bak
 *.part
 public/data/unit-cache/
+.import/

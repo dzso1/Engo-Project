@@ -68,7 +68,8 @@ function applyTheme(theme) {
 function getPreferredTheme() {
   const saved = localStorage.getItem(THEME_STORAGE_KEY);
   if (saved === "dark" || saved === "light") return saved;
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  // Mặc định luôn sáng (không theo chế độ tối của hệ điều hành) - học sinh tự bật tối bằng nút mặt trăng nếu muốn
+  return "light";
 }
 applyTheme(getPreferredTheme());
 document.querySelectorAll(".theme-toggle").forEach(button => button.addEventListener("click", () => {
@@ -82,6 +83,9 @@ function showToast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
 }
 function escapeHTML(value) { return String(value ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m])); }
+// Văn bản đề thi: chỉ cho phép <u> (phần gạch chân - câu ngữ âm) và <b>, mọi thứ khác đều escape
+function richText(value) { return escapeHTML(value).replace(/&lt;(\/?)(u|b)&gt;/g, "<$1$2>").replace(/\n/g, "<br>"); }
+function plainText(value) { return String(value ?? "").replace(/<\/?[ub]>/g, ""); }
 function fmtDate(v, withTime = false) {
   if (!v) return "—";
   const d = new Date(v); if (isNaN(d)) return "—";
@@ -741,14 +745,18 @@ function renderQuestion() {
   document.getElementById("questionSectionTitle").textContent = q.section || "Phần thi";
   document.getElementById("explanationBox").classList.add("hidden");
   let content = "";
-  if (q.passage) content += `<div class="reading-passage">${escapeHTML(q.passage)}</div>`;
-  content += `<h4>${escapeHTML(q.prompt || "")}</h4>`;
+  // Yêu cầu của phần (task): "Choose the word whose underlined part..." - hiện phía trên câu hỏi
+  if (q.instruction) content += `<div class="task-instruction"><i class=mi>assignment</i> <span>${richText(q.instruction)}</span></div>`;
+  if (q.passage) content += `<div class="reading-passage">${richText(q.passage)}</div>`;
+  // Đề gốc hay lặp lại yêu cầu ở từng câu -> không in 2 lần
+  const sameAsTask = q.instruction && plainText(q.prompt || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === plainText(q.instruction).replace(/[^a-z0-9]/gi, "").toLowerCase();
+  content += `<h4>${sameAsTask ? `Câu ${q.number || currentQuestion + 1}` : richText(q.prompt || "")}</h4>`;
   questionContent.innerHTML = content;
 
   if (q.type === "speaking") {
     renderSpeakingQuestion(q);
   } else if (q.options?.length) {
-    answerArea.innerHTML = `<div class="option-list">${q.options.map((opt, i) => `<div class="option ${answers[q.id] === i ? "selected" : ""}" data-option="${i}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${escapeHTML(opt.replace(/^[A-D]\.\s*/, ""))}</span></div>`).join("")}</div>`;
+    answerArea.innerHTML = `<div class="option-list">${q.options.map((opt, i) => `<div class="option ${answers[q.id] === i ? "selected" : ""}" data-option="${i}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${richText(opt.replace(/^[A-D]\.\s*/, ""))}</span></div>`).join("")}</div>`;
     answerArea.querySelectorAll(".option").forEach(el => el.addEventListener("click", () => { answers[q.id] = Number(el.dataset.option); saveAnswers(); renderQuestion(); }));
   } else {
     answerArea.innerHTML = `<textarea class="text-answer" placeholder="${q.type === "writing" ? "Viết bài của em tại đây (giáo viên sẽ chấm)..." : "Nhập câu trả lời của em..."}">${escapeHTML(answers[q.id] || "")}</textarea>`;
@@ -826,7 +834,7 @@ async function startImportedTest(testId) {
     secondsLeft = (data.test.durationMinutes || 45) * 60;
     quizStartedAt = Date.now();
     document.getElementById("quizTitle").textContent = data.test.title;
-    document.getElementById("quizSubtitle").textContent = `${questions.length} câu · ${data.test.durationMinutes} phút (AI đề xuất theo độ khó)`;
+    document.getElementById("quizSubtitle").textContent = `${questions.length} câu · ${data.test.durationMinutes} phút`;
     document.getElementById("quizVariantBadge").textContent = data.test.variant === "regular" ? "Đề cơ bản (lớp thường)" : data.test.variant === "advanced" ? "Đề nâng cao (lớp tăng cường)" : "";
     document.getElementById("quizTimeHint").textContent = `Gợi ý: ${questions.filter(q => q.difficulty === "hard").length} câu khó — nên làm câu dễ trước.`;
     switchView("quiz"); startAntiCheatGuard(); renderQuestion(); startQuizTimer();
@@ -866,7 +874,7 @@ async function submitQuiz() {
     document.getElementById("attemptCount").textContent = examTabSwitches > 0 ? `${examTabSwitches} vi phạm (-${penalty}đ)` : "Nghiêm túc";
     applyResultScoreUI(scoreOnTen, result.status === "pending_manual");
     lastTestReview = result.review || [];
-    document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.slice(0, 12).map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}</div><div>${escapeHTML(r.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(r.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${escapeHTML(String(r.correctAnswer || ""))}</b></div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px"><i class=mi>celebration</i> Không có câu trắc nghiệm nào sai!</div>';
+    document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.slice(0, 12).map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}${r.instruction ? " · " + richText(r.instruction) : ""}</div><div>${richText(r.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(r.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${richText(String(r.correctAnswer || ""))}</b>${r.aiNote ? `<div class="small muted">AI: ${escapeHTML(r.aiNote)}</div>` : ""}</div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px"><i class=mi>celebration</i> Không có câu trắc nghiệm nào sai!</div>';
     recordTestErrorsForHealing(wrong, activeImportedTest.title);
     const st = getLearningStats(); st.quizCount = (st.quizCount || 0) + 1; st.bestScore = Math.max(st.bestScore || 0, scoreOnTen); setLearningStats(st);
     gainRewards(scoreOnTen >= 8 ? 40 : 25, scoreOnTen >= 8 ? 3 : 1, "Hoàn thành bài kiểm tra");
@@ -993,6 +1001,9 @@ function renderFlashcard() {
   document.getElementById("flashProgressBar").style.width = `${((flashIndex + 1) / deck.cards.length) * 100}%`;
   document.getElementById("flashWord").textContent = card.word;
   document.getElementById("flashWordBack").textContent = card.word;
+  // Ảnh minh hoạ (Wikimedia) nếu có cho từ này
+  const flashImg = (window.ENGO_VOCAB_IMAGES || {})[card.word] || "";
+  document.querySelectorAll(".flash-img").forEach(el => { el.src = flashImg; el.classList.toggle("hidden", !flashImg); });
   document.getElementById("flashPhonetic").textContent = card.phonetic;
   document.getElementById("flashPos").textContent = card.pos; document.getElementById("flashPos").title = POS_LABEL[card.pos] || card.pos;
   document.getElementById("flashPosBack").textContent = `${card.pos} · ${POS_LABEL[card.pos] || ""}`;
@@ -1627,8 +1638,8 @@ async function renderTeacherRecentTests() {
   const tbody = document.getElementById("teacherRecentTestsBody"); if (!tbody || !isTeacherLike()) return;
   try {
     const data = await apiRequest("/api/tests/latest"); teacherTestsCache = data.tests || [];
-    const semF = document.getElementById("teacherTestsSemesterFilter")?.value || "", typeF = document.getElementById("teacherTestsTypeFilter")?.value || "";
-    const visibleTests = teacherTestsCache.filter(t => (!semF || String(t.semester || 1) === semF) && (!typeF || (t.testType || "kttx") === typeF));
+    const semF = document.getElementById("teacherTestsSemesterFilter")?.value || "", typeF = document.getElementById("teacherTestsTypeFilter")?.value || "", gradeF = document.getElementById("teacherTestsGradeFilter")?.value || "";
+    const visibleTests = teacherTestsCache.filter(t => (!semF || String(t.semester || 1) === semF) && (!typeF || (t.testType || "kttx") === typeF) && (!gradeF || String(t.grade || "") === gradeF));
     const filter = document.getElementById("teacherTestFilter");
     if (filter) { const cur = filter.value; filter.innerHTML = '<option value="">Tất cả bài kiểm tra</option>' + teacherTestsCache.map(t => `<option value="${t.id}" ${t.id == cur ? "selected" : ""}>${escapeHTML(t.title)}</option>`).join(""); }
     const docxMatrix = document.getElementById("docxModalMatrix");
@@ -1656,7 +1667,7 @@ async function renderTeacherRecentTests() {
   } catch (err) { tbody.innerHTML = `<tr><td colspan="9" class="small muted">${escapeHTML(err.message)}</td></tr>`; }
 }
 document.getElementById("refreshTeacherTestsBtn")?.addEventListener("click", () => { renderTeacherRecentTests(); showToast("Đã làm mới danh sách đề."); });
-["teacherTestsSemesterFilter", "teacherTestsTypeFilter"].forEach(id => document.getElementById(id)?.addEventListener("change", renderTeacherRecentTests));
+["teacherTestsSemesterFilter", "teacherTestsTypeFilter", "teacherTestsGradeFilter"].forEach(id => document.getElementById(id)?.addEventListener("change", renderTeacherRecentTests));
 
 
 let matricesCache = [];
@@ -1721,6 +1732,15 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
 
 document.getElementById("createTestBtn")?.addEventListener("click", () => { renderMatricesList(); openModal("createTestModal"); });
 // Mở form nạp đề với loại / học kỳ / unit đặt sẵn theo khung đề (KTTX / KTGK / KTCK)
+// Sau khi nạp đề: báo các câu AI cho là đáp án gốc sai (đã sửa) và các câu bị bỏ (nghe/hình) để giáo viên kiểm tra
+function showImportNotes(result) {
+  const issues = result.keyIssues || [], dropped = result.dropped || [];
+  if (!issues.length && !dropped.length) return;
+  const body = document.getElementById("importNotesBody"); if (!body) return;
+  body.innerHTML = (issues.length ? `<h4 style="margin:0 0 6px"><i class=mi>warning</i> ${issues.length} câu AI nghi đáp án gốc sai (đã dùng đáp án AI sửa)</h4><ul class="small" style="margin:0 0 12px 18px;line-height:1.6">${issues.map(i => `<li><b>Câu ${i.number}</b>: ${escapeHTML(i.note)}</li>`).join("")}</ul>` : "")
+    + (dropped.length ? `<h4 style="margin:0 0 6px"><i class=mi>info</i> Câu bị bỏ qua</h4><ul class="small" style="margin:0 0 0 18px;line-height:1.6">${dropped.map(d => `<li>${escapeHTML(d.reason || "")} ${Array.isArray(d.numbers) && d.numbers.length ? "(câu " + d.numbers.join(", ") + ")" : ""}</li>`).join("")}</ul>` : "");
+  openModal("importNotesModal");
+}
 function openCreateTestForSpec(spec) {
   renderMatricesList();
   const typeSel = document.getElementById("docxModalType"), semSel = document.getElementById("docxModalSemester"), unitSel = document.getElementById("docxModalUnit"), titleIn = document.getElementById("docxModalTitle");
@@ -1736,12 +1756,13 @@ function openCreateTestForSpec(spec) {
 document.querySelectorAll(".create-close").forEach(btn => btn.addEventListener("click", () => closeModal("createTestModal")));
 document.getElementById("uploadDocxForm")?.addEventListener("submit", async e => {
   e.preventDefault();
-  const file = document.getElementById("docxModalFileInput").files[0]; if (!file) return showToast("Vui lòng chọn file DOCX.");
-  const submitBtn = document.getElementById("submitDocxBtn"); submitBtn.disabled = true; submitBtn.textContent = "⏳ Đang đọc đề & AI phân tích...";
+  const file = document.getElementById("docxModalFileInput").files[0]; if (!file) return showToast("Vui lòng chọn file đề (Word hoặc PDF).");
+  const submitBtn = document.getElementById("submitDocxBtn"); submitBtn.disabled = true; submitBtn.textContent = "⏳ AI đang đọc đề (30-60 giây)...";
   try {
-    const result = await apiRequest("/api/tests/import-docx", { method: "POST", body: JSON.stringify({ documentBase64: await fileToDataUrl(file), fileName: file.name, title: document.getElementById("docxModalTitle").value.trim() || file.name.replace(/\.docx$/i, ""), className: document.getElementById("docxModalClass").value.trim().toUpperCase() || null, matrixId: document.getElementById("docxModalMatrix").value || null, testType: document.getElementById("docxModalType")?.value || "kttx", semester: Number(document.getElementById("docxModalSemester")?.value || 1), unitNo: document.getElementById("docxModalUnit")?.value || null }) });
+    const result = await apiRequest("/api/tests/import-docx", { method: "POST", body: JSON.stringify({ documentBase64: await fileToDataUrl(file), fileName: file.name, title: document.getElementById("docxModalTitle").value.trim() || file.name.replace(/\.(docx|pdf)$/i, ""), className: document.getElementById("docxModalClass").value.trim().toUpperCase() || null, grade: document.getElementById("docxModalGrade")?.value || null, matrixId: document.getElementById("docxModalMatrix").value || null, testType: document.getElementById("docxModalType")?.value || "kttx", semester: Number(document.getElementById("docxModalSemester")?.value || 1), unitNo: document.getElementById("docxModalUnit")?.value || null }) });
     const a = result.analysis || {};
     showToast(`${result.message} ${result.summary.objectiveCount} TN, ${result.summary.speakingCount || 0} Speaking, ${result.summary.manualCount} Writing · AI: ${a.counts?.easy || 0} dễ / ${a.counts?.medium || 0} TB / ${a.counts?.hard || 0} khó · ${a.durationMinutes || 45} phút.`);
+    showImportNotes(result);
     closeModal("createTestModal"); e.target.reset(); renderTeacherRecentTests(); renderTeacherStats();
   } catch (error) { showToast(error.message); } finally { submitBtn.disabled = false; submitBtn.textContent = "Tạo & Giao bài"; }
 });
