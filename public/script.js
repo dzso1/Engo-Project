@@ -188,7 +188,6 @@ async function loadClassNames() {
 function avatarHTML(av, name, role) {
   const a = av || {};
   if (a.type === "image" && a.value) return `<img src="${escapeHTML(a.value)}" alt="">`;
-  if (a.type === "icon" && a.value) return `<i class=mi>${escapeHTML(a.value)}</i>`;
   return escapeHTML(getInitials(name, role));
 }
 function paintAvatar(el, av, name, role) {

@@ -111,10 +111,6 @@
   }
   function voicesEn() { try { return (window.speechSynthesis?.getVoices() || []).filter(v => /^en/i.test(v.lang)); } catch (_) { return []; } }
 
-  const AV_ICONS = ["pets", "rocket_launch", "star", "school", "auto_awesome", "sports_esports", "music_note", "local_florist", "bolt", "emoji_nature", "psychology", "palette", "sailing", "cruelty_free", "flutter_dash", "face"];
-  const AV_COLORS = ["#059669", "#2563eb", "#7c3aed", "#db2777", "#ea580c", "#ca8a04", "#0891b2", "#475569"];
-  const avDraft = { type: null, value: null, color: null };
-
   function resizeImage(file, size) {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -146,27 +142,23 @@
 
   function avatarSection(cu) {
     if (!cu) return "";
-    const cur = cu.avatar || { type: "initials" };
-    const t = avDraft.type || cur.type;
-    const v = avDraft.value !== null ? avDraft.value : cur.value;
-    const col = avDraft.color || cur.color || AV_COLORS[0];
-    const preview = { type: t, value: v, color: col };
+    const cur = cu.avatar && cu.avatar.type === "image" ? cu.avatar : { type: "initials" };
+    const hasImg = cur.type === "image";
     const initials = window.getInitials ? window.getInitials(cu.fullName, cu.role) : "";
     return `
       <div class="card panel section">
         <div class="section-head"><div><h3><i class=mi>account_circle</i> Ảnh đại diện</h3><p class="small muted">Hiện trên thanh trên cùng và trong bảng xếp hạng.</p></div></div>
         <div class="av-picker">
           <div class="av-preview">
-            <span class="lb-avatar${t === "image" ? " has-img" : ""}" style="${t !== "image" ? "background:" + col : ""}">${window.avatarHTML ? window.avatarHTML(preview, cu.fullName, cu.role) : initials}</span>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <label class="btn btn-light btn-sm" style="cursor:pointer"><i class=mi>add_photo_alternate</i> Tải ảnh lên<input type="file" id="avUpload" accept="image/png,image/jpeg,image/webp" hidden></label>
-              <button type="button" class="btn btn-light btn-sm" data-av-initials><i class=mi>text_fields</i> Dùng chữ cái đầu (${esc(initials)})</button>
+            <span class="lb-avatar${hasImg ? " has-img" : ""}">${window.avatarHTML ? window.avatarHTML(cur, cu.fullName, cu.role) : esc(initials)}</span>
+            <div style="display:grid;gap:8px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <label class="btn btn-primary btn-sm" style="cursor:pointer"><i class=mi>add_photo_alternate</i> ${hasImg ? "Đổi ảnh khác" : "Chọn ảnh từ máy"}<input type="file" id="avUpload" accept="image/png,image/jpeg,image/webp" hidden></label>
+                ${hasImg ? `<button type="button" class="btn btn-light btn-sm" data-av-remove><i class=mi>delete</i> Xoá ảnh</button>` : ""}
+              </div>
+              <span class="small muted">Ảnh JPG, PNG hoặc WEBP, tối đa 8MB. Ảnh sẽ tự cắt thành hình vuông.</span>
             </div>
           </div>
-          <div><div class="small muted" style="margin-bottom:6px">Hoặc chọn biểu tượng</div>
-            <div class="av-grid">${AV_ICONS.map(i => `<button type="button" class="av-opt${t === "icon" && v === i ? " active" : ""}" data-av-icon="${i}" title="${i}"><i class=mi>${i}</i></button>`).join("")}</div></div>
-          <div><div class="small muted" style="margin-bottom:6px">Màu nền</div>
-            <div class="av-grid">${AV_COLORS.map(c => `<button type="button" class="av-color${col === c ? " active" : ""}" data-av-color="${c}" style="background:${c}" title="${c}"></button>`).join("")}</div></div>
         </div>
       </div>`;
   }
@@ -219,17 +211,8 @@
       </div>`;
 
     host.querySelectorAll(".theme-tile").forEach(b => b.addEventListener("click", () => { localStorage.setItem("engoTheme", b.dataset.theme); window.applyTheme(b.dataset.theme); }));
-    const curAv = (cu && cu.avatar) || { type: "initials" };
-    host.querySelectorAll("[data-av-icon]").forEach(b => b.addEventListener("click", () => {
-      saveAvatar({ type: "icon", value: b.dataset.avIcon, color: avDraft.color || curAv.color || AV_COLORS[0] }).catch(e => window.showToast && window.showToast(e.message));
-    }));
-    host.querySelectorAll("[data-av-color]").forEach(b => b.addEventListener("click", () => {
-      avDraft.color = b.dataset.avColor;
-      const type = curAv.type === "image" ? "initials" : curAv.type;
-      saveAvatar(type === "icon" ? { type: "icon", value: curAv.value, color: avDraft.color } : { type: "initials", color: avDraft.color }).catch(e => window.showToast && window.showToast(e.message));
-    }));
-    host.querySelector("[data-av-initials]")?.addEventListener("click", () => {
-      saveAvatar({ type: "initials", color: avDraft.color || (curAv.type !== "image" ? curAv.color : null) || AV_COLORS[0] }).catch(e => window.showToast && window.showToast(e.message));
+    host.querySelector("[data-av-remove]")?.addEventListener("click", () => {
+      saveAvatar({ type: "initials" }).catch(e => window.showToast && window.showToast(e.message));
     });
     host.querySelector("#avUpload")?.addEventListener("change", async e => {
       const file = e.target.files && e.target.files[0];

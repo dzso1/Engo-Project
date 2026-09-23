@@ -4,11 +4,6 @@ const DAILY_CARROT_CAP = Math.max(1, Number(process.env.DAILY_CARROT_CAP) || 30)
 const MAX_XP_PER_EVENT = 150;
 const MAX_CARROTS_PER_EVENT = 10;
 const START_CARROTS = 15;
-const AVATAR_PRESETS = new Set([
-  "pets", "rocket_launch", "star", "school", "auto_awesome", "sports_esports", "music_note", "local_florist",
-  "bolt", "emoji_nature", "psychology", "palette", "sailing", "cruelty_free", "flutter_dash", "face",
-]);
-const AVATAR_COLORS = new Set(["#059669", "#2563eb", "#7c3aed", "#db2777", "#ea580c", "#ca8a04", "#0891b2", "#475569"]);
 
 let ready = null;
 function ensureTable() {
@@ -75,8 +70,7 @@ function publicRewards(row) {
 function avatarOf(row) {
   if (!row) return { type: "initials" };
   if (row.avatar_type === "image" && row.avatar_value) return { type: "image", value: row.avatar_value };
-  if (row.avatar_type === "icon" && row.avatar_value) return { type: "icon", value: row.avatar_value, color: row.avatar_color || "#059669" };
-  return { type: "initials", color: row.avatar_color || null };
+  return { type: "initials" };
 }
 
 async function getRewards(userId) {
@@ -149,12 +143,7 @@ async function setAvatar(userId, body) {
   await getRow(userId);
   const type = String(body && body.type || "");
   if (type === "initials") {
-    const color = AVATAR_COLORS.has(body.color) ? body.color : null;
-    await pool.execute("UPDATE student_rewards SET avatar_type = 'initials', avatar_value = NULL, avatar_color = ? WHERE user_id = ?", [color, userId]);
-  } else if (type === "icon") {
-    if (!AVATAR_PRESETS.has(body.value)) throw new Error("Biểu tượng không hợp lệ.");
-    const color = AVATAR_COLORS.has(body.color) ? body.color : "#059669";
-    await pool.execute("UPDATE student_rewards SET avatar_type = 'icon', avatar_value = ?, avatar_color = ? WHERE user_id = ?", [body.value, color, userId]);
+    await pool.execute("UPDATE student_rewards SET avatar_type = 'initials', avatar_value = NULL, avatar_color = NULL WHERE user_id = ?", [userId]);
   } else if (type === "image") {
     const v = String(body.value || "");
     if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v)) throw new Error("Ảnh không hợp lệ.");
@@ -222,6 +211,6 @@ async function avatarsFor(userIds) {
 }
 
 module.exports = {
-  DAILY_CARROT_CAP, AVATAR_PRESETS, AVATAR_COLORS,
+  DAILY_CARROT_CAP,
   ensureTable, getRewards, earn, feed, importLocal, setAvatar, leaderboard, avatarsFor, levelOf,
 };

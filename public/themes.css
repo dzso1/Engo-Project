@@ -250,7 +250,6 @@ body.dark-mode .stat-violet{color:#c4b5fd}body.dark-mode .stat-red{color:#fca5a5
 .avatar{overflow:hidden}
 .avatar.has-img,.lb-avatar.has-img{background:var(--surface-2)!important;padding:0}
 .avatar img,.lb-avatar img{width:100%;height:100%;object-fit:cover;display:block}
-.avatar .mi{font-size:24px;color:#fff}
 .carrot-daily{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;background:var(--surface);border:1px dashed #fdba74;color:#9a3412}
 .carrot-daily.full{border-style:solid;background:#fff7ed}
 .carrot-daily:empty{display:none}
@@ -289,9 +288,3 @@ body.dark-mode .carrot-daily.full{background:#3a2a0d}
 .av-picker{display:grid;gap:14px}
 .av-preview{display:flex;align-items:center;gap:14px}
 .av-preview .lb-avatar{width:72px;height:72px;border-radius:20px;font-size:24px}
-.av-grid{display:flex;flex-wrap:wrap;gap:8px}
-.av-opt{width:44px;height:44px;border-radius:12px;border:2px solid var(--line-2);background:var(--surface-2);display:grid;place-items:center;cursor:pointer;color:var(--ink);padding:0}
-.av-opt .mi{font-size:22px}
-.av-opt.active{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
-.av-color{width:30px;height:30px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line-2);cursor:pointer;padding:0}
-.av-color.active{box-shadow:0 0 0 3px var(--primary)}
