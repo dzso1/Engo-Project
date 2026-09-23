@@ -243,3 +243,6 @@ body.dark-mode .stat-violet{color:#c4b5fd}body.dark-mode .stat-red{color:#fca5a5
 .vq-sentence{font-size:17px;line-height:1.8;font-weight:600}
 .vocab-practice-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2)}
 .vocab-practice-bar>span{font-weight:800;font-size:14px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.chat-close-btn{width:32px;height:32px;padding:0;border:0;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;transition:background .15s}
+.chat-close-btn:hover{background:rgba(255,255,255,.28)}
+.chat-close-btn .mi{font-size:20px;line-height:1;vertical-align:0;display:block}
