@@ -79,17 +79,17 @@ document.querySelectorAll("[data-close-modal]").forEach(btn => btn.addEventListe
 document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("click", e => { if (e.target === modal) modal.classList.add("hidden"); }));
 
 const ROUTE_MAP = {
-  "student-home": "/dashboard", "settings": "/settings", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
+  "student-home": "/dashboard", "settings": "/settings", "leaderboard": "/leaderboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
   "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
   "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin"
 };
 const REVERSE_ROUTE_MAP = {
-  "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/settings": "settings", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
+  "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/settings": "settings", "/leaderboard": "leaderboard", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
   "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
   "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin"
 };
-const STUDENT_VIEWS = new Set(["student-home", "quiz", "achievements", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
+const STUDENT_VIEWS = new Set(["student-home", "quiz", "achievements", "leaderboard", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
 const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
 
 function switchView(id, pushHistory = true) {
@@ -120,6 +120,7 @@ function switchView(id, pushHistory = true) {
   if (window.ENGO_UNITS_UI) window.ENGO_UNITS_UI.onView(id);
   if (id === "teacher-home") renderTeacherHome();
   if (id === "settings") renderSettings();
+  if (id === "leaderboard") renderLeaderboard();
   if (id === "parent-home") renderParentDashboard();
   if (id === "data-admin") renderDataAdmin();
 }
@@ -184,10 +185,23 @@ async function loadClassNames() {
     sel.innerHTML = '<option value="">Tất cả các lớp</option>' + knownClasses.map(c => `<option value="${escapeHTML(c)}" ${c === cur ? "selected" : ""}>Lớp ${escapeHTML(c)}</option>`).join("");
   });
 }
+function avatarHTML(av, name, role) {
+  const a = av || {};
+  if (a.type === "image" && a.value) return `<img src="${escapeHTML(a.value)}" alt="">`;
+  if (a.type === "icon" && a.value) return `<i class=mi>${escapeHTML(a.value)}</i>`;
+  return escapeHTML(getInitials(name, role));
+}
+function paintAvatar(el, av, name, role) {
+  if (!el) return;
+  el.innerHTML = avatarHTML(av, name, role);
+  el.classList.toggle("has-img", av && av.type === "image");
+  el.style.background = av && av.type !== "image" && av.color ? av.color : "";
+}
 function updateUserUI(user) {
   currentUser = user;
   roleSelect.value = user.role;
-  avatar.textContent = getInitials(user.fullName, user.role);
+  paintAvatar(avatar, user.avatar, user.fullName, user.role);
+  if (user.role === "student") syncRewardsFromServer();
   const welcome = document.getElementById("welcomeHeading");
   if (welcome && user.role === "student") {
     const shortName = String(user.fullName || "học sinh").trim().split(/\s+/).slice(-2).join(" ");
@@ -346,14 +360,50 @@ function updateStudyStreak(stats) {
   stats.streak = days === 1 ? Math.max(1, stats.streak + 1) : 1; stats.lastStudyDate = today;
 }
 function getXPMultiplier() { return getCapybaraProgress(getLearningStats().fedCarrots || 0).isMax ? 1.5 : 1.0; }
+let serverRewards = null;
+function applyServerRewards(r) {
+  if (!r) return;
+  serverRewards = r;
+  const stats = getLearningStats();
+  stats.points = r.xp; stats.carrots = r.carrots; stats.fedCarrots = r.fedCarrots;
+  setLearningStats(stats);
+  renderCapybaraCompanion();
+  renderDailyCarrots();
+}
+function renderDailyCarrots() {
+  const r = serverRewards; if (!r) return;
+  document.querySelectorAll("[data-daily-carrots]").forEach(el => {
+    el.innerHTML = `<i class=ico-carrot></i> Hôm nay ${r.dailyCarrots}/${r.dailyCap}`;
+    el.classList.toggle("full", r.dailyLeft <= 0);
+    el.title = r.dailyLeft > 0 ? `Còn ${r.dailyLeft} cà rốt có thể kiếm hôm nay` : "Đã đủ cà rốt hôm nay, mai quay lại nhé!";
+  });
+}
+async function syncRewardsFromServer() {
+  if (!currentUser || currentUser.role !== "student") return;
+  try {
+    let { rewards } = await apiRequest("/api/rewards/me");
+    if (!rewards.imported) {
+      const local = getLearningStats();
+      ({ rewards } = await apiRequest("/api/rewards/import", { method: "POST", body: JSON.stringify({ points: local.points, carrots: local.carrots, fedCarrots: local.fedCarrots }) }));
+    }
+    applyServerRewards(rewards);
+  } catch (e) {}
+}
 function gainRewards(xp = 0, carrots = 0, reason = "") {
   const stats = getLearningStats();
   const gainedXp = Math.round((Number(xp) || 0) * getXPMultiplier());
-  stats.points = (stats.points || 0) + gainedXp;
-  stats.carrots = (stats.carrots || 0) + (Number(carrots) || 0);
+  const wantCarrots = Math.max(0, Number(carrots) || 0);
   updateStudyStreak(stats); setLearningStats(stats);
-  renderCapybaraCompanion();
- if (reason) showToast(`+${gainedXp} XP${carrots ?`, +${carrots}`:""} · ${reason}`);
+  if (!currentUser || currentUser.role !== "student") return;
+  apiRequest("/api/rewards/earn", { method: "POST", body: JSON.stringify({ xp: gainedXp, carrots: wantCarrots }) })
+    .then(({ rewards }) => {
+      applyServerRewards(rewards);
+      if (!reason) return;
+      const parts = [`+${rewards.grantedXp} XP`];
+      if (rewards.grantedCarrots) parts.push(`+${rewards.grantedCarrots} cà rốt`);
+      showToast(parts.join(", ") + " · " + reason + (rewards.cappedCarrots > 0 ? ` (đã đủ ${rewards.dailyCap} cà rốt hôm nay)` : ""));
+    })
+    .catch(() => { if (reason) showToast("Chưa lưu được điểm thưởng, kiểm tra kết nối mạng nhé."); });
 }
 function gainCarrots(amount, reason) { gainRewards(0, amount, reason); }
 function gainXP(amount) { gainRewards(amount, 0, ""); }
@@ -472,14 +522,17 @@ document.getElementById("talkToCapybaraBtn")?.addEventListener("click", () => {
   const q = quotes[Math.floor(Math.random() * quotes.length)];
   document.getElementById("capybaraMessage").textContent = `"${q}"`; capybaraSpeak(q);
 });
-document.getElementById("feedCapybaraBtn")?.addEventListener("click", () => {
+document.getElementById("feedCapybaraBtn")?.addEventListener("click", async () => {
   const stats = getLearningStats();
  if ((stats.carrots || 0) <= 0) { showToast("Bạn đã hết Cà rốt! Luyện nói hoặc làm bài kiểm tra để kiếm thêm nhé!"); return; }
-  const feed = Math.min(5, stats.carrots);
   const old = getCapybaraProgress(stats.fedCarrots || 0);
-  stats.carrots -= feed; stats.fedCarrots = (stats.fedCarrots || 0) + feed; stats.points = (stats.points || 0) + feed * 5;
-  updateStudyStreak(stats); setLearningStats(stats); renderCapybaraCompanion();
-  const next = getCapybaraProgress(stats.fedCarrots);
+  let res;
+  try { res = await apiRequest("/api/rewards/feed", { method: "POST", body: JSON.stringify({ amount: 5 }) }); }
+  catch (e) { showToast("Chưa cho Capybara ăn được, thử lại nhé."); return; }
+  const feed = res.rewards.fed;
+  if (!feed) { showToast("Bạn đã hết Cà rốt!"); return; }
+  applyServerRewards(res.rewards);
+  const next = getCapybaraProgress(res.rewards.fedCarrots);
  if (next.lv > old.lv) { cheer("levelUp"); showToast(`Capybara đã thăng cấp lên Lv.${next.lv} ${next.name}!`); capybaraSpeak(`Chúc mừng! Mình đã tiến hóa lên cấp ${next.lv} ${next.name} rồi!`); }
  else { showToast(`Yum! Đã cho Capybara ăn ${feed} củ (+${feed * 5} XP)`); capybaraSpeak("Cảm ơn bạn nhé! Cà rốt ngon tuyệt!"); }
 });
@@ -2035,7 +2088,6 @@ async function sendCapybaraMessage(textToSend) {
   try {
     const res = await apiRequest("/api/ai/chat", { method: "POST", body: JSON.stringify({ message: text, history: chatHistory }) });
     typing.remove(); appendChatMessage("capybara", res.reply || "Capybara đã nhận được câu hỏi!"); chatHistory.push({ role: "assistant", content: res.reply || "" });
-    if (currentUser?.role === "student" && Math.random() < 0.3) gainRewards(5, 1, "Hỏi bài cùng Capybara");
   } catch (err) { typing.remove(); appendChatMessage("capybara", "Chào bạn! " + err.message); }
 }
 document.getElementById("capybaraChatSendBtn")?.addEventListener("click", () => sendCapybaraMessage());

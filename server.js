@@ -19,6 +19,7 @@ const aiService = require("./services/ai-service");
 const speakingScorer = require("./services/speaking-scorer");
 const { extractDocumentText } = require("./services/document-text");
 const progressService = require("./services/progress");
+const rewards = require("./services/rewards");
 const unitsData = require("./services/units-data");
 
 const app = express();
@@ -858,6 +859,62 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+app.get("/api/rewards/me", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, rewards: await rewards.getRewards(req.user.userId) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không tải được điểm thưởng." });
+  }
+});
+
+app.post("/api/rewards/earn", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    const { xp, carrots } = req.body || {};
+    return res.json({ success: true, rewards: await rewards.earn(req.user.userId, xp, carrots) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không cộng được điểm thưởng." });
+  }
+});
+
+app.post("/api/rewards/feed", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    return res.json({ success: true, rewards: await rewards.feed(req.user.userId, (req.body || {}).amount) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không cho Capybara ăn được." });
+  }
+});
+
+app.post("/api/rewards/import", requireLogin, requireRole("student"), async (req, res) => {
+  try {
+    return res.json({ success: true, rewards: await rewards.importLocal(req.user.userId, req.body || {}) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không chuyển được điểm cũ." });
+  }
+});
+
+app.post("/api/me/avatar", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, rewards: await rewards.setAvatar(req.user.userId, req.body || {}) });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || "Không đổi được ảnh đại diện." });
+  }
+});
+
+app.get("/api/leaderboard", requireLogin, async (req, res) => {
+  try {
+    const by = req.query.by === "carrots" ? "carrots" : "xp";
+    const scope = ["class", "grade", "school"].includes(req.query.scope) ? req.query.scope : "class";
+    return res.json({ success: true, ...(await rewards.leaderboard(req.user.userId, { by, scope, limit: req.query.limit })) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không tải được bảng xếp hạng." });
+  }
+});
+
 app.get("/api/auth/me", requireLogin, async (req, res) => {
   try {
     const [rows] = await pool.execute(
@@ -869,7 +926,9 @@ app.get("/api/auth/me", requireLogin, async (req, res) => {
       res.clearCookie("engo_token");
       return res.status(401).json({ success: false, message: "Tài khoản không còn hoạt động." });
     }
-    return res.json({ success: true, user: publicUser(user) });
+    let avatar = { type: "initials" };
+    try { avatar = (await rewards.avatarsFor([user.id]))[user.id] || avatar; } catch (e) {}
+    return res.json({ success: true, user: { ...publicUser(user), avatar } });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể lấy thông tin tài khoản." });

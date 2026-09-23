@@ -246,3 +246,52 @@ body.dark-mode .stat-violet{color:#c4b5fd}body.dark-mode .stat-red{color:#fca5a5
 .chat-close-btn{width:32px;height:32px;padding:0;border:0;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;transition:background .15s}
 .chat-close-btn:hover{background:rgba(255,255,255,.28)}
 .chat-close-btn .mi{font-size:20px;line-height:1;vertical-align:0;display:block}
+
+.avatar{overflow:hidden}
+.avatar.has-img,.lb-avatar.has-img{background:var(--surface-2)!important;padding:0}
+.avatar img,.lb-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.avatar .mi{font-size:24px;color:#fff}
+.carrot-daily{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;background:var(--surface);border:1px dashed #fdba74;color:#9a3412}
+.carrot-daily.full{border-style:solid;background:#fff7ed}
+.carrot-daily:empty{display:none}
+body.dark-mode .carrot-daily{color:#fdba74;border-color:#92400e;background:var(--surface)}
+body.dark-mode .carrot-daily.full{background:#3a2a0d}
+
+.lb-panel{padding:18px}
+.lb-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.lb-controls .seg button{display:inline-flex;align-items:center;gap:5px}
+.lb-daily{margin-left:auto;font-size:13px;font-weight:700;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px}
+.lb-daily.full{color:#9a3412}
+.lb-sub{margin:14px 2px 6px}
+.lb-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;margin:10px 0 18px}
+.lb-pod{text-align:center;padding:16px 10px 14px;border-radius:18px;background:var(--surface-2);border:1px solid var(--line-2);display:flex;flex-direction:column;align-items:center;gap:6px}
+.lb-pod.gold{padding-top:22px;background:linear-gradient(180deg,rgba(250,204,21,.22),var(--surface-2));border-color:#facc15}
+.lb-pod.silver{background:linear-gradient(180deg,rgba(148,163,184,.22),var(--surface-2));border-color:#94a3b8}
+.lb-pod.bronze{background:linear-gradient(180deg,rgba(217,119,6,.18),var(--surface-2));border-color:#d97706}
+.lb-pod.me{box-shadow:0 0 0 3px var(--primary-soft)}
+.lb-pod .lb-avatar{width:58px;height:58px;font-size:20px}
+.lb-pod.gold .lb-avatar{width:70px;height:70px}
+.lb-crown{font-weight:900;color:var(--ink-2)}
+.lb-pod.gold .lb-crown .mi{color:#ca8a04;font-size:28px}
+.lb-name{font-weight:800;line-height:1.3}
+.lb-score{font-size:14px;display:inline-flex;align-items:center;gap:5px}
+.lb-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lb-list li{display:grid;grid-template-columns:36px 40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line-2)}
+.lb-list li.me{border-color:var(--primary);background:var(--primary-soft)}
+.lb-rank{font-weight:900;text-align:center;color:var(--ink-2)}
+.lb-avatar{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(135deg,var(--primary-dark),#0369a1);color:#fff;font-weight:900;font-size:14px;flex-shrink:0}
+.lb-avatar .mi{font-size:1.4em;color:#fff}
+.lb-who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-val{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.lb-me-row{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--primary-soft);color:var(--ink)}
+@media (max-width:620px){.lb-podium{gap:6px}.lb-pod{padding:12px 4px}.lb-pod .lb-avatar{width:46px;height:46px}.lb-pod.gold .lb-avatar{width:54px;height:54px}.lb-name{font-size:13px}.lb-daily{margin-left:0}}
+
+.av-picker{display:grid;gap:14px}
+.av-preview{display:flex;align-items:center;gap:14px}
+.av-preview .lb-avatar{width:72px;height:72px;border-radius:20px;font-size:24px}
+.av-grid{display:flex;flex-wrap:wrap;gap:8px}
+.av-opt{width:44px;height:44px;border-radius:12px;border:2px solid var(--line-2);background:var(--surface-2);display:grid;place-items:center;cursor:pointer;color:var(--ink);padding:0}
+.av-opt .mi{font-size:22px}
+.av-opt.active{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.av-color{width:30px;height:30px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line-2);cursor:pointer;padding:0}
+.av-color.active{box-shadow:0 0 0 3px var(--primary)}

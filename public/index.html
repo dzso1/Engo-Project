@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="./fonts.css?v=3" />
   <link rel="stylesheet" href="./styles.css?v=17" />
-  <link rel="stylesheet" href="./themes.css?v=13" />
+  <link rel="stylesheet" href="./themes.css?v=14" />
 </head>
 <body>
 
@@ -110,6 +110,9 @@
         <button class="nav-btn" data-view="achievements">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span> Thành tích
         </button>
+        <button class="nav-btn" data-view="leaderboard">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M8 21V11H3v10z"/><path d="M15 21V3H9v18z"/><path d="M21 21v-7h-6v7z"/></svg></span> Bảng xếp hạng
+        </button>
       </nav>
 
       <nav class="nav-list" style="margin-top:6px">
@@ -185,6 +188,7 @@
                   </div>
                   <div class="capybara-stats-pill">
                     <span class="carrot-count" id="capybaraCarrotCount"><i class=ico-carrot></i> <strong>15</strong> Cà rốt</span>
+                    <span class="carrot-daily" data-daily-carrots></span>
                     <span class="streak-count" id="capybaraStreakCount"><i class=mi>local_fire_department</i> <strong>1</strong> ngày streak</span>
                   </div>
                 </div>
@@ -524,6 +528,13 @@
             <div><h2>Cài đặt</h2><p>Giao diện, màu nền, cỡ chữ, âm thanh và dữ liệu cá nhân. Mọi tuỳ chọn lưu ngay trên thiết bị này.</p></div>
           </div>
           <div id="settingsMount"></div>
+        </section>
+
+        <section class="view" id="leaderboard">
+          <div class="page-heading">
+            <div><h2>Bảng xếp hạng</h2><p>Leo top theo cấp độ hoặc theo cà rốt cùng các bạn trong lớp, trong khối và toàn trường. Mỗi ngày kiếm được tối đa một số cà rốt nhất định, chăm học đều mỗi ngày là cách lên top nhanh nhất.</p></div>
+          </div>
+          <div id="leaderboardMount"></div>
         </section>
 
         <section class="view" id="achievements">
@@ -1033,7 +1044,8 @@
   <script src="./data/exam-bank.js?v=5"></script>
   <script src="./settings.js?v=4" defer></script>
   <script src="./sfx.js?v=1" defer></script>
-  <script src="./script.js?v=16" defer></script>
+  <script src="./script.js?v=17" defer></script>
   <script src="./units-ui.js?v=13" defer></script>
+  <script src="./leaderboard.js?v=1" defer></script>
 </body>
 </html>
