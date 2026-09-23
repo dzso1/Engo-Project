@@ -73,6 +73,17 @@
     return true;
   }
   const countDone = bucket => Object.keys(loadProg()[bucket] || {}).length;
+  const MAX_PLAYS = 3;
+  function playsLeft(key) {
+    const v = (loadProg().listenPlays || {})[key];
+    return v === undefined ? MAX_PLAYS : Math.max(0, Number(v));
+  }
+  function setPlaysLeft(key, n) {
+    const p = loadProg();
+    p.listenPlays = p.listenPlays || {};
+    if (n >= MAX_PLAYS) delete p.listenPlays[key]; else p.listenPlays[key] = n;
+    saveProg(p);
+  }
 
   const state = { vocabUnit: 1, vocabTab: "words", speakUnit: 1, listenUnit: 1, examTerm: 1, examGrade: 9 };
 
@@ -345,8 +356,8 @@
             <div><h3><span class="unit-lv lv${t.level}">Cấp ${t.level}</span> ${esc(t.title)}</h3>
               <p class="small muted">${t.intro ? esc(t.intro) + " · " : ""}${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "t" + ti] ? "· <i class=mi>check_circle</i> đã hoàn thành" : ""}</p></div>
             <div style="display:flex;gap:8px;align-items:center">
-              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button"><i class=mi>play_arrow</i> Nghe</button>
-              <span class="small muted" data-plays="${ti}">Còn 3 lượt</span>
+              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button" ${playsLeft("u" + u + "t" + ti) <= 0 ? "disabled" : ""}><i class=mi>play_arrow</i> Nghe</button>
+              <span class="small muted" data-plays="${ti}">Còn ${playsLeft("u" + u + "t" + ti)} lượt</span>
             </div>
           </div>
           <div class="unit-body">
@@ -362,17 +373,18 @@
 
     host.querySelectorAll("[data-lunit]").forEach(b => b.addEventListener("click", () => { state.listenUnit = Number(b.dataset.lunit); mountListening(); }));
 
-    const plays = {};
     set.tasks.forEach((t, ti) => {
-      plays[ti] = 3;
+      const key = "u" + u + "t" + ti;
       const playBtn = host.querySelector(`[data-play="${ti}"]`);
       const label = host.querySelector(`[data-plays="${ti}"]`);
+      const showPlays = () => { const left = playsLeft(key); label.textContent = `Còn ${left} lượt`; playBtn.disabled = left <= 0; };
       playBtn.addEventListener("click", () => {
-        if (plays[ti] <= 0) { toast("Đã hết lượt nghe cho đoạn này."); return; }
-        plays[ti]--;
-        label.textContent = `Còn ${plays[ti]} lượt`;
+        const left = playsLeft(key);
+        if (left <= 0) { toast("Đã hết lượt nghe cho đoạn này. Bấm Kiểm tra để nộp, lần làm sau sẽ có lại 3 lượt."); return; }
+        setPlaysLeft(key, left - 1);
+        showPlays();
         playBtn.disabled = true;
-        say(t.script, t.rate, () => { playBtn.disabled = false; });
+        say(t.script, t.rate, () => showPlays());
       });
       host.querySelector(`[data-script="${ti}"]`).addEventListener("click", () => {
         host.querySelector(`[data-scripttext="${ti}"]`).classList.toggle("hidden");
@@ -403,6 +415,8 @@
           if (ok) right++;
         });
         host.querySelector(`[data-score="${ti}"]`).textContent = `Đúng ${right}/${t.qs.length}`;
+        setPlaysLeft(key, MAX_PLAYS);
+        showPlays();
         host.querySelectorAll(`[data-task="${ti}"] .unit-why`).forEach(w => w.classList.remove("hidden"));
         logEvent("listening", "u" + u + "t" + ti, `Nghe Unit ${u} · ${t.title}`, right, t.qs.length, { unit: u, level: t.level, ai: Boolean(t.ai) });
         if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", "u" + u + "t" + ti)) {
