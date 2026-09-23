@@ -827,7 +827,7 @@ function renderSpeakingQuestion(q) {
       onEnd: async alternatives => {
         quizRecognizer = null; mic.classList.remove("recording"); label.textContent = "Đọc lại";
         if (!alternatives.length) { showToast("Chưa thu được giọng đọc, thử lại nhé!"); return; }
-        resultEl.innerHTML = '<div class="small muted">AI đang chấm...</div>';
+        resultEl.innerHTML = '<div class="small muted">Đang chấm điểm...</div>';
         try {
           const res = await apiRequest("/api/speaking/evaluate", { method: "POST", body: JSON.stringify({ target: q.target || q.prompt, alternatives, context: "test", mode: q.mode || "read" }) });
           speakingAnswers[q.id] = { transcript: res.transcript, accuracy: res.accuracy, tip: res.tip };
@@ -1389,17 +1389,35 @@ document.getElementById("speakingNextBtn").addEventListener("click", () => {
   if (!activeSpeakingTask) return;
   if (activeItemIndex < activeSpeakingTask.items.length - 1) { activeItemIndex++; renderSpeakingItem(); } else finishSpeakingTask();
 });
+let speakingAttemptSeq = 0;
+function fetchSpeakingTip(res, target, attemptId, onTip) {
+  if (!res || !res.tipPending) return;
+  apiRequest("/api/speaking/tip", { method: "POST", body: JSON.stringify({ target, transcript: res.transcript, accuracy: res.accuracy, errors: res.errors || [] }) })
+    .then(t => { if (t && t.tip && t.source === "ai" && attemptId === speakingAttemptSeq) onTip(t.tip); })
+    .catch(() => {});
+}
 async function evaluateSpeakingAttempt(alternatives) {
   const task = activeSpeakingTask, item = task?.items[activeItemIndex]; if (!item) return;
   if (!alternatives.length) { showToast("Chưa thu được giọng đọc. Hãy bấm 'Bắt đầu nói' và đọc to câu mẫu nhé!"); return; }
+  const attemptId = ++speakingAttemptSeq;
   const box = document.getElementById("speakingResultBox"); box.classList.remove("hidden");
-  document.getElementById("speakingVerdict").textContent = "AI đang chấm điểm..."; document.getElementById("speakingFeedback").textContent = "";
+  document.getElementById("speakingScorePercent").textContent = "…";
+  document.getElementById("speakingScoreCircle").style.borderColor = "var(--line-2)";
+  document.getElementById("speakingVerdict").textContent = "Đang chấm điểm..."; document.getElementById("speakingFeedback").textContent = "";
+  document.getElementById("speakingErrorNote")?.classList.add("hidden");
   document.getElementById("speakingWordPills").innerHTML = ""; document.getElementById("speakingTranscript").textContent = `"${alternatives[0]}"`;
   try {
     const res = await apiRequest("/api/speaking/evaluate", { method: "POST", body: JSON.stringify({ target: item.text, alternatives, assignmentId: task.assignmentId || null, itemIndex: activeItemIndex, stage: task.stage, context: "practice" }) });
+    if (attemptId !== speakingAttemptSeq) return;
     const result = { accuracy: res.accuracy, transcript: res.transcript, breakdown: res.breakdown, errors: res.errors, verdict: res.verdict, tip: res.tip };
     speakingItemResults[activeItemIndex] = result; lastSpeakingEvaluation = result;
     showSpeakingResult(result, item);
+    if (res.tipPending) {
+      const fbEl = document.getElementById("speakingFeedback");
+      fbEl.classList.add("tip-loading");
+      fetchSpeakingTip(res, item.text, attemptId, tip => { result.tip = tip; fbEl.textContent = tip; fbEl.classList.remove("tip-loading"); });
+      setTimeout(() => fbEl.classList.remove("tip-loading"), 6500);
+    }
     recordSpeakingErrorsForHealing(res.errors || [], item.text, item.ipa);
     const stats = getLearningStats();
     stats.speakingAttempts = (stats.speakingAttempts || 0) + 1; stats.bestSpeakingScore = Math.max(stats.bestSpeakingScore || 0, res.accuracy); setLearningStats(stats);

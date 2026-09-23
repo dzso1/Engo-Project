@@ -1935,6 +1935,19 @@ app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("t
   }
 });
 
+app.post("/api/speaking/tip", requireLogin, async (req, res) => {
+  try {
+    const { target = "", transcript = "", accuracy = 0, errors = [] } = req.body || {};
+    const fb = await aiService.speakingFeedback({
+      target: String(target).slice(0, 400), transcript: String(transcript).slice(0, 400),
+      accuracy: Math.max(0, Math.min(100, Number(accuracy) || 0)), errors: Array.isArray(errors) ? errors.slice(0, 12) : [],
+    });
+    return res.json({ success: true, tip: fb.tip, source: fb.source });
+  } catch (error) {
+    return res.json({ success: true, tip: "", source: "none" });
+  }
+});
+
 app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1963,16 +1976,10 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
 
     const verdict = speakingScorer.verdictFor(result.accuracy);
     let tip = freeJudge && freeJudge.tip ? freeJudge.tip : "";
-    if (!tip) try {
-      const fb = await Promise.race([
-        aiService.speakingFeedback({ target: targetText, transcript: bestTranscript, accuracy: result.accuracy, errors: result.errors }),
-        new Promise(resolve => setTimeout(() => resolve(null), 9000))
-      ]);
-      tip = fb && fb.tip ? fb.tip : "";
-    } catch (e) {}
+    let tipPending = false;
     if (!tip && mode !== "free") {
-      const fb = await aiService.speakingFeedback({ target: "", transcript: "", accuracy: result.accuracy, errors: result.errors });
-      tip = fb.tip;
+      tip = (await aiService.speakingFeedback({ target: "", transcript: "", accuracy: result.accuracy, errors: result.errors })).tip;
+      tipPending = Boolean(targetText && bestTranscript);
     }
 
     if (req.user.role === "student") {
@@ -1984,7 +1991,7 @@ app.post("/api/speaking/evaluate", requireLogin, async (req, res) => {
       } catch (e) { logSchemaError(e); }
     }
 
-    return res.json({ success: true, accuracy: result.accuracy, transcript: bestTranscript, breakdown: result.breakdown, errors: result.errors, verdict, tip });
+    return res.json({ success: true, accuracy: result.accuracy, transcript: bestTranscript, breakdown: result.breakdown, errors: result.errors, verdict, tip, tipPending });
   } catch (error) {
     console.error("Lỗi chấm speaking:", error);
     return res.status(500).json({ success: false, message: "Không thể chấm điểm phát âm lúc này." });

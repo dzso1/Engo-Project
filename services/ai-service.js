@@ -431,6 +431,63 @@ const PROVIDERS = {
 };
 const DEFAULT_ORDER = "gemini,groq,cerebras,mistral,openrouter,openai";
 
+const FAST_PROVIDERS = {
+  groq: async (messages, t) => {
+    const keys = keysOf("GROQ_API_KEYS", "GROQ_API_KEY"); if (!keys.length) return null;
+    return openAiCompatible("groq", "https://api.groq.com/openai/v1/chat/completions", pickKey("groq", keys), process.env.GROQ_FAST_MODEL || "llama-3.1-8b-instant", messages, t);
+  },
+  cerebras: async (messages, t) => {
+    const keys = keysOf("CEREBRAS_API_KEYS", "CEREBRAS_API_KEY"); if (!keys.length) return null;
+    return openAiCompatible("cerebras", "https://api.cerebras.ai/v1/chat/completions", pickKey("cerebras", keys), process.env.CEREBRAS_FAST_MODEL || "llama3.1-8b", messages, t);
+  },
+  gemini: async (messages, t) => {
+    const keys = keysOf("GEMINI_API_KEYS", "GEMINI_API_KEY"); if (!keys.length) return null;
+    const contents = messages.filter(m => m.role !== "system").map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+    const system = messages.find(m => m.role === "system")?.content || "";
+    for (const model of [process.env.GEMINI_FAST_MODEL, "gemini-3.5-flash-lite", "gemini-flash-lite-latest"].filter(Boolean)) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${pickKey("gemini", keys)}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: system }] }, generationConfig: { temperature: 0.5, maxOutputTokens: 300 } }),
+          signal: AbortSignal.timeout(t)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
+          if (text) return text;
+        } else if (res.status === 429) { markCooldown("gemini-fast", 429); return null; }
+      } catch (e) {}
+    }
+    return null;
+  },
+};
+
+async function callFastLlm(messages, timeoutMs = 5000) {
+  const order = String(process.env.AI_FAST_ORDER || "groq,cerebras,gemini").split(",").map(x => x.trim().toLowerCase()).filter(x => FAST_PROVIDERS[x]);
+  const deadline = Date.now() + timeoutMs;
+  for (const name of order) {
+    const left = deadline - Date.now();
+    if (left < 400) break;
+    if (onCooldown(name) || (name === "gemini" && onCooldown("gemini-fast"))) continue;
+    try {
+      const text = await FAST_PROVIDERS[name](messages, left);
+      if (text) { dbg("fast answered by", name); return text; }
+    } catch (e) { if (e && e.status) markCooldown(name, e.status); }
+  }
+  return null;
+}
+
+async function callAiJsonFast(systemInstruction, userPrompt, cacheKey, timeoutMs = 5000) {
+  if (cacheKey) {
+    const cached = getCachedResponse(cacheKey);
+    if (cached) { try { return JSON.parse(cached); } catch (e) {} }
+  }
+  const reply = await callFastLlm([{ role: "system", content: systemInstruction }, { role: "user", content: userPrompt }], timeoutMs);
+  const parsed = extractJson(reply);
+  if (parsed && cacheKey) setCachedResponse(cacheKey, JSON.stringify(parsed));
+  return parsed;
+}
+
 async function callCloudLlm(messages, timeoutMs = 20000) {
   const order = String(process.env.AI_PROVIDER_ORDER || DEFAULT_ORDER).split(",").map(x => x.trim().toLowerCase()).filter(x => PROVIDERS[x]);
   for (const name of order) {
@@ -1207,14 +1264,14 @@ Detected issues: ${JSON.stringify(errors.slice(0, 8))}
 
 Write ONE short, warm, specific tip in Vietnamese (max 45 words) telling the student exactly which sounds/words to fix and how (mouth position or ending sound), or praise if excellent. Return JSON: {"tip":"..."}`;
   try {
-    const parsed = await callAiJson(system, user, `spk_fb_${target.toLowerCase()}_${transcript.toLowerCase()}`.slice(0, 400), 12000);
+    const parsed = await callAiJsonFast(system, user, `spk_fb_${target.toLowerCase()}_${transcript.toLowerCase()}`.slice(0, 400), 6000);
     if (parsed && parsed.tip) return { tip: String(parsed.tip).trim().slice(0, 400), source: "ai" };
   } catch (e) {}
   return { tip: fallbackTip(), source: "rule" };
 }
 
 async function judgeFreeSpeaking({ prompt = "", transcript = "" }) {
-  const words = String(transcript || "").trim().split(/s+/).filter(Boolean);
+  const words = String(transcript || "").trim().split(/\s+/).filter(Boolean);
   const fallback = () => {
     const lengthScore = Math.min(100, Math.round((words.length / 15) * 100));
     return { score: words.length < 3 ? Math.min(20, lengthScore) : Math.round(lengthScore * 0.6), relevance: 50, tip: "Hãy nói ít nhất 3 câu đầy đủ, bám sát câu hỏi.", grammarIssues: [], source: "rule" };

@@ -288,3 +288,4 @@ body.dark-mode .carrot-daily.full{background:#3a2a0d}
 .av-picker{display:grid;gap:14px}
 .av-preview{display:flex;align-items:center;gap:14px}
 .av-preview .lb-avatar{width:72px;height:72px;border-radius:20px;font-size:24px}
+.tip-loading::after{content:" · AI đang viết gợi ý…";opacity:.6;font-style:italic}
