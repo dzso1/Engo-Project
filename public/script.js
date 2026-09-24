@@ -512,7 +512,7 @@ function gainXP(amount) { gainRewards(amount, 0, ""); }
 
 const STREAK_CHECKIN_REWARDS = [
   { day: 1, carrots: 2, xp: 20, icon: "<i class=ico-carrot></i>" }, { day: 2, carrots: 3, xp: 30, icon: "<i class=ico-carrot></i>" }, { day: 3, carrots: 4, xp: 40, icon: "<i class=ico-carrot></i>" },
-  { day: 4, carrots: 5, xp: 50, icon: "<i class=ico-carrot></i>" }, { day: 5, carrots: 6, xp: 60, icon: "<i class=ico-carrot></i>" }, { day: 6, carrots: 8, xp: 80, icon: "<i class=ico-carrot></i>" }, { day: 7, carrots: 10, xp: 100, icon: "<i class=emo>🎁</i>" }
+  { day: 4, carrots: 5, xp: 50, icon: "<i class=ico-carrot></i>" }, { day: 5, carrots: 6, xp: 60, icon: "<i class=ico-carrot></i>" }, { day: 6, carrots: 8, xp: 80, icon: "<i class=ico-carrot></i>" }, { day: 7, carrots: 10, xp: 100, icon: "<i class=mi>workspace_premium</i>" }
 ];
 function getStreakCheckinData() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoStreakCheckinV2")) || "") || { streak: 1, lastClaimDate: "", totalClaimed: 0 }; } catch { return { streak: 1, lastClaimDate: "", totalClaimed: 0 }; } }
 function setStreakCheckinData(data) { localStorage.setItem(getUserStorageKey("engoStreakCheckinV2"), JSON.stringify(data)); }

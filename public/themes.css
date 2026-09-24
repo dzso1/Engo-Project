@@ -312,6 +312,5 @@ body.dark-mode .ans-wrong{color:#f87171}body.dark-mode .ans-right{color:#4ade80}
 .ico-carrot{background:none!important;width:auto!important;height:auto!important;font-style:normal;vertical-align:baseline;line-height:1}
 .ico-carrot::before{content:"🥕";font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif}
 .ico-carrot.lg{font-size:1.4em}
-.emo{font-style:normal;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif;line-height:1}
 .streak-day-item .reward-icon{font-size:22px;line-height:1.2}
-.streak-hero-icon-wrap .emo,.streak-hero-icon-wrap .ico-carrot{font-size:38px}
+.streak-hero-icon-wrap .ico-carrot{font-size:38px}
