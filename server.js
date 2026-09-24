@@ -14,6 +14,8 @@ const pool = require("./database/db");
 const { parseDocxAssessment } = require("./services/docx-assessment-parser");
 const { docxToText, stripMarks } = require("./services/docx-text");
 const { structureTestWithAi } = require("./services/test-structurer");
+const { attachDocxImages } = require("./services/docx-images");
+const crypto = require("crypto");
 const pdfParse = require("pdf-parse");
 const aiService = require("./services/ai-service");
 const speakingScorer = require("./services/speaking-scorer");
@@ -1079,13 +1081,48 @@ async function readTestDocument(buffer, fileName, title, hints) {
   const isPdf = /\.pdf$/i.test(String(fileName || "")) || buffer.slice(0, 4).toString() === "%PDF";
   const text = isPdf ? (await pdfParse(buffer)).text : await docxToText(buffer);
   if (!String(text || "").trim()) throw new Error("Tệp không chứa văn bản đọc được.");
+  let test;
   try {
-    return await structureTestWithAi(text, { title, hints });
+    test = await structureTestWithAi(text, { title, hints });
   } catch (e) {
     console.warn("AI structure failed, fallback regex parser:", e.message);
-    return parseDocxAssessment(stripMarks(text), title);
+    test = parseDocxAssessment(stripMarks(text.replace(/\s*\[IMAGE\]\s*/g, " ")), title);
   }
+  if (!isPdf) {
+    try {
+      const r = await attachDocxImages(buffer, test, saveTestImage);
+      if (r.attached) test.imageCount = r.attached;
+    } catch (e) { console.warn("Attach images failed:", e.message); }
+  }
+  return test;
 }
+
+let testImagesReady = null;
+function ensureTestImages() {
+  if (!testImagesReady) testImagesReady = pool.query("CREATE TABLE IF NOT EXISTS test_images (hash CHAR(32) PRIMARY KEY, mime VARCHAR(40) NOT NULL, data MEDIUMBLOB NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)").catch(e => { testImagesReady = null; throw e; });
+  return testImagesReady;
+}
+async function saveTestImage(buf, ext, mime) {
+  if (buf.length > 8 * 1024 * 1024) return null;
+  await ensureTestImages();
+  const hash = crypto.createHash("md5").update(buf).digest("hex");
+  await pool.execute("INSERT IGNORE INTO test_images (hash, mime, data) VALUES (?, ?, ?)", [hash, mime, buf]);
+  return `/api/test-images/${hash}${ext}`;
+}
+app.get("/api/test-images/:name", async (req, res) => {
+  try {
+    const hash = String(req.params.name).split(".")[0];
+    if (!/^[0-9a-f]{32}$/.test(hash)) return res.status(404).end();
+    await ensureTestImages();
+    const [rows] = await pool.execute("SELECT mime, data FROM test_images WHERE hash = ? LIMIT 1", [hash]);
+    if (!rows.length) return res.status(404).end();
+    res.set("Content-Type", rows[0].mime);
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    return res.send(rows[0].data);
+  } catch (e) {
+    return res.status(500).end();
+  }
+});
 
 function durationForTest(testType, test, analysis) {
   if (test && test.durationHint) return Math.max(5, Math.min(180, Number(test.durationHint)));
@@ -1326,7 +1363,9 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
     const review = objective.map(question => {
       const value = answers[question.id];
       const res = objectiveResult[question.id] || { correct: false };
-      return { id: question.id, section: question.section, prompt: question.prompt, instruction: question.instruction || "", selected: value ?? "", correctAnswer: question.type === "multiple_choice" ? question.answer : (question.accepted || []).join(" / "), correct: res.correct, aiNote: res.note || "", options: question.options || [] };
+      const isMc = question.type === "multiple_choice";
+      const optLabel = key => { const o = (question.options || []).find(x => String(x.key).toUpperCase() === String(key || "").trim().toUpperCase()); return o ? `${o.key}. ${o.text}` : String(key || ""); };
+      return { id: question.id, section: question.section, prompt: question.prompt, instruction: question.instruction || "", images: question.images || [], selected: value ?? "", selectedLabel: isMc && value ? optLabel(value) : String(value ?? ""), correctAnswer: isMc ? question.answer : (question.accepted || []).join(" / "), correctLabel: isMc ? optLabel(question.answer) : (question.accepted || []).join(" / "), correct: res.correct, aiNote: res.note || "", options: question.options || [] };
     });
 
     const totalMax = objectiveMax + manualMax;

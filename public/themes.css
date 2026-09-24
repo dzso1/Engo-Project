@@ -289,3 +289,23 @@ body.dark-mode .carrot-daily.full{background:#3a2a0d}
 .av-preview{display:flex;align-items:center;gap:14px}
 .av-preview .lb-avatar{width:72px;height:72px;border-radius:20px;font-size:24px}
 .tip-loading::after{content:" · AI đang viết gợi ý…";opacity:.6;font-style:italic}
+.q-images{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 12px}
+.q-image{display:block;max-width:min(100%,380px);max-height:300px;object-fit:contain;border-radius:12px;border:1px solid var(--line);background:#fff;padding:6px;cursor:zoom-in}
+.q-image.zoomed{max-width:100%;max-height:none;cursor:zoom-out}
+.opt-image{display:block;max-width:160px;max-height:120px;object-fit:contain;border-radius:8px;background:#fff;margin-bottom:4px}
+.blank-line{display:inline-block;min-width:5.5em;border-bottom:2px solid var(--ink-2);height:1em;vertical-align:baseline;margin:0 .2em;transform:translateY(.15em)}
+h4.has-blank{line-height:2}
+.blank-input{font:inherit;font-weight:700;color:var(--primary-dark);background:transparent;border:0;border-bottom:2px solid var(--ink-2);border-radius:0;padding:0 .3em 1px;margin:0 .2em;width:8ch;min-width:8ch;max-width:100%;outline:none;transition:border-color .15s,background .15s}
+.blank-input:focus{border-bottom-color:var(--primary);background:var(--primary-soft)}
+.blank-input.wide{width:min(100%,32em)}
+body.dark-mode .blank-input{color:var(--primary)}
+.blank-answer{width:100%;font:inherit;font-size:17px;font-weight:600;padding:10px 4px 6px;border:0;border-bottom:2px dashed var(--ink-2);border-radius:0;background:transparent;color:var(--ink);outline:none}
+.blank-answer:focus{border-bottom:2px solid var(--primary)}
+.blank-hint{margin-top:4px;display:flex;align-items:center;gap:6px}
+.review-ans{display:grid;gap:4px;margin-top:6px;font-size:14px}
+.ans-wrong{color:#dc2626}.ans-right{color:#15803d}
+body.dark-mode .ans-wrong{color:#f87171}body.dark-mode .ans-right{color:#4ade80}
+.q-crop{position:relative;overflow:hidden;display:block;width:min(100%,380px);height:auto;max-height:none;padding:0}
+.q-crop img{position:absolute;max-width:none;display:block}
+.q-crop.zoomed{width:100%}
+.opt-image.q-crop{width:160px}

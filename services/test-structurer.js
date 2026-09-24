@@ -54,7 +54,7 @@ Return JSON:
 RULES:
 1. Question types: multiple_choice = choose A/B/C/D (also True/False, matching with lettered choices). short_answer = fill one/few words, word form, verb form, sentence rewriting with an expected result, answer questions about a passage briefly. writing = paragraph/essay/letter/free writing (graded by teacher). speaking = speak/talk tasks.
 2. Use the paper's answer key (ĐÁP ÁN / KEY / answers table). If a question has no key, solve it yourself. VERIFY every key: if it is clearly wrong, put the correct answer and explain in keyIssue. Otherwise keyIssue must be null.
-3. Listening parts: include them ONLY if the paper contains the transcript/script; otherwise list them in "dropped". Questions that depend on a picture/map also go to "dropped".
+3. Listening parts: include them ONLY if the paper contains the transcript/script; otherwise list them in "dropped". [IMAGE] marks a picture in the paper (sign, notice, photo). Questions about a picture/sign/notice must be KEPT (the picture is attached automatically): start their "prompt" with [IMAGE]. Never drop a question only because it has a picture.
 4. Points: use the points printed on the paper. If none, distribute so all questions total 10.
 5. Keep the question numbering of the paper. Never merge or split questions. Never drop <u> tags from phonetics questions or their options.
 6. For "Odd one out"/stress questions, options are the words; answer is the key letter.
@@ -73,18 +73,21 @@ function normalizeStructured(parsed, fallbackTitle) {
   let autoNumber = 0;
   for (const part of parts) {
     const section = sectionName(part.skill);
-    const instruction = stripMarks(String(part.instruction || "")).trim();
-    const context = part.context ? stripMarks(String(part.context)).trim() : "";
+    const noImg = v => String(v || "").replace(/\s*\[IMAGE\]\s*/gi, " ");
+    const instruction = stripMarks(noImg(part.instruction)).trim();
+    const context = part.context ? stripMarks(noImg(part.context)).trim() : "";
     for (const q of (Array.isArray(part.questions) ? part.questions : [])) {
       autoNumber++;
       let number = Number(q.number);
       if (!Number.isFinite(number) || number <= 0 || seen.has(number)) number = seen.size ? Math.max(...seen) + 1 : autoNumber;
       seen.add(number);
       let type = ["multiple_choice", "short_answer", "writing", "speaking"].includes(q.type) ? q.type : "short_answer";
-      const options = Array.isArray(q.options) ? q.options.filter(o => o && (o.text || o.key)).map((o, i) => ({ key: String(o.key || String.fromCharCode(65 + i)).trim().toUpperCase().slice(0, 1), text: String(o.text || "").trim() })) : [];
+      const options = Array.isArray(q.options) ? q.options.filter(o => o && (o.text || o.key)).map((o, i) => ({ key: String(o.key || String.fromCharCode(65 + i)).trim().toUpperCase().slice(0, 1), text: noImg(o.text).trim() })) : [];
       if (type === "multiple_choice" && options.length < 2) type = "short_answer";
       if (type !== "multiple_choice" && options.length >= 2) type = "multiple_choice";
-      const prompt = String(q.prompt || "").replace(/<\/?b>/g, "").trim();
+      const rawPrompt = String(q.prompt || "");
+      const hasImage = /\[IMAGE\]/i.test(rawPrompt);
+      const prompt = rawPrompt.replace(/\s*\[IMAGE\]\s*/gi, " ").replace(/<\/?b>/g, "").trim();
       const points = Number(q.points);
       const item = {
         id: `q-${number}`,
@@ -98,6 +101,7 @@ function normalizeStructured(parsed, fallbackTitle) {
         manual: type === "writing",
       };
       if (context) item.context = context;
+      if (hasImage) item.hasImage = true;
       if (type === "multiple_choice") {
         const ans = String(q.answer || "").trim().toUpperCase().slice(0, 1);
         item.answer = options.some(o => o.key === ans) ? ans : options[0].key;

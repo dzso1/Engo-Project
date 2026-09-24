@@ -66,7 +66,24 @@ function showToast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
 }
 function escapeHTML(value) { return String(value ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m])); }
-function richText(value) { return escapeHTML(value).replace(/&lt;(\/?)(u|b)&gt;/g, "<$1$2>").replace(/\n/g, "<br>"); }
+function richText(value) {
+  let out = "", stack = [];
+  for (const part of escapeHTML(value).split(/(&lt;\/?[ub]&gt;)/)) {
+    const m = part.match(/^&lt;(\/?)([ub])&gt;$/);
+    if (!m) { out += part; continue; }
+    if (!m[1]) { stack.push(m[2]); out += `<${m[2]}>`; continue; }
+    const i = stack.lastIndexOf(m[2]);
+    if (i < 0) continue;
+    const reopen = stack.slice(i + 1);
+    for (let k = stack.length - 1; k >= i; k--) out += `</${stack[k]}>`;
+    stack = stack.slice(0, i);
+    for (const t of reopen) { out += `<${t}>`; stack.push(t); }
+  }
+  for (let k = stack.length - 1; k >= 0; k--) out += `</${stack[k]}>`;
+  return out.replace(/\n/g, "<br>");
+}
+function fillGaps(value) { return String(value ?? "").replace(/(\S)[  ]{3,}(?=\S|$)/gm, "$1 ______ "); }
+function gapText(value) { return richText(fillGaps(value)).replace(/_{2,}|\.{4,}|…[….]+/g, '<span class="blank-line"></span>'); }
 function plainText(value) { return String(value ?? "").replace(/<\/?[ub]>/g, ""); }
 function fmtDate(v, withTime = false) {
   if (!v) return "—";
@@ -753,14 +770,45 @@ const TASK_FALLBACK = {
 };
 const TYPE_FALLBACK = {
   multiple_choice: { en: "Choose the best option (A, B, C or D).", vi: "Chọn phương án đúng nhất (A, B, C hoặc D)." },
-  short_answer: { en: "Write ONE suitable word or the required form in the blank.", vi: "Điền MỘT từ thích hợp hoặc dạng đúng của từ vào chỗ trống." },
+  short_answer: { en: "Write your answer in the blank.", vi: "Viết câu trả lời vào chỗ trống." },
   writing: { en: "Write a complete answer in English.", vi: "Viết câu trả lời hoàn chỉnh bằng tiếng Anh." },
   speaking: { en: "Speak your answer aloud in English.", vi: "Nói câu trả lời của em bằng tiếng Anh." },
 };
+const TASK_VI_HINTS = [
+  { re: /rewrite|finish each|another way|same meaning|nearest in meaning|without changing/i, type: "short_answer", vi: "Viết tiếp / viết lại câu sao cho nghĩa không đổi so với câu đã cho." },
+  { re: /correct form|word given|form of the (word|verb)|in brackets|in parentheses/i, type: "short_answer", vi: "Viết dạng đúng của từ trong ngoặc vào chỗ trống." },
+  { re: /\bsigns?\b|notice|picture|announcement/i, vi: "Nhìn hình / biển báo / thông báo rồi chọn đáp án đúng." },
+  { re: /true|false/i, type: "multiple_choice", vi: "Đọc rồi chọn đúng (True) hay sai (False)." },
+  { re: /pronounced differently|underlined part/i, vi: "Chọn từ có phần gạch chân phát âm khác các từ còn lại." },
+  { re: /stress/i, vi: "Chọn từ có trọng âm khác các từ còn lại." },
+  { re: /fill in|complete the (sentence|passage|text)|blank/i, type: "short_answer", vi: "Điền từ thích hợp vào chỗ trống." },
+];
 function taskFor(q) {
   const own = String(q.instruction || "").trim();
-  const base = TASK_FALLBACK[q.section] || TYPE_FALLBACK[q.type] || TYPE_FALLBACK.multiple_choice;
-  return { text: own || base.en, vi: base.vi, fromPaper: Boolean(own) };
+  const base = (q.type === "short_answer" ? TYPE_FALLBACK.short_answer : null) || TASK_FALLBACK[q.section] || TYPE_FALLBACK[q.type] || TYPE_FALLBACK.multiple_choice;
+  const hint = TASK_VI_HINTS.find(h => h.re.test(own) && (!h.type || h.type === q.type));
+  return { text: own || base.en, vi: hint ? hint.vi : base.vi, fromPaper: Boolean(own) };
+}
+
+function qImageHTML(im, cls = "q-image") {
+  const src = typeof im === "string" ? im : im?.src;
+  if (!src) return "";
+  const alt = "Hình minh hoạ câu hỏi";
+  if (typeof im === "string" || !Array.isArray(im.crop)) return `<img class="${cls}" src="${escapeHTML(src)}" alt="${alt}" loading="lazy">`;
+  const [l, t, r, b] = im.crop.map(Number);
+  const w = Math.max(0.05, 1 - l - r), h = Math.max(0.05, 1 - t - b);
+  const pct = v => `${(v * 100).toFixed(3)}%`;
+  return `<span class="${cls} q-crop" style="aspect-ratio:${Number(im.ratio) || 1.5}"><img src="${escapeHTML(src)}" alt="${alt}" loading="lazy" style="width:${pct(1 / w)};height:${pct(1 / h)};left:${pct(-l / w)};top:${pct(-t / h)}"></span>`;
+}
+const BLANK_RE = /_{2,}|\.{4,}|…[….]+/g;
+function inlineBlank(prompt, value) {
+  let html = richText(fillGaps(prompt || ""));
+  if (!(html.match(BLANK_RE) || []).length) html = html.replace(/\t+/g, "______");
+  const count = (html.match(BLANK_RE) || []).length;
+  const input = wide => `<input class="blank-input${wide ? " wide" : ""}" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Chỗ trống" value="${escapeHTML(value || "")}">`;
+  if (count === 1) return { html: html.replace(BLANK_RE, m => input(m.length >= 20)), inline: true };
+  if (!count && /(?:→|=&gt;|-&gt;)[^<]*$/.test(html)) return { html: html.replace(/\s*$/, " ") + input(true), inline: true };
+  return { html: html.replace(BLANK_RE, '<span class="blank-line"></span>'), inline: false };
 }
 
 function renderQuestion() {
@@ -775,19 +823,34 @@ function renderQuestion() {
   let content = "";
   const task = taskFor(q);
   content += `<div class="task-instruction"><i class=mi>assignment</i><div><span>${richText(task.text)}</span><small>${escapeHTML(task.vi)}</small></div></div>`;
-  if (q.passage) content += `<div class="reading-passage">${richText(q.passage)}</div>`;
+  if (q.passage) content += `<div class="reading-passage">${gapText(q.passage)}</div>`;
+  if (q.images?.length) content += `<div class="q-images">${q.images.map(im => qImageHTML(im)).join("")}</div>`;
   const sameAsTask = q.instruction && plainText(q.prompt || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === plainText(q.instruction).replace(/[^a-z0-9]/gi, "").toLowerCase();
-  content += `<h4>${sameAsTask ? `Câu ${q.number || currentQuestion + 1}` : richText(q.prompt || "")}</h4>`;
+  const blank = q.type === "short_answer" && !sameAsTask ? inlineBlank(q.prompt, answers[q.id]) : null;
+  content += `<h4 class="${blank?.inline ? "has-blank" : ""}">${sameAsTask ? `Câu ${q.number || currentQuestion + 1}` : blank ? blank.html : gapText(q.prompt || "")}</h4>`;
   questionContent.innerHTML = content;
+  questionContent.querySelectorAll(".q-image").forEach(img => img.addEventListener("click", () => img.classList.toggle("zoomed")));
 
   if (q.type === "speaking") {
     renderSpeakingQuestion(q);
   } else if (q.options?.length) {
-    answerArea.innerHTML = `<div class="option-list">${q.options.map((opt, i) => `<div class="option ${answers[q.id] === i ? "selected" : ""}" data-option="${i}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${richText(opt.replace(/^[A-D]\.\s*/, ""))}</span></div>`).join("")}</div>`;
+    answerArea.innerHTML = `<div class="option-list">${q.options.map((opt, i) => `<div class="option ${answers[q.id] === i ? "selected" : ""}" data-option="${i}"><span class="option-marker">${String.fromCharCode(65 + i)}</span><span>${q.optionImages?.[i] ? qImageHTML(q.optionImages[i], "opt-image") : ""}${richText(opt.replace(/^[A-D]\.\s*/, ""))}</span></div>`).join("")}</div>`;
     answerArea.querySelectorAll(".option").forEach(el => el.addEventListener("click", () => { answers[q.id] = Number(el.dataset.option); saveAnswers(); renderQuestion(); }));
   } else {
-    answerArea.innerHTML = `<textarea class="text-answer" placeholder="${q.type === "writing" ? "Viết bài của em tại đây (giáo viên sẽ chấm)..." : "Nhập câu trả lời của em..."}">${escapeHTML(answers[q.id] || "")}</textarea>`;
-    answerArea.querySelector("textarea").addEventListener("input", e => { answers[q.id] = e.target.value; saveAnswers(); renderQuestionGrid(); });
+    const onInput = e => { answers[q.id] = e.target.value; saveAnswers(); renderQuestionGrid(); };
+    if (blank?.inline) {
+      answerArea.innerHTML = `<div class="small muted blank-hint"><i class=mi>edit</i> Gõ đáp án vào chỗ trống trong câu ở trên.</div>`;
+      const inp = questionContent.querySelector(".blank-input");
+      const fit = () => { if (!inp.classList.contains("wide")) inp.style.width = `${Math.max(8, Math.min(40, inp.value.length + 2))}ch`; };
+      fit();
+      inp.addEventListener("input", e => { fit(); onInput(e); });
+    } else if (q.type === "short_answer") {
+      answerArea.innerHTML = `<input class="blank-answer" type="text" autocomplete="off" spellcheck="false" placeholder="Nhập câu trả lời của em..." value="${escapeHTML(answers[q.id] || "")}">`;
+      answerArea.querySelector("input").addEventListener("input", onInput);
+    } else {
+      answerArea.innerHTML = `<textarea class="text-answer" placeholder="Viết bài của em tại đây (giáo viên sẽ chấm)...">${escapeHTML(answers[q.id] || "")}</textarea>`;
+      answerArea.querySelector("textarea").addEventListener("input", onInput);
+    }
   }
   renderQuestionGrid();
   document.getElementById("quizProgress").style.width = `${((currentQuestion + 1) / questions.length) * 100}%`;
@@ -855,7 +918,7 @@ async function startImportedTest(testId) {
   try {
     const data = await apiRequest(`/api/tests/${testId}`);
     activeImportedTest = data.test;
-    questions = data.test.sections.flatMap(section => section.questions).map(q => ({ ...q, passage: q.context || "", options: q.options?.map(o => `${o.key}. ${o.text}`) || [] }));
+    questions = data.test.sections.flatMap(section => section.questions).map(q => ({ ...q, passage: q.context || "", optionImages: q.options?.map(o => o.image || "") || [], options: q.options?.map(o => `${o.key}. ${o.text}`) || [] }));
     try { const saved = JSON.parse(localStorage.getItem(getUserStorageKey(`engoAnswers_${testId}`)) || "{}"); answers = saved.answers || {}; speakingAnswers = saved.speakingAnswers || {}; } catch { answers = {}; speakingAnswers = {}; }
     currentQuestion = 0;
     secondsLeft = (data.test.durationMinutes || 45) * 60;
@@ -901,7 +964,7 @@ async function submitQuiz() {
     document.getElementById("attemptCount").textContent = examTabSwitches > 0 ? `${examTabSwitches} vi phạm (-${penalty}đ)` : "Nghiêm túc";
     applyResultScoreUI(scoreOnTen, result.status === "pending_manual");
     lastTestReview = result.review || [];
-    document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.slice(0, 12).map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}${r.instruction ? " · " + richText(r.instruction) : ""}</div><div>${richText(r.prompt)}</div><div class="small">Bạn chọn: <b style="color:#dc2626">${escapeHTML(String(r.selected || "—"))}</b> · Đáp án: <b style="color:#16a34a">${richText(String(r.correctAnswer || ""))}</b>${r.aiNote ? `<div class="small muted">AI: ${escapeHTML(r.aiNote)}</div>` : ""}</div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px"><i class=mi>celebration</i> Không có câu trắc nghiệm nào sai!</div>';
+    document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}${r.instruction ? " · " + richText(r.instruction) : ""}</div>${r.images?.length ? `<div class="q-images">${r.images.map(im => qImageHTML(im)).join("")}</div>` : ""}<div>${gapText(r.prompt)}</div><div class="review-ans"><div>Bạn chọn: <b class="ans-wrong">${richText(String(r.selectedLabel || r.selected || "—"))}</b></div><div>Đáp án đúng: <b class="ans-right">${richText(String(r.correctLabel || r.correctAnswer || ""))}</b></div></div>${r.aiNote ? `<div class="small muted">AI: ${escapeHTML(r.aiNote)}</div>` : ""}</div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px"><i class=mi>celebration</i> Không có câu trắc nghiệm nào sai!</div>';
     recordTestErrorsForHealing(wrong, activeImportedTest.title);
     const st = getLearningStats(); st.quizCount = (st.quizCount || 0) + 1; st.bestScore = Math.max(st.bestScore || 0, scoreOnTen); setLearningStats(st);
     gainRewards(scoreOnTen >= 8 ? 40 : 25, scoreOnTen >= 8 ? 3 : 1, "Hoàn thành bài kiểm tra");
@@ -1526,7 +1589,7 @@ function recordTestErrorsForHealing(wrongList, testTitle) {
   if (!wrongList.length) return;
   const profile = getHealingProfile();
   wrongList.forEach(r => {
-    profile.test.unshift({ id: `test-${Date.now()}-${r.id}`, testTitle, section: r.section, prompt: r.prompt, selected: r.selected, correct: r.correctAnswer, reviewed: false, createdAt: new Date().toISOString() });
+    profile.test.unshift({ id: `test-${Date.now()}-${r.id}`, testTitle, section: r.section, prompt: plainText(r.prompt), selected: plainText(r.selectedLabel || r.selected), correct: plainText(r.correctLabel || r.correctAnswer), reviewed: false, createdAt: new Date().toISOString() });
     if (r.section === "Grammar and Vocabulary" || r.section === "Phonetics") {
       const code = detectGrammarCode(`${r.prompt} ${(r.options || []).map(o => o.text || o).join(" ")}`);
       if (code) addGrammarError(profile, code, r.prompt, r.selected, r.correctAnswer, "test");

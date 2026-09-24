@@ -28,7 +28,6 @@ function titleOf(rec, structured) {
   if (rec.backup) parts.push("Dự phòng");
   if (rec.online) parts.push("Online");
   if (rec.className) parts.push(rec.className);
-  if (rec.teacher) parts.push(`GV ${rec.teacher.replace(/^(C|T)\.\s*/i, "")}`);
   return parts.join(" · ").slice(0, 200);
 }
 

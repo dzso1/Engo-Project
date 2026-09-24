@@ -25,6 +25,7 @@ function paragraphText(pXml) {
       else if (/^<w:t[\s>]/.test(pm[0])) text += decodeXml(pm[1]);
       else text += "\n";
     }
+    if (/<w:drawing\b|<w:pict\b/.test(run) && /r:embed=|r:id=/.test(run)) text += " [IMAGE] ";
     if (!text) continue;
     pieces.push({ text, u, b });
   }
@@ -36,7 +37,7 @@ function paragraphText(pXml) {
   if (curU) out.push("</u>");
   if (curB) out.push("</b>");
   return out.join("")
-    .replace(/<u>(\s*)<\/u>/g, "$1").replace(/<b>(\s*)<\/b>/g, "$1")
+    .replace(/<u>(\s*)<\/u>/g, (m, sp) => sp.replace(/\n/g, "").length >= 3 ? " ______ " : sp).replace(/<b>(\s*)<\/b>/g, "$1")
     .replace(/<\/u>(\s*)<u>/g, "$1").replace(/<\/b>(\s*)<b>/g, "$1");
 }
 
