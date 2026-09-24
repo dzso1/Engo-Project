@@ -11,6 +11,7 @@ const argOf = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1]
 const CONC = Number(argOf("--concurrency", 3)) || 3;
 const LIMIT = Number(argOf("--limit", 0)) || Infinity;
 const SYNC_ONLY = args.includes("--sync-only");
+const TEST_ID = Number(argOf("--test-id", 0)) || null;
 const log = m => { const line = `[${new Date().toISOString().slice(11, 19)}] ${m}`; console.log(line); fs.appendFileSync(path.join(ROOT, ".import/verify-log.txt"), line + "\n"); };
 
 const norm = v => String(v || "").toLowerCase().replace(/[’‘`]/g, "'").replace(/[.!?;:,"]+$/g, "").replace(/\s+/g, " ").trim();
@@ -57,11 +58,11 @@ ${JSON.stringify(disputes)}`;
 }
 
 async function verifyOne(file) {
-  const p = path.join(OUT_DIR, file);
+  const p = path.isAbsolute(file) ? file : path.join(OUT_DIR, file);
   const data = JSON.parse(fs.readFileSync(p, "utf8"));
   const test = data.test;
   if (data.verification) return { skipped: true };
-  test.sourceHashKey = file.replace(".json", "");
+  test.sourceHashKey = path.basename(file).replace(".json", "");
   let solved = {};
   for (let attempt = 0; attempt < 4 && !Object.keys(solved).length; attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, 8000 * attempt));
@@ -123,7 +124,23 @@ async function syncToDb(file) {
   return true;
 }
 
+async function verifyDbTest(id) {
+  const [rows] = await pool.execute("SELECT id, title, questions_json FROM imported_tests WHERE id = ? LIMIT 1", [id]);
+  if (!rows.length) throw new Error("Không có đề id " + id);
+  const stored = typeof rows[0].questions_json === "string" ? JSON.parse(rows[0].questions_json) : rows[0].questions_json;
+  const dir = path.join(ROOT, ".import/manual");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, "test-" + id + "-" + Date.now() + ".json");
+  fs.writeFileSync(file, JSON.stringify({ test: stored }));
+  const r = await verifyOne(file);
+  const data = JSON.parse(fs.readFileSync(file, "utf8"));
+  await pool.execute("UPDATE imported_tests SET questions_json = ?, summary_json = ? WHERE id = ?", [JSON.stringify({ ...stored, ...data.test }), JSON.stringify(data.test.summary), id]);
+  log(`Đề #${id} "${rows[0].title}": đồng ý ${r.agreed}, tranh chấp ${r.disputes}, đổi ${r.changed}`);
+  for (const q of data.test.questions) if (q.keyNote) log(`  Câu ${q.number}: ${q.keyNote}`);
+}
+
 (async () => {
+  if (TEST_ID) { await verifyDbTest(TEST_ID); await pool.end(); return; }
   const files = fs.readdirSync(OUT_DIR).filter(f => f.endsWith(".json"));
   if (SYNC_ONLY) {
     let n = 0; for (const f of files) if (await syncToDb(f)) n++;

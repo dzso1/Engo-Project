@@ -164,4 +164,4 @@ async function structureTestWithAi(text, opts = {}) {
   return test;
 }
 
-module.exports = { structureTestWithAi, normalizeStructured, sectionName };
+module.exports = { structureTestWithAi, normalizeStructured, sectionName, buildPrompt, SYSTEM };

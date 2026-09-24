@@ -381,7 +381,7 @@ async function callGemini(messages, timeoutMs) {
       try {
         const res = await fetch(url, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemInstruction }] }, generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } }),
+          body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemInstruction }] }, generationConfig: { temperature: 0.7, maxOutputTokens: 32768 } }),
           signal: AbortSignal.timeout(timeoutMs)
         });
         if (res.ok) {
@@ -927,10 +927,24 @@ function extractJson(reply) {
   if (end <= start) return null;
   const slice = clean.slice(start, end + 1);
   try { return JSON.parse(slice); } catch (e) {}
-  try {
-    const repaired = slice.replace(/,s*([}]])/g, "$1").replace(/[ --]/g, " ");
-    return JSON.parse(repaired);
-  } catch (e) { return null; }
+  try { return JSON.parse(repairJson(slice)); } catch (e) { return null; }
+}
+
+function repairJson(text) {
+  let out = "", inStr = false, esc = false;
+  for (const ch of text) {
+    if (inStr) {
+      if (esc) { out += ch; esc = false; continue; }
+      if (ch === "\\") { out += ch; esc = true; continue; }
+      if (ch === '"') { out += ch; inStr = false; continue; }
+      if (ch.charCodeAt(0) < 0x20) { const code = ch.charCodeAt(0); out += code === 10 ? "\\n" : code === 9 ? "\\t" : code === 13 ? "\\r" : " "; continue; }
+      out += ch;
+    } else {
+      if (ch === '"') inStr = true;
+      out += ch;
+    }
+  }
+  return out.replace(/,\s*([}\]])/g, "$1");
 }
 
 async function callAiJson(systemInstruction, userPrompt, cacheKey, timeoutMs = 45000) {
