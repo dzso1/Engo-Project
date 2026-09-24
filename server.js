@@ -22,6 +22,7 @@ const speakingScorer = require("./services/speaking-scorer");
 const { extractDocumentText } = require("./services/document-text");
 const progressService = require("./services/progress");
 const rewards = require("./services/rewards");
+const userData = require("./services/user-data");
 const unitsData = require("./services/units-data");
 
 const app = express();
@@ -861,6 +862,24 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+app.get("/api/me/data", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, items: await userData.getAll(req.user.userId), serverTime: Date.now() });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không tải được dữ liệu học tập." });
+  }
+});
+
+app.put("/api/me/data", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, saved: await userData.putMany(req.user.userId, (req.body || {}).items) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không lưu được dữ liệu học tập." });
+  }
+});
+
 app.get("/api/rewards/me", requireLogin, async (req, res) => {
   try {
     return res.json({ success: true, rewards: await rewards.getRewards(req.user.userId) });
@@ -956,6 +975,7 @@ app.delete("/api/auth/delete-me", requireLogin, async (req, res) => {
       }
     }
     await pool.execute("DELETE FROM users WHERE id = ?", [userId]);
+    try { await pool.execute("DELETE FROM user_data WHERE user_id = ?", [userId]); } catch (e) {}
     res.clearCookie("engo_token", {
       httpOnly: true,
       sameSite: "lax",
@@ -1051,6 +1071,7 @@ app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (re
       }
     }
     await pool.execute("DELETE FROM users WHERE id = ?", [req.params.id]);
+    try { await pool.execute("DELETE FROM user_data WHERE user_id = ?", [req.params.id]); } catch (e) {}
     return res.json({ success: true, message: "Đã xóa tài khoản." });
   } catch (error) {
     console.error(error);

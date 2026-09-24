@@ -228,8 +228,12 @@ function updateUserUI(user) {
     migrateLocalData();
     renderCapybaraCompanion();
     updateStreakTopbarUI();
-    setTimeout(() => renderDailyStreakModal(false), 800);
   }
+  pullCloudData().then(changed => {
+    if (user.role !== "student") return;
+    if (changed) { try { renderCapybaraCompanion(); updateStreakTopbarUI(); if (typeof renderStudentDashboard === "function") renderStudentDashboard(true); } catch (e) { console.warn(e); } }
+    setTimeout(() => renderDailyStreakModal(false), 300);
+  });
 }
 const LOCAL_DATA_VERSION = 4;
 const USER_KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoNotificationsReadV3"];
@@ -264,6 +268,7 @@ function migrateLocalData() {
   } catch (e) { console.warn("migrateLocalData:", e); }
 }
 function exportMyData() {
+  if (currentUser?.role !== "admin") return;
   const data = { app: "ENGO", version: LOCAL_DATA_VERSION, userId: currentUser?.id, email: currentUser?.email, exportedAt: new Date().toISOString(), data: {} };
   USER_KEYS.forEach(k => { const v = localStorage.getItem(getUserStorageKey(k)); if (v) { try { data.data[k] = JSON.parse(v); } catch { data.data[k] = v; } } });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -271,6 +276,7 @@ function exportMyData() {
   showToast("Đã tải bản sao dữ liệu học tập.");
 }
 function importMyData(file) {
+  if (currentUser?.role !== "admin") return;
   const reader = new FileReader();
   reader.onload = () => {
     try {
@@ -293,6 +299,85 @@ function importMyData(file) {
 document.getElementById("exportMyDataBtn")?.addEventListener("click", exportMyData);
 document.getElementById("importMyDataBtn")?.addEventListener("click", () => document.getElementById("importMyDataInput").click());
 document.getElementById("importMyDataInput")?.addEventListener("change", e => { const f = e.target.files[0]; if (f) importMyData(f); e.target.value = ""; });
+
+let cloudUserId = null, cloudTimer = null, cloudQuiet = false;
+const cloudDirty = new Set();
+const rawSetItem = Storage.prototype.setItem;
+function cloudMetaKey() { return `engoSyncMeta_user_${cloudUserId}`; }
+function readCloudMeta() { try { return JSON.parse(localStorage.getItem(cloudMetaKey()) || "{}") || {}; } catch { return {}; } }
+function writeCloudMeta(meta) { try { rawSetItem.call(localStorage, cloudMetaKey(), JSON.stringify(meta)); } catch {} }
+Storage.prototype.setItem = function (key, value) {
+  rawSetItem.call(this, key, value);
+  if (cloudQuiet || !cloudUserId || this !== window.localStorage) return;
+  const m = String(key).match(/^(engo\w+?)_user_(\d+)$/);
+  if (!m || String(m[2]) !== String(cloudUserId) || !USER_KEYS.includes(m[1])) return;
+  const meta = readCloudMeta(); meta[m[1]] = Date.now(); writeCloudMeta(meta);
+  cloudDirty.add(m[1]);
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(() => pushCloudData(), 2500);
+};
+async function pushCloudData(leaving = false) {
+  if (!cloudUserId || !cloudDirty.size) return;
+  clearTimeout(cloudTimer);
+  const meta = readCloudMeta(), items = {};
+  for (const k of cloudDirty) {
+    const raw = localStorage.getItem(`${k}_user_${cloudUserId}`);
+    if (raw == null) continue;
+    try { items[k] = { value: JSON.parse(raw), updatedAt: meta[k] || Date.now() }; } catch {}
+  }
+  cloudDirty.clear();
+  const body = JSON.stringify({ items });
+  try {
+    const r = await fetch("/api/me/data", { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "same-origin", keepalive: leaving && body.length < 60000, body });
+    if (!r.ok) throw new Error();
+  } catch { Object.keys(items).forEach(k => cloudDirty.add(k)); }
+}
+function mergeCloudValue(key, local, remote) {
+  if (!local || typeof local !== "object" || !remote || typeof remote !== "object") return remote ?? local;
+  if (key === "engoLearningStatsV3") {
+    const out = { ...local, ...remote };
+    for (const f of Object.keys(out)) if (typeof local[f] === "number" && typeof remote[f] === "number") out[f] = Math.max(local[f], remote[f]);
+    return out;
+  }
+  if (key === "engoHealingProfileV3") {
+    const out = { ...local, ...remote };
+    ["pronunciation", "grammar", "test", "healedHistory", "unitGrammar"].forEach(list => {
+      const ids = new Set((remote[list] || []).map(x => x && x.id));
+      out[list] = [...(remote[list] || []), ...((local[list] || []).filter(x => x && !ids.has(x.id)))];
+    });
+    out.heatmapStatus = { ...(local.heatmapStatus || {}), ...(remote.heatmapStatus || {}) };
+    return out;
+  }
+  return Array.isArray(remote) ? remote : { ...local, ...remote };
+}
+async function pullCloudData() {
+  if (!currentUser?.id) return false;
+  cloudUserId = currentUser.id;
+  let res;
+  try { res = await apiRequest("/api/me/data"); } catch { return false; }
+  const meta = readCloudMeta();
+  let changed = false;
+  for (const k of USER_KEYS) {
+    const srv = res.items?.[k];
+    const localKey = `${k}_user_${cloudUserId}`;
+    const localRaw = localStorage.getItem(localKey);
+    const localAt = Number(meta[k]) || 0;
+    if (srv && (localRaw == null || srv.updatedAt > localAt)) {
+      let value = srv.value;
+      if (localRaw != null && !localAt) { try { value = mergeCloudValue(k, JSON.parse(localRaw), srv.value); cloudDirty.add(k); } catch {} }
+      cloudQuiet = true; try { localStorage.setItem(localKey, JSON.stringify(value)); } finally { cloudQuiet = false; }
+      meta[k] = cloudDirty.has(k) ? Date.now() : srv.updatedAt;
+      changed = true;
+    } else if (localRaw != null && (!srv || localAt > srv.updatedAt)) {
+      if (!localAt) meta[k] = Date.now();
+      cloudDirty.add(k);
+    }
+  }
+  writeCloudMeta(meta);
+  if (cloudDirty.size) pushCloudData();
+  return changed;
+}
+window.addEventListener("pagehide", () => pushCloudData(true));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") pushCloudData(true); });
 
 function completeLogin(user) { updateUserUI(user); authScreen.classList.add("hidden"); applyRole(user.role); showToast(`Xin chào, ${user.fullName}`); }
 
@@ -343,8 +428,9 @@ document.getElementById("registerForm").addEventListener("submit", async e => {
   } catch (err) { setAuthError(error, err.message); } finally { if (submit) submit.disabled = false; }
 });
 document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await pushCloudData();
   try { await apiRequest("/api/auth/logout", { method: "POST", body: "{}" }); } catch {}
-  currentUser = null; studentProgress = null;
+  currentUser = null; studentProgress = null; cloudUserId = null;
   authScreen.classList.remove("hidden");
   views.forEach(v => v.classList.toggle("active", v.id === "student-home"));
   window.history.pushState({}, "", "/");

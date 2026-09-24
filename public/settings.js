@@ -206,7 +206,7 @@
       <div class="card panel section">
         <div class="section-head"><div><h3><i class=mi>manage_accounts</i> Tài khoản & dữ liệu</h3></div></div>
         <div class="settings-row"><div class="sr-text"><strong>${esc(cu?.fullName || "Chưa đăng nhập")}</strong><span>${esc(cu ? [cu.email, cu.className ? "Lớp " + cu.className : "", { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị" }[cu.role] || cu.role].filter(Boolean).join(" · ") : "")}</span></div></div>
-        <div class="settings-row"><div class="sr-text"><strong>Sao lưu dữ liệu học tập</strong><span>Tải file .json (XP, cà rốt, lỗi đang chữa, tiến độ unit) để không mất khi đổi máy / cập nhật</span></div><div style="display:flex;gap:8px"><button type="button" class="btn btn-light btn-sm" id="setExport"><i class=mi>download</i> Sao lưu</button><button type="button" class="btn btn-light btn-sm" id="setImport"><i class=mi>upload</i> Khôi phục</button></div></div>
+        ${cu?.role === "admin" ? `<div class="settings-row"><div class="sr-text"><strong>Sao lưu dữ liệu học tập</strong><span>Tải file .json (XP, cà rốt, lỗi đang chữa, tiến độ unit) để không mất khi đổi máy / cập nhật</span></div><div style="display:flex;gap:8px"><button type="button" class="btn btn-light btn-sm" id="setExport"><i class=mi>download</i> Sao lưu</button><button type="button" class="btn btn-light btn-sm" id="setImport"><i class=mi>upload</i> Khôi phục</button></div></div>` : ""}
         <div class="settings-row"><div class="sr-text"><strong>Đặt lại cài đặt</strong><span>Về giao diện sáng, cỡ chữ vừa, bật âm thanh</span></div><button type="button" class="btn btn-light btn-sm" id="setReset"><i class=mi>restart_alt</i> Đặt lại</button></div>
       </div>`;
 
