@@ -206,8 +206,8 @@ body[data-theme="onedark"]{--muted-2:#a0a8b4}
 body[data-theme="solarized-dark"]{--nav-active-ink:#7fd6cc}
 
 .healing-tab.active,.unit-chip.active,.seg button.active,.data-tab.active,.auth-tab.active{color:var(--on-primary)!important}
-body:not(.dark-mode) .healing-tab.active,body:not(.dark-mode) .unit-chip.active,body:not(.dark-mode) .seg button.active{background-image:linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16))!important;background-color:var(--primary)!important}
-body.dark-mode .healing-tab.active,body.dark-mode .unit-chip.active,body.dark-mode .seg button.active{background-color:var(--primary)!important;background-image:none!important}
+body:not(.dark-mode) .healing-tab.active,body:not(.dark-mode) .unit-chip.active,body:not(.dark-mode) .seg button.active,body:not(.dark-mode) .data-tab.active,body:not(.dark-mode) .auth-tab.active{background-image:linear-gradient(rgba(0,0,0,.16),rgba(0,0,0,.16))!important;background-color:var(--primary)!important}
+body.dark-mode .healing-tab.active,body.dark-mode .unit-chip.active,body.dark-mode .seg button.active,body.dark-mode .data-tab.active,body.dark-mode .auth-tab.active{background-color:var(--primary)!important;background-image:none!important}
 
 .flash-face.back{color:var(--on-primary)!important}
 .flash-face.back .flash-label,.flash-face.back .flash-phonetic,.flash-face.back .flash-word-small,.flash-face.back .flash-example,.flash-face.back .flash-examples li,.flash-face.back .flash-meaning,.flash-face.back .flash-pos.back,.flash-face.back .flash-tts-mini,.flash-face.back .mi{color:var(--on-primary)!important}

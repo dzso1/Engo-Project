@@ -194,7 +194,7 @@ function paintAvatar(el, av, name, role) {
   if (!el) return;
   el.innerHTML = avatarHTML(av, name, role);
   el.classList.toggle("has-img", av && av.type === "image");
-  el.style.background = av && av.type !== "image" && av.color ? av.color : "";
+  el.style.background = "";
 }
 function updateUserUI(user) {
   currentUser = user;

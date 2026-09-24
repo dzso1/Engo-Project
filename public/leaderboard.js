@@ -7,8 +7,7 @@
 
   function avatarCell(p) {
     const a = p.avatar || {};
-    const bg = a.type !== "image" && a.color ? ` style="background:${a.color}"` : "";
-    return `<span class="lb-avatar${a.type === "image" ? " has-img" : ""}"${bg}>${window.avatarHTML ? window.avatarHTML(a, p.name, "student") : ""}</span>`;
+    return `<span class="lb-avatar${a.type === "image" ? " has-img" : ""}">${window.avatarHTML ? window.avatarHTML(a, p.name, "student") : ""}</span>`;
   }
   function scoreText(p, by) {
     return by === "carrots"
