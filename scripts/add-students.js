@@ -10,11 +10,20 @@ function slugName(name) {
     .toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function initialsName(name) {
+  const parts = String(name || "").trim().split(/\s+/).map(slugName).filter(Boolean);
+  if (!parts.length) return "";
+  const given = parts.pop();
+  return parts.map(p => p[0]).join("") + given;
+}
+
 async function main() {
-  const className = String(process.argv[2] || "").trim().toUpperCase();
-  const file = process.argv[3];
-  const password = process.argv[4] || "123456";
-  if (!className || !file) { console.error("Dùng: node scripts/add-students.js <lớp> <file tên> [mật khẩu]"); process.exit(1); }
+  const args = process.argv.slice(2);
+  const useInitials = args.includes("--initials");
+  const [classArg, file, passArg] = args.filter(a => !a.startsWith("--"));
+  const className = String(classArg || "").trim().toUpperCase();
+  const password = passArg || "123456";
+  if (!className || !file) { console.error("Dùng: node scripts/add-students.js <lớp> <file tên> [mật khẩu] [--initials]"); process.exit(1); }
   const names = fs.readFileSync(file, "utf8").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const suffix = className.toLowerCase();
   const hash = await bcrypt.hash(password, 12);
@@ -23,7 +32,7 @@ async function main() {
   let added = 0, skipped = 0;
   const rows = [];
   for (const fullName of names) {
-    const base = slugName(fullName);
+    const base = useInitials ? initialsName(fullName) : slugName(fullName);
     let email = base + suffix + "@engo.web", dup = false;
     for (let n = 2; ; n++) {
       const [exists] = await pool.execute("SELECT full_name FROM users WHERE email = ? LIMIT 1", [email]);
