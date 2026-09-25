@@ -24,6 +24,7 @@ const PERMISSIONS = [
   { key: "reports.export", group: "Tiến trình", label: "Xuất ảnh báo cáo kết quả", roles: ["admin", "teacher", "parent", "student"] },
   { key: "tests.take", group: "Học tập", label: "Làm bài kiểm tra", roles: ["student"] },
   { key: "learning.record", group: "Học tập", label: "Ghi nhận học tập, nhận thưởng", roles: ["student"] },
+  { key: "pvp.play", group: "Học tập", label: "Thi đấu PvP (với bạn hoặc bot)", roles: ["student"] },
   { key: "ai.use", group: "Hệ thống", label: "Dùng trợ lý AI", roles: ["admin", "teacher", "student", "parent"] },
   { key: "system.manage", group: "Hệ thống", label: "Phân quyền, trạng thái hệ thống, sao lưu", roles: ["admin"] },
 ];

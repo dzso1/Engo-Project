@@ -180,7 +180,8 @@
   }
 
   function hookTeacherModal() {
-    if (typeof window.openStudentProgress !== "function" || window.openStudentProgress.__rp) return;
+    if (typeof window.openStudentProgress !== "function" || window.__engoRpHooked) return;
+    window.__engoRpHooked = true;
     const orig = window.openStudentProgress;
     const wrapped = async function (id) {
       const r = await orig.apply(this, arguments);

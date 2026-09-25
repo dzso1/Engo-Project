@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="./fonts.css?v=3" />
   <link rel="stylesheet" href="./styles.css?v=17" />
-  <link rel="stylesheet" href="./themes.css?v=22" />
+  <link rel="stylesheet" href="./themes.css?v=23" />
 </head>
 <body>
 
@@ -109,6 +109,9 @@
         </button>
         <button class="nav-btn" data-view="achievements">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg></span> Thành tích
+        </button>
+        <button class="nav-btn" data-view="pvp">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4"/><path d="m7 17-3 3"/><path d="m3 19 2 2"/></svg></span> Đấu trường
         </button>
         <button class="nav-btn" data-view="leaderboard">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M8 21V11H3v10z"/><path d="M15 21V3H9v18z"/><path d="M21 21v-7h-6v7z"/></svg></span> Bảng xếp hạng
@@ -682,6 +685,10 @@
           <div id="parentRoot"><p class="small muted">Đang tải...</p></div>
         </section>
 
+        <section class="view" id="pvp">
+          <div id="pvpRoot"><p class="small muted">Đang tải...</p></div>
+        </section>
+
         <section class="view" id="people">
           <div id="peopleRoot"><p class="small muted">Đang tải...</p></div>
         </section>
@@ -1031,14 +1038,16 @@
   <script src="./data/exam-bank.js?v=5"></script>
   <script src="./settings.js?v=7" defer></script>
   <script src="./sfx.js?v=1" defer></script>
-  <script src="./script.js?v=26" defer></script>
+  <script src="./script.js?v=27" defer></script>
   <script src="./units-ui.js?v=13" defer></script>
   <script src="./leaderboard.js?v=2" defer></script>
   <script src="./data/word-families.js?v=1"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
   <script src="./access.js?v=2" defer></script>
   <script src="./manage.js?v=1" defer></script>
-  <script src="./report.js?v=1" defer></script>
+  <script src="./report.js?v=2" defer></script>
   <script src="./wordform.js?v=1" defer></script>
+  <script src="./results.js?v=1" defer></script>
+  <script src="./pvp.js?v=1" defer></script>
 </body>
 </html>

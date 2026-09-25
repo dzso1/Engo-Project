@@ -77,9 +77,9 @@ async function getRewards(userId) {
   return publicRewards(await getRow(userId));
 }
 
-async function earn(userId, xp, carrots) {
-  const wantXp = Math.max(0, Math.min(MAX_XP_PER_EVENT, Math.round(Number(xp) || 0)));
-  const wantCarrots = Math.max(0, Math.min(MAX_CARROTS_PER_EVENT, Math.round(Number(carrots) || 0)));
+async function earn(userId, xp, carrots, limits = {}) {
+  const wantXp = Math.max(0, Math.min(limits.maxXp || MAX_XP_PER_EVENT, Math.round(Number(xp) || 0)));
+  const wantCarrots = Math.max(0, Math.min(limits.maxCarrots || MAX_CARROTS_PER_EVENT, Math.round(Number(carrots) || 0)));
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();

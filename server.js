@@ -27,6 +27,8 @@ const unitsData = require("./services/units-data");
 const rbac = require("./services/rbac");
 const scope = require("./services/scope");
 const wordFamilies = require("./services/word-families");
+const pvp = require("./services/pvp");
+const resultsBoard = require("./services/results-board");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -299,6 +301,7 @@ async function ensureAssessmentTables() {
   try { await rbac.ensureTables(); } catch (e) { logSchemaError(e); }
   try { await scope.ensureTables(); } catch (e) { logSchemaError(e); }
   try { await wordFamilies.ensureTable(); } catch (e) { logSchemaError(e); }
+  try { await pvp.ensureTables(); } catch (e) { logSchemaError(e); }
   await syncSubmissionColumns();
 }
 
@@ -2592,6 +2595,8 @@ app.post("/api/learning-events", requireLogin, requirePermission("learning.recor
   }
 });
 
+pvp.attach(app, { requireLogin, requirePermission });
+
 app.get("/api/word-families", requireLogin, async (req, res) => {
   try {
     return res.json({ success: true, families: await wordFamilies.list({ grade: req.query.grade, unit: req.query.unit }) });
@@ -2646,6 +2651,32 @@ app.get("/api/progress/students/:id/summary", requireLogin, requirePermission("p
   } catch (error) {
     logSchemaError(error);
     return res.status(500).json({ success: false, message: "Không tổng hợp được tiến trình học tập." });
+  }
+});
+
+app.get("/api/progress/students/:id/board", requireLogin, requirePermission("progress.view"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const id = req.params.id === "me" ? req.user.userId : req.params.id;
+    const st = await scope.accessibleStudent(req.user, id);
+    if (!st) return res.status(403).json({ success: false, message: "Bạn không có quyền xem học sinh này." });
+    return res.json({ success: true, board: await resultsBoard.build(st, { semester: req.query.semester }) });
+  } catch (error) {
+    logSchemaError(error);
+    return res.status(500).json({ success: false, message: "Không tải được bảng kết quả." });
+  }
+});
+
+app.get("/api/progress/me/recommendations", requireLogin, requirePermission("learning.record"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const st = await scope.accessibleStudent(req.user, req.user.userId);
+    if (!st) return res.status(404).json({ success: false, message: "Không tìm thấy học sinh." });
+    const summary = await progressService.buildStudentSummary(st);
+    return res.json({ success: true, ...(await resultsBoard.recommend(st, summary)) });
+  } catch (error) {
+    logSchemaError(error);
+    return res.status(500).json({ success: false, message: "Không tạo được gợi ý." });
   }
 });
 

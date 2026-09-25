@@ -1,6 +1,6 @@
 const pool = require("../database/db");
 
-const KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoNotificationsReadV3"];
+const KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoNotificationsReadV3", "engoProfileV1"];
 const MAX_BYTES = 2 * 1024 * 1024;
 
 let ready = null;
