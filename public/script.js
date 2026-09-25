@@ -98,13 +98,13 @@ document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("cli
 const ROUTE_MAP = {
   "student-home": "/dashboard", "settings": "/settings", "leaderboard": "/leaderboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
   "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
-  "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin"
+  "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin", "people": "/people"
 };
 const REVERSE_ROUTE_MAP = {
   "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/settings": "settings", "/leaderboard": "leaderboard", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
   "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
-  "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin"
+  "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin", "/people": "people"
 };
 const STUDENT_VIEWS = new Set(["student-home", "quiz", "achievements", "leaderboard", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
 const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
@@ -138,8 +138,9 @@ function switchView(id, pushHistory = true) {
   if (id === "teacher-home") renderTeacherHome();
   if (id === "settings") renderSettings();
   if (id === "leaderboard") renderLeaderboard();
-  if (id === "parent-home") renderParentDashboard();
+  if (id === "parent-home") (window.ENGO_PARENT ? window.ENGO_PARENT.render() : renderParentDashboard());
   if (id === "data-admin") renderDataAdmin();
+  window.dispatchEvent(new CustomEvent("engo:view", { detail: id }));
 }
 window.addEventListener("popstate", e => {
   const path = (window.location.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
@@ -175,7 +176,7 @@ let knownClasses = [];
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || "Không thể thực hiện yêu cầu.");
+  if (!response.ok) { if (data.code === "MUST_CHANGE_PASSWORD") window.dispatchEvent(new CustomEvent("engo:must-change-password")); throw Object.assign(new Error(data.message || "Không thể thực hiện yêu cầu."), { status: response.status, code: data.code }); }
   return data;
 }
 function setAuthError(element, message = "") { element.textContent = message; element.classList.toggle("show", Boolean(message)); }
@@ -210,7 +211,7 @@ function avatarHTML(av, name, role) {
 function paintAvatar(el, av, name, role) {
   if (!el) return;
   el.innerHTML = avatarHTML(av, name, role);
-  el.classList.toggle("has-img", av && av.type === "image");
+  el.classList.toggle("has-img", Boolean(av && av.type === "image"));
   el.style.background = "";
 }
 function updateUserUI(user) {
@@ -229,6 +230,7 @@ function updateUserUI(user) {
     renderCapybaraCompanion();
     updateStreakTopbarUI();
   }
+  window.dispatchEvent(new CustomEvent("engo:user", { detail: user }));
   pullCloudData().then(changed => {
     if (user.role !== "student") return;
     if (changed) { try { renderCapybaraCompanion(); updateStreakTopbarUI(); if (typeof renderStudentDashboard === "function") renderStudentDashboard(true); } catch (e) { console.warn(e); } }
@@ -431,6 +433,7 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   await pushCloudData();
   try { await apiRequest("/api/auth/logout", { method: "POST", body: "{}" }); } catch {}
   currentUser = null; studentProgress = null; cloudUserId = null;
+  window.dispatchEvent(new CustomEvent("engo:logout"));
   authScreen.classList.remove("hidden");
   views.forEach(v => v.classList.toggle("active", v.id === "student-home"));
   window.history.pushState({}, "", "/");

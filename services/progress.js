@@ -1,4 +1,19 @@
 const pool = require("../database/db");
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+
+let healingLabelCache = null;
+function healingLabels() {
+  if (healingLabelCache) return healingLabelCache;
+  healingLabelCache = {};
+  try {
+    const ctx = { window: {} };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../public/data/healing-bank.js"), "utf8"), ctx);
+    for (const [code, v] of Object.entries(ctx.window.ENGO_HEALING_BANK || {})) healingLabelCache[code] = v && v.label ? v.label : code;
+  } catch (e) {}
+  return healingLabelCache;
+}
 
 function parseJson(value, fallback) {
   if (value === null || value === undefined) return fallback;
@@ -237,4 +252,103 @@ async function buildStudentProgress(studentId) {
   };
 }
 
-module.exports = { recordLearningEvent, buildStudentProgress, getSpeakingProgress, getTestProgress, scoreSubmissionRow, parseJson, invalidateColumnCache };
+let studyReady = null;
+function ensureStudyTime() {
+  if (!studyReady) studyReady = pool.query("CREATE TABLE IF NOT EXISTS study_time (student_id BIGINT UNSIGNED NOT NULL, day DATE NOT NULL, seconds INT NOT NULL DEFAULT 0, PRIMARY KEY (student_id, day)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4").catch(e => { studyReady = null; throw e; });
+  return studyReady;
+}
+function vnDay(offsetDays = 0) {
+  return new Date(Date.now() + 7 * 3600 * 1000 - offsetDays * 86400000).toISOString().slice(0, 10);
+}
+async function recordStudyTime(studentId, seconds) {
+  const s = Math.max(0, Math.min(180, Math.round(Number(seconds) || 0)));
+  if (!s) return 0;
+  await ensureStudyTime();
+  await pool.execute("INSERT INTO study_time (student_id, day, seconds) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE seconds = LEAST(43200, seconds + VALUES(seconds))", [studentId, vnDay(), s]);
+  return s;
+}
+async function getStudyTime(studentId) {
+  await ensureStudyTime();
+  const [rows] = await pool.execute("SELECT DATE_FORMAT(day, '%Y-%m-%d') AS d, seconds FROM study_time WHERE student_id = ? ORDER BY day DESC LIMIT 60", [studentId]);
+  const map = Object.fromEntries(rows.map(r => [r.d, Number(r.seconds)]));
+  const last7 = Array.from({ length: 7 }, (_, i) => { const d = vnDay(6 - i); return { date: d, seconds: map[d] || 0 }; });
+  const [tot] = await pool.execute("SELECT COALESCE(SUM(seconds), 0) AS total FROM study_time WHERE student_id = ?", [studentId]);
+  return { totalSeconds: Number(tot[0].total) || 0, todaySeconds: map[vnDay()] || 0, weekSeconds: last7.reduce((s, x) => s + x.seconds, 0), last7 };
+}
+
+const GRAMMAR_LABELS = { ending: "Đuôi -s/-ed", tense: "Thì của động từ", article: "Mạo từ", preposition: "Giới từ", "word-form": "Từ loại (word form)", agreement: "Hoà hợp chủ ngữ – động từ", comparison: "So sánh", passive: "Câu bị động", conditional: "Câu điều kiện", reported: "Câu tường thuật", relative: "Mệnh đề quan hệ", gerund: "V-ing / to V", pronunciation: "Phát âm", vocabulary: "Từ vựng" };
+async function getCommonErrors(studentId, speaking) {
+  const out = { grammar: [], sections: [], words: (speaking && speaking.topWords) || [], total: 0 };
+  let profile = null;
+  try {
+    const [rows] = await pool.execute("SELECT data_json FROM user_data WHERE user_id = ? AND data_key = 'engoHealingProfileV3' LIMIT 1", [studentId]);
+    if (rows.length) profile = parseJson(rows[0].data_json, null);
+  } catch (e) {}
+  const count = (list, keyFn) => { const m = {}; (list || []).forEach(x => { const k = keyFn(x); if (k) m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
+  if (profile) {
+    const g = count(profile.grammar, x => x && (x.code || x.type || x.label));
+    const sg = speaking && speaking.grammarErrors ? Object.entries(speaking.grammarErrors) : [];
+    const merged = {};
+    [...g, ...sg].forEach(([k, n]) => { merged[k] = (merged[k] || 0) + n; });
+    out.grammar = Object.entries(merged).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([code, n]) => ({ code, label: GRAMMAR_LABELS[code] || healingLabels()[code] || code, count: n }));
+    out.sections = count(profile.test, x => x && x.section).slice(0, 5).map(([section, n]) => ({ section, count: n }));
+    out.total = (profile.grammar || []).length + (profile.test || []).length + (profile.pronunciation || []).length;
+  } else if (speaking && speaking.grammarErrors) {
+    out.grammar = Object.entries(speaking.grammarErrors).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([code, n]) => ({ code, label: GRAMMAR_LABELS[code] || healingLabels()[code] || code, count: n }));
+  }
+  return out;
+}
+
+async function getReminders(studentId, progress, study, className) {
+  const out = [];
+  const today = vnDay();
+  const lastDates = [progress.events[0] && progress.events[0].createdAt, progress.tests.history.length && progress.tests.history[progress.tests.history.length - 1].submittedAt].filter(Boolean).map(d => new Date(new Date(d).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10));
+  const studiedToday = study.todaySeconds >= 120 || lastDates.includes(today);
+  const last = [...lastDates, ...study.last7.filter(x => x.seconds > 0).map(x => x.date)].sort().pop();
+  const idleDays = last ? Math.round((new Date(today) - new Date(last)) / 86400000) : null;
+  if (idleDays === null) out.push({ level: "warn", icon: "hourglass_empty", text: "Con chưa bắt đầu học trên ENGO. Hãy cùng con đăng nhập và làm bài đầu tiên." });
+  else if (idleDays >= 3) out.push({ level: "danger", icon: "notifications_active", text: `Con đã ${idleDays} ngày chưa học. Nhắc con dành 15 phút học từ vựng hoặc luyện nói hôm nay nhé.` });
+  else if (!studiedToday) out.push({ level: "info", icon: "schedule", text: "Hôm nay con chưa học. Nhắc con học ít nhất 15 phút." });
+  try {
+    const [pending] = await pool.execute(
+      `SELECT COUNT(*) AS n FROM imported_tests it WHERE (it.class_name = ? OR ((it.class_name IS NULL OR it.class_name = '') AND it.source_file_name NOT LIKE 'bank:%'))
+       AND it.created_at >= DATE_SUB(NOW(), INTERVAL 21 DAY) AND NOT EXISTS (SELECT 1 FROM writing_submissions ws WHERE ws.test_id = it.id AND ws.student_id = ?)`,
+      [className || "", studentId]
+    );
+    const n = Number(pending[0].n) || 0;
+    if (n) out.push({ level: "warn", icon: "assignment_late", text: `Còn ${n} bài kiểm tra giáo viên giao con chưa làm.` });
+  } catch (e) {}
+  const recent = progress.tests.history.slice(-1)[0];
+  if (recent && recent.scoreOnTen < 5) out.push({ level: "warn", icon: "trending_down", text: `Bài gần nhất "${recent.title}" con được ${recent.scoreOnTen} điểm. Con nên vào Phòng chữa lỗi để ôn lại câu sai.` });
+  if (recent && recent.scoreOnTen >= 8) out.push({ level: "good", icon: "celebration", text: `Con làm tốt bài "${recent.title}" (${recent.scoreOnTen} điểm). Hãy khen con nhé!` });
+  if (study.weekSeconds >= 3600) out.push({ level: "good", icon: "local_fire_department", text: `Tuần này con đã học ${Math.round(study.weekSeconds / 60)} phút — rất chăm chỉ!` });
+  return out;
+}
+
+async function buildStudentSummary(student) {
+  const progress = await buildStudentProgress(student.id);
+  const study = await getStudyTime(student.id).catch(() => ({ totalSeconds: 0, todaySeconds: 0, weekSeconds: 0, last7: [] }));
+  const errors = await getCommonErrors(student.id, progress.speaking);
+  const reminders = await getReminders(student.id, progress, study, student.class_name);
+  const wordform = progress.events.filter(e => e.type === "wordform");
+  return {
+    student: { id: student.id, fullName: student.full_name, className: student.class_name || null },
+    generatedAt: new Date().toISOString(),
+    scores: {
+      testAvg: progress.tests.avgScore, testBest: progress.tests.bestScore, testCount: progress.tests.count, improvement: progress.tests.improvement,
+      speakingAvg: progress.speaking.avgAccuracy, vocabAvg: progress.vocab.avgQuizPercent, listeningAvg: progress.listening.avgPercent, grammarAvg: progress.grammar.avgPercent,
+      overall: progress.overall, skills: progress.skills,
+      history: progress.tests.history.slice(-10).map(h => ({ title: h.title, score: h.scoreOnTen, at: h.submittedAt, status: h.status })),
+    },
+    studyTime: study,
+    completed: {
+      tests: progress.tests.count, vocabSets: progress.vocab.setsCompleted, listeningUnits: progress.listening.unitsDone, grammarUnits: progress.grammar.unitsDone,
+      speakingAttempts: progress.speaking.totalAttempts, healed: progress.healing.healed, wordformSessions: wordform.length, activeDays: progress.activeDays,
+    },
+    commonErrors: errors,
+    titles: progress.earnedTitles.map(t => ({ name: t.name, icon: t.icon })),
+    reminders,
+  };
+}
+
+module.exports = { recordLearningEvent, buildStudentProgress, buildStudentSummary, recordStudyTime, getStudyTime, getSpeakingProgress, getTestProgress, scoreSubmissionRow, parseJson, invalidateColumnCache };

@@ -15,7 +15,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="./fonts.css?v=3" />
   <link rel="stylesheet" href="./styles.css?v=17" />
-  <link rel="stylesheet" href="./themes.css?v=20" />
+  <link rel="stylesheet" href="./themes.css?v=22" />
 </head>
 <body>
 
@@ -52,7 +52,7 @@
           <p>Đăng nhập để tiếp tục bài học và xem tiến độ cá nhân.</p>
           <form class="auth-form" id="loginForm">
             <div class="auth-error" id="loginError"></div>
-            <div class="field"><label>Email hoặc mã tài khoản</label><input id="loginEmail" type="text" placeholder="email@example.com" autocomplete="username" required /></div>
+            <div class="field"><label id="loginEmailLabel">Email hoặc mã tài khoản</label><input id="loginEmail" type="text" placeholder="email@example.com" autocomplete="username" required /></div>
             <div class="field"><label>Mật khẩu</label><div class="password-row"><input id="loginPassword" type="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required /><button type="button" class="password-toggle" data-password-target="loginPassword">◉</button></div></div>
             <div class="field"><label>Vai trò</label><select id="loginRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option><option value="admin">Quản trị viên</option></select></div>
             <button class="btn btn-primary" type="submit" style="width:100%;margin-top:3px">Đăng nhập</button>
@@ -128,6 +128,9 @@
         </button>
         <button class="nav-btn role-nav parent-only hidden" data-view="parent-home">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Phụ huynh
+        </button>
+        <button class="nav-btn role-nav perm-people hidden" data-view="people">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg></span> Tài khoản &amp; lớp
         </button>
         <button class="nav-btn role-nav admin-only hidden" data-view="data-admin">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span> Quản lý dữ liệu
@@ -676,43 +679,11 @@
         </section>
 
         <section class="view" id="parent-home">
-          <div class="page-heading">
-            <div><h2>Theo dõi học tập của con</h2><p>Báo cáo tiến độ, điểm số, luyện nói, mức độ nghiêm túc thi cử và nhận xét từ giáo viên.</p></div>
-            <button class="btn btn-light" id="refreshParentDataBtn">Làm mới dữ liệu</button>
-          </div>
-          <div class="hero" style="min-height:190px">
-            <div>
-              <span class="badge" id="parentStudentBadge" style="background:rgba(255,255,255,.15);color:white">Học sinh: Đang tải...</span>
-              <h3 id="parentHeaderMsg">Tổng quan tình hình học tập và rèn luyện</h3>
-              <p id="parentHeaderSub">Báo cáo cập nhật thời gian thực từ hệ thống kiểm tra và lớp học của giáo viên.</p>
-              <div class="title-chips light" id="parentTitleChips"></div>
-            </div>
-            <div class="hero-visual">
-              <div class="hero-ring" id="parentAvgScoreRing" style="background:conic-gradient(#34d399 0 0%,rgba(255,255,255,.16) 0%)"><strong id="parentAvgScoreHero">--</strong></div>
-              <p>Điểm trung bình hệ 10</p>
-            </div>
-          </div>
-          <div class="grid stats-grid">
-            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div><strong id="parentTotalDone">0</strong><span>Bài kiểm tra đã nộp</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#eef2ff"><svg viewBox="0 0 24 24" style="stroke:#4f46e5"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/></svg></div><div><strong id="parentSpeakingAvg">--%</strong><span>Phát âm trung bình</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><strong id="parentIntegrityRate">100%</strong><span>Độ nghiêm túc thi cử</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fef2f2"><svg viewBox="0 0 24 24" style="stroke:#dc2626"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div><div><strong id="parentTotalViolations" style="color:#dc2626">0</strong><span>Tổng lần rời tab bài thi</span></div></div>
-          </div>
-          <div class="section grid two-col">
-            <div class="card panel">
-              <div class="section-head"><h3>Lịch sử bài kiểm tra & Giám sát thi cử</h3></div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Bài kiểm tra</th><th>Điểm số</th><th>Giám sát thi</th><th>Nhận xét của GV</th><th>Ngày nộp</th></tr></thead>
-                  <tbody id="parentSubmissionsTableBody"><tr><td colspan="5" class="small muted" style="text-align:center;padding:24px">Đang tải lịch sử làm bài...</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="card panel">
-              <div class="section-head"><h3>Năng lực 6 kỹ năng</h3></div>
-              <div class="chart" id="parentSkillChart"></div>
-            </div>
-          </div>
+          <div id="parentRoot"><p class="small muted">Đang tải...</p></div>
+        </section>
+
+        <section class="view" id="people">
+          <div id="peopleRoot"><p class="small muted">Đang tải...</p></div>
         </section>
 
         <section class="view" id="data-admin">
@@ -942,6 +913,22 @@
     </div>
   </div>
 
+  <div class="modal hidden" id="changePwModal" data-locked="1">
+    <div class="modal-card" style="max-width:440px">
+      <div class="modal-head"><div><h3><i class=mi>lock_reset</i> Đổi mật khẩu</h3><p class="small muted" id="changePwHint">Vì lý do bảo mật, bạn cần đổi mật khẩu mặc định trước khi sử dụng.</p></div><button class="close-btn hidden" id="changePwClose" data-close-modal="changePwModal">×</button></div>
+      <form class="auth-form" id="changePwForm">
+        <div class="auth-error" id="changePwError"></div>
+        <div class="field"><label>Mật khẩu hiện tại</label><input id="changePwCurrent" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label>Mật khẩu mới (ít nhất 6 ký tự)</label><input id="changePwNew" type="password" autocomplete="new-password" minlength="6" required></div>
+        <div class="field"><label>Nhập lại mật khẩu mới</label><input id="changePwConfirm" type="password" autocomplete="new-password" minlength="6" required></div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Lưu mật khẩu mới</button>
+        <button class="btn btn-light" type="button" id="changePwLogout" style="width:100%;margin-top:8px">Đăng xuất</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="reportStage" aria-hidden="true"></div>
+
   <div class="modal hidden" id="studentProgressModal">
     <div class="modal-card modal-lg">
       <div class="modal-head"><div><h3 id="studentProgressTitle">Tiến độ học sinh</h3><p class="small muted" id="studentProgressSubtitle"></p></div><button class="close-btn" data-close-modal="studentProgressModal">×</button></div>
@@ -1042,10 +1029,16 @@
   <script src="./data/listening-units.js?v=5"></script>
   <script src="./data/listening-sets.js?v=5"></script>
   <script src="./data/exam-bank.js?v=5"></script>
-  <script src="./settings.js?v=6" defer></script>
+  <script src="./settings.js?v=7" defer></script>
   <script src="./sfx.js?v=1" defer></script>
-  <script src="./script.js?v=24" defer></script>
+  <script src="./script.js?v=26" defer></script>
   <script src="./units-ui.js?v=13" defer></script>
   <script src="./leaderboard.js?v=2" defer></script>
+  <script src="./data/word-families.js?v=1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+  <script src="./access.js?v=2" defer></script>
+  <script src="./manage.js?v=1" defer></script>
+  <script src="./report.js?v=1" defer></script>
+  <script src="./wordform.js?v=1" defer></script>
 </body>
 </html>

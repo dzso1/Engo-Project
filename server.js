@@ -24,6 +24,9 @@ const progressService = require("./services/progress");
 const rewards = require("./services/rewards");
 const userData = require("./services/user-data");
 const unitsData = require("./services/units-data");
+const rbac = require("./services/rbac");
+const scope = require("./services/scope");
+const wordFamilies = require("./services/word-families");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -41,11 +44,14 @@ function publicUser(row) {
     email: row.email,
     role: row.role,
     className: row.class_name || null,
+    phone: row.phone || null,
+    mustChangePassword: Boolean(Number(row.must_change_password || 0)),
     status: row.status,
     createdAt: row.created_at,
   };
 }
 
+const MCP_ALLOWED = new Set(["/api/auth/me", "/api/auth/change-password", "/api/auth/logout"]);
 function requireLogin(req, res, next) {
   const token = req.cookies.engo_token;
   if (!token) {
@@ -53,19 +59,25 @@ function requireLogin(req, res, next) {
   }
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
-    return next();
   } catch {
     return res.status(401).json({ success: false, message: "Phiên đăng nhập đã hết hạn." });
   }
+  if (req.user.mcp && !MCP_ALLOWED.has(req.path)) {
+    return res.status(403).json({ success: false, code: "MUST_CHANGE_PASSWORD", message: "Bạn cần đổi mật khẩu trước khi tiếp tục." });
+  }
+  return next();
 }
 
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: "Không có quyền thực hiện thao tác này." });
-    }
-    return next();
-  };
+const requirePermission = rbac.requirePermission;
+
+function issueToken(res, user) {
+  const token = jwt.sign({ userId: user.id, role: user.role, ...(Number(user.must_change_password) ? { mcp: 1 } : {}) }, process.env.JWT_SECRET, { expiresIn: "8h" });
+  res.cookie("engo_token", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 8 * 60 * 60 * 1000,
+  });
 }
 
 const schemaErrors = new Set();
@@ -284,6 +296,9 @@ async function ensureAssessmentTables() {
     await pool.query("INSERT IGNORE INTO class_settings (class_name, tier) VALUES " + values.map(() => "(?, ?)").join(", "), values.flat());
   } catch (e) { logSchemaError(e); }
 
+  try { await rbac.ensureTables(); } catch (e) { logSchemaError(e); }
+  try { await scope.ensureTables(); } catch (e) { logSchemaError(e); }
+  try { await wordFamilies.ensureTable(); } catch (e) { logSchemaError(e); }
   await syncSubmissionColumns();
 }
 
@@ -467,7 +482,7 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
   };
 }
 
-app.get("/api/ai/status", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.get("/api/ai/status", requireLogin, requirePermission("system.manage", "tests.manage"), async (req, res) => {
   const providers = aiService.aiProviderStatus();
   let test = null;
   if (req.query.test === "1") {
@@ -826,19 +841,24 @@ app.post("/api/auth/register", async (req, res) => {
 
 app.post("/api/auth/login", async (req, res) => {
   try {
+    await assessmentReady;
     const { email, password, role } = req.body;
     if (!email || !password || !role) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ thông tin đăng nhập." });
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const [rows] = await pool.execute(
-      "SELECT id, full_name, email, password_hash, role, class_name, status, created_at FROM users WHERE email = ? AND role = ? LIMIT 1",
-      [normalizedEmail, role]
-    );
+    const identifier = String(email).trim().toLowerCase();
+    const phone = scope.normalizePhone(identifier);
+    const cols = "id, full_name, email, password_hash, role, class_name, status, created_at, phone, must_change_password";
+    let rows;
+    if (role === "parent" && phone && !identifier.includes("@")) {
+      [rows] = await pool.execute(`SELECT ${cols} FROM users WHERE phone = ? AND role = 'parent' LIMIT 1`, [phone]);
+    } else {
+      [rows] = await pool.execute(`SELECT ${cols} FROM users WHERE email = ? AND role = ? LIMIT 1`, [identifier, role]);
+    }
     const user = rows[0];
-    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-      return res.status(401).json({ success: false, message: "Email, mật khẩu hoặc vai trò không đúng." });
+    if (!user || !(await bcrypt.compare(String(password), user.password_hash))) {
+      return res.status(401).json({ success: false, message: role === "parent" ? "Số điện thoại hoặc mật khẩu không đúng." : "Email, mật khẩu hoặc vai trò không đúng." });
     }
     if (user.status === "pending") {
       return res.status(403).json({ success: false, message: "Tài khoản đang chờ quản trị viên duyệt." });
@@ -847,15 +867,8 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(403).json({ success: false, message: "Tài khoản đã bị khóa." });
     }
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "8h" });
-    res.cookie("engo_token", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 8 * 60 * 60 * 1000,
-    });
-
-    return res.json({ success: true, message: "Đăng nhập thành công.", user: publicUser(user) });
+    issueToken(res, user);
+    return res.json({ success: true, message: "Đăng nhập thành công.", user: { ...publicUser(user), permissions: rbac.permsOf(user.role) } });
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
     return res.status(500).json({ success: false, message: "Không thể đăng nhập." });
@@ -889,7 +902,7 @@ app.get("/api/rewards/me", requireLogin, async (req, res) => {
   }
 });
 
-app.post("/api/rewards/earn", requireLogin, requireRole("student"), async (req, res) => {
+app.post("/api/rewards/earn", requireLogin, requirePermission("learning.record"), async (req, res) => {
   try {
     const { xp, carrots } = req.body || {};
     return res.json({ success: true, rewards: await rewards.earn(req.user.userId, xp, carrots) });
@@ -899,7 +912,7 @@ app.post("/api/rewards/earn", requireLogin, requireRole("student"), async (req, 
   }
 });
 
-app.post("/api/rewards/feed", requireLogin, requireRole("student"), async (req, res) => {
+app.post("/api/rewards/feed", requireLogin, requirePermission("learning.record"), async (req, res) => {
   try {
     return res.json({ success: true, rewards: await rewards.feed(req.user.userId, (req.body || {}).amount) });
   } catch (error) {
@@ -908,7 +921,7 @@ app.post("/api/rewards/feed", requireLogin, requireRole("student"), async (req, 
   }
 });
 
-app.post("/api/rewards/import", requireLogin, requireRole("student"), async (req, res) => {
+app.post("/api/rewards/import", requireLogin, requirePermission("learning.record"), async (req, res) => {
   try {
     return res.json({ success: true, rewards: await rewards.importLocal(req.user.userId, req.body || {}) });
   } catch (error) {
@@ -938,8 +951,9 @@ app.get("/api/leaderboard", requireLogin, async (req, res) => {
 
 app.get("/api/auth/me", requireLogin, async (req, res) => {
   try {
+    await assessmentReady;
     const [rows] = await pool.execute(
-      "SELECT id, full_name, email, role, class_name, status, created_at FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, full_name, email, role, class_name, status, created_at, phone, must_change_password FROM users WHERE id = ? LIMIT 1",
       [req.user.userId]
     );
     const user = rows[0];
@@ -949,10 +963,35 @@ app.get("/api/auth/me", requireLogin, async (req, res) => {
     }
     let avatar = { type: "initials" };
     try { avatar = (await rewards.avatarsFor([user.id]))[user.id] || avatar; } catch (e) {}
-    return res.json({ success: true, user: { ...publicUser(user), avatar } });
+    const extra = { avatar, permissions: rbac.permsOf(user.role) };
+    if (user.role === "teacher") extra.teacherClasses = await scope.teacherClasses(user.id);
+    if (user.role === "parent") extra.children = (await scope.childrenOf(user.id)).map(c => ({ id: c.id, fullName: c.full_name, className: c.class_name }));
+    return res.json({ success: true, user: { ...publicUser(user), ...extra } });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể lấy thông tin tài khoản." });
+  }
+});
+
+app.post("/api/auth/change-password", requireLogin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    const next = String(newPassword || "");
+    if (next.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu mới phải có ít nhất 6 ký tự." });
+    if (["123", "123456", "12345678", "000000", "111111"].includes(next)) return res.status(400).json({ success: false, message: "Mật khẩu mới quá dễ đoán, hãy chọn mật khẩu khác." });
+    const [rows] = await pool.execute("SELECT id, role, password_hash, phone, must_change_password FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
+    const user = rows[0];
+    if (!user) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
+    if (!(await bcrypt.compare(String(currentPassword || ""), user.password_hash))) return res.status(400).json({ success: false, message: "Mật khẩu hiện tại không đúng." });
+    if (await bcrypt.compare(next, user.password_hash)) return res.status(400).json({ success: false, message: "Mật khẩu mới phải khác mật khẩu cũ." });
+    const hash = await bcrypt.hash(next, 12);
+    await pool.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?", [hash, user.id]);
+    try { await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hash, user.id]); } catch (e) {}
+    issueToken(res, { id: user.id, role: user.role, must_change_password: 0 });
+    return res.json({ success: true, message: "Đã đổi mật khẩu." });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không đổi được mật khẩu." });
   }
 });
 
@@ -988,58 +1027,216 @@ app.delete("/api/auth/delete-me", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/admin/users", requireLogin, requireRole("admin"), async (req, res) => {
-  try {
-    const [rows] = await pool.execute(
-      "SELECT id, full_name, email, role, class_name, status, created_at FROM users ORDER BY created_at DESC"
-    );
-    return res.json({ success: true, users: rows.map(publicUser) });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: "Không thể tải danh sách người dùng." });
+let legacyPasswordCol = null;
+async function hasLegacyPassword() {
+  if (legacyPasswordCol === null) {
+    try { const [c] = await pool.query("SHOW COLUMNS FROM users LIKE 'password'"); legacyPasswordCol = c.length > 0; } catch (e) { legacyPasswordCol = false; }
   }
-});
+  return legacyPasswordCol;
+}
 
-app.post("/api/admin/users", requireLogin, requireRole("admin"), async (req, res) => {
+async function insertUser({ fullName, email, passwordHash, role, className = null, status = "active", phone = null, mustChange = false }) {
+  const cols = ["full_name", "email", "password_hash", "role", "class_name", "status", "phone", "must_change_password"];
+  const vals = [fullName, email, passwordHash, role, className, status, phone, mustChange ? 1 : 0];
+  if (await hasLegacyPassword()) { cols.push("password"); vals.push(passwordHash); }
+  const [r] = await pool.execute(`INSERT INTO users (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`, vals);
+  return r.insertId;
+}
+
+function slugName(name) {
+  return String(name || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+function initialsName(name) {
+  const parts = String(name || "").trim().split(/\s+/).map(slugName).filter(Boolean);
+  if (!parts.length) return "";
+  const given = parts.pop();
+  return parts.map(p => p[0]).join("") + given;
+}
+async function uniqueStudentEmail(fullName, className) {
+  const base = initialsName(fullName) || "hocsinh";
+  const suffix = String(className || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  for (let n = 1; n < 100; n++) {
+    const email = `${base}${n > 1 ? n : ""}${suffix}@engo.web`;
+    const [rows] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
+    if (!rows.length) return email;
+  }
+  return `${base}${Date.now()}${suffix}@engo.web`;
+}
+function parentEmail(phone) { return `ph${phone}@phuhuynh.engo.web`; }
+const cleanClass = v => String(v || "").trim().toUpperCase().replace(/\s+/g, "");
+const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || ""));
+const PARENT_DEFAULT_PASSWORD = "123";
+
+async function manageContext(req) {
+  const sc = await scope.scopeOf(req.user);
+  return { sc, full: rbac.can(req.user, "users.manage") };
+}
+function classAllowed(ctx, className) {
+  if (ctx.full) return true;
+  return Boolean(ctx.sc.classes && ctx.sc.classes.includes(cleanClass(className)));
+}
+async function loadUser(id) {
+  const [rows] = await pool.execute("SELECT id, full_name, email, role, class_name, status, created_at, phone, must_change_password FROM users WHERE id = ? LIMIT 1", [id]);
+  return rows[0] || null;
+}
+async function canManageUser(ctx, target) {
+  if (!target) return false;
+  if (ctx.full) return true;
+  if (target.role === "student") return classAllowed(ctx, target.class_name);
+  if (target.role === "parent") {
+    const kids = await scope.childrenOf(target.id);
+    return kids.length > 0 && kids.every(k => classAllowed(ctx, k.class_name));
+  }
+  return false;
+}
+
+async function upsertParent({ phone, fullName, studentIds, createdBy }) {
+  const p = scope.normalizePhone(phone);
+  if (!p) throw Object.assign(new Error("Số điện thoại không hợp lệ (10–11 số, bắt đầu bằng 0)."), { status: 400 });
+  const [rows] = await pool.execute("SELECT id, role FROM users WHERE phone = ? LIMIT 1", [p]);
+  let parentId, created = false;
+  if (rows.length) {
+    if (rows[0].role !== "parent") throw Object.assign(new Error("Số điện thoại này đã dùng cho một tài khoản không phải phụ huynh."), { status: 409 });
+    parentId = rows[0].id;
+    if (fullName) await pool.execute("UPDATE users SET full_name = ? WHERE id = ?", [String(fullName).trim().slice(0, 100), parentId]);
+  } else {
+    const email = parentEmail(p);
+    const [dup] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
+    if (dup.length) throw Object.assign(new Error("Tài khoản phụ huynh với số này đã tồn tại."), { status: 409 });
+    parentId = await insertUser({ fullName: String(fullName || `Phụ huynh ${p}`).trim().slice(0, 100), email, passwordHash: await bcrypt.hash(PARENT_DEFAULT_PASSWORD, 12), role: "parent", phone: p, mustChange: true });
+    created = true;
+  }
+  for (const sid of studentIds || []) await pool.execute("INSERT IGNORE INTO parent_students (parent_id, student_id, created_by) VALUES (?, ?, ?)", [parentId, sid, createdBy || null]);
+  return { parentId, created, phone: p };
+}
+
+function sendError(res, error, fallback) {
+  if (error && error.status) return res.status(error.status).json({ success: false, message: error.message });
+  console.error(error);
+  return res.status(500).json({ success: false, message: fallback });
+}
+
+app.get("/api/admin/users", requireLogin, requirePermission("users.manage", "students.manage", "parents.manage"), async (req, res) => {
   try {
     await assessmentReady;
-    const { fullName, email, password, role, className, status = "active" } = req.body;
-    if (!fullName || !email || !password || !["student", "teacher", "parent", "admin"].includes(role)) {
-      return res.status(400).json({ success: false, message: "Thông tin tài khoản không hợp lệ." });
+    const ctx = await manageContext(req);
+    const cols = "u.id, u.full_name, u.email, u.role, u.class_name, u.status, u.created_at, u.phone, u.must_change_password";
+    let users;
+    if (ctx.full) {
+      [users] = await pool.execute(`SELECT ${cols} FROM users u ORDER BY u.created_at DESC`);
+    } else {
+      const f = scope.filterSql(ctx.sc, "u");
+      const [students] = await pool.execute(`SELECT ${cols} FROM users u WHERE u.role = 'student' AND ${f.sql} ORDER BY u.class_name, u.full_name`, f.params);
+      const ids = students.map(s => s.id);
+      let parents = [];
+      if (ids.length) [parents] = await pool.execute(`SELECT DISTINCT ${cols} FROM users u JOIN parent_students ps ON ps.parent_id = u.id WHERE ps.student_id IN (${ids.map(() => "?").join(",")})`, ids);
+      users = [...students, ...parents];
     }
-    if (!["pending", "active", "locked"].includes(status)) {
-      return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ." });
+    const parentIds = users.filter(u => u.role === "parent").map(u => u.id);
+    const links = {};
+    if (parentIds.length) {
+      const [rows] = await pool.execute(`SELECT ps.parent_id, u.id, u.full_name, u.class_name FROM parent_students ps JOIN users u ON u.id = ps.student_id WHERE ps.parent_id IN (${parentIds.map(() => "?").join(",")})`, parentIds);
+      for (const r of rows) (links[r.parent_id] = links[r.parent_id] || []).push({ id: r.id, fullName: r.full_name, className: r.class_name });
     }
-    if (String(password).length < 6) {
-      return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);
-    if (existing.length) {
-      return res.status(409).json({ success: false, message: "Email này đã tồn tại." });
-    }
-
-    const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
-    const passwordHash = await bcrypt.hash(password, 12);
-    let insertSql = "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)";
-    let insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status];
-    try {
-      const [cols] = await pool.query("SHOW COLUMNS FROM users LIKE 'password'");
-      if (cols && cols.length > 0) {
-        insertSql = "INSERT INTO users (full_name, email, password_hash, password, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, passwordHash, role, studentClass, status];
-      }
-    } catch (e) {}
-    const [result] = await pool.execute(insertSql, insertParams);
-    return res.status(201).json({ success: true, message: "Đã thêm tài khoản.", userId: result.insertId });
+    return res.json({ success: true, scope: ctx.full ? { all: true } : { classes: ctx.sc.classes || [] }, users: users.map(u => ({ ...publicUser(u), children: links[u.id] || undefined })) });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: "Không thể thêm tài khoản." });
+    return sendError(res, error, "Không thể tải danh sách người dùng.");
   }
 });
 
-app.patch("/api/admin/users/:id/status", requireLogin, requireRole("admin"), async (req, res) => {
+app.post("/api/admin/users", requireLogin, requirePermission("users.manage", "students.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const { fullName, email, password, role = "student", className, status = "active", phone } = req.body || {};
+    if (!String(fullName || "").trim()) return res.status(400).json({ success: false, message: "Vui lòng nhập họ tên." });
+    if (!["student", "teacher", "parent", "admin"].includes(role)) return res.status(400).json({ success: false, message: "Vai trò không hợp lệ." });
+    if (!["pending", "active", "locked"].includes(status)) return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ." });
+    if (!ctx.full && role !== "student") return res.status(403).json({ success: false, message: "Giáo viên chỉ tạo được tài khoản học sinh (phụ huynh tạo ở mục Phụ huynh)." });
+    if (role === "parent") {
+      const r = await upsertParent({ phone, fullName, studentIds: [], createdBy: req.user.userId });
+      return res.status(201).json({ success: true, message: `Đã tạo tài khoản phụ huynh ${r.phone} (mật khẩu ${PARENT_DEFAULT_PASSWORD}, bắt buộc đổi khi đăng nhập).`, userId: r.parentId });
+    }
+    const cls = role === "student" ? cleanClass(className) || null : null;
+    if (role === "student" && !cls) return res.status(400).json({ success: false, message: "Vui lòng nhập lớp cho học sinh." });
+    if (role === "student" && !classAllowed(ctx, cls)) return res.status(403).json({ success: false, message: `Lớp ${cls} không thuộc các lớp bạn phụ trách.` });
+    let mail = String(email || "").trim().toLowerCase();
+    if (!mail && role === "student") mail = await uniqueStudentEmail(fullName, cls);
+    if (!validEmail(mail)) return res.status(400).json({ success: false, message: "Email không hợp lệ." });
+    const pw = String(password || "123456");
+    if (pw.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
+    const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
+    if (existing.length) return res.status(409).json({ success: false, message: "Email này đã tồn tại." });
+    const id = await insertUser({ fullName: String(fullName).trim().slice(0, 100), email: mail, passwordHash: await bcrypt.hash(pw, 12), role, className: cls, status: ctx.full ? status : "active" });
+    return res.status(201).json({ success: true, message: `Đã thêm tài khoản ${mail}.`, userId: id, email: mail });
+  } catch (error) {
+    return sendError(res, error, "Không thể thêm tài khoản.");
+  }
+});
+
+app.patch("/api/admin/users/:id", requireLogin, requirePermission("users.manage", "students.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const target = await loadUser(req.params.id);
+    if (!target) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
+    if (!(await canManageUser(ctx, target))) return res.status(403).json({ success: false, message: "Tài khoản này ngoài phạm vi bạn quản lý." });
+    const b = req.body || {};
+    const sets = [], params = [];
+    if (b.fullName !== undefined) {
+      const v = String(b.fullName || "").trim();
+      if (!v) return res.status(400).json({ success: false, message: "Họ tên không được để trống." });
+      sets.push("full_name = ?"); params.push(v.slice(0, 100));
+    }
+    if (b.email !== undefined && target.role !== "parent") {
+      const v = String(b.email || "").trim().toLowerCase();
+      if (!validEmail(v)) return res.status(400).json({ success: false, message: "Email không hợp lệ." });
+      const [dup] = await pool.execute("SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1", [v, target.id]);
+      if (dup.length) return res.status(409).json({ success: false, message: "Email này đã được dùng." });
+      sets.push("email = ?"); params.push(v);
+    }
+    if (b.className !== undefined && target.role === "student") {
+      const v = cleanClass(b.className);
+      if (!v) return res.status(400).json({ success: false, message: "Lớp không được để trống." });
+      if (!classAllowed(ctx, v)) return res.status(403).json({ success: false, message: `Lớp ${v} không thuộc các lớp bạn phụ trách.` });
+      sets.push("class_name = ?"); params.push(v);
+    }
+    if (b.phone !== undefined && target.role === "parent") {
+      const p = scope.normalizePhone(b.phone);
+      if (!p) return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ." });
+      const [dup] = await pool.execute("SELECT id FROM users WHERE phone = ? AND id <> ? LIMIT 1", [p, target.id]);
+      if (dup.length) return res.status(409).json({ success: false, message: "Số điện thoại đã được dùng." });
+      sets.push("phone = ?", "email = ?"); params.push(p, parentEmail(p));
+    }
+    if (b.role !== undefined && b.role !== target.role) {
+      if (!ctx.full) return res.status(403).json({ success: false, message: "Chỉ quản trị viên mới đổi được vai trò." });
+      if (!["student", "teacher", "admin"].includes(b.role) || target.role === "parent") return res.status(400).json({ success: false, message: "Không thể đổi sang vai trò này." });
+      if (Number(target.id) === Number(req.user.userId)) return res.status(400).json({ success: false, message: "Không thể tự đổi vai trò của mình." });
+      sets.push("role = ?"); params.push(b.role);
+      if (b.role !== "student") sets.push("class_name = NULL");
+    }
+    if (b.status !== undefined) {
+      if (!["pending", "active", "locked"].includes(b.status)) return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ." });
+      if (Number(target.id) === Number(req.user.userId) && b.status !== "active") return res.status(400).json({ success: false, message: "Không thể khoá tài khoản đang đăng nhập." });
+      sets.push("status = ?"); params.push(b.status);
+    }
+    if (b.password) {
+      const pw = String(b.password);
+      const isParent = target.role === "parent";
+      if (!isParent && pw.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
+      const hash = await bcrypt.hash(pw, 12);
+      sets.push("password_hash = ?", "must_change_password = ?"); params.push(hash, isParent ? 1 : 0);
+      if (await hasLegacyPassword()) { sets.push("password = ?"); params.push(hash); }
+    }
+    if (!sets.length) return res.status(400).json({ success: false, message: "Không có thay đổi nào." });
+    await pool.execute(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`, [...params, target.id]);
+    return res.json({ success: true, message: "Đã cập nhật tài khoản.", user: publicUser(await loadUser(target.id)) });
+  } catch (error) {
+    return sendError(res, error, "Không thể cập nhật tài khoản.");
+  }
+});
+
+app.patch("/api/admin/users/:id/status", requireLogin, requirePermission("users.manage", "students.manage"), async (req, res) => {
   try {
     const { status } = req.body;
     if (!["pending", "active", "locked"].includes(status)) {
@@ -1048,34 +1245,211 @@ app.patch("/api/admin/users/:id/status", requireLogin, requireRole("admin"), asy
     if (Number(req.params.id) === Number(req.user.userId) && status !== "active") {
       return res.status(400).json({ success: false, message: "Không thể khóa tài khoản đang đăng nhập." });
     }
-    const [result] = await pool.execute("UPDATE users SET status = ? WHERE id = ?", [status, req.params.id]);
-    if (!result.affectedRows) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
+    const ctx = await manageContext(req);
+    const target = await loadUser(req.params.id);
+    if (!target) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
+    if (!(await canManageUser(ctx, target))) return res.status(403).json({ success: false, message: "Tài khoản này ngoài phạm vi bạn quản lý." });
+    await pool.execute("UPDATE users SET status = ? WHERE id = ?", [status, target.id]);
     return res.json({ success: true, message: "Đã cập nhật trạng thái tài khoản." });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: "Không thể cập nhật tài khoản." });
+    return sendError(res, error, "Không thể cập nhật tài khoản.");
   }
 });
 
-app.delete("/api/admin/users/:id", requireLogin, requireRole("admin"), async (req, res) => {
+app.delete("/api/admin/users/:id", requireLogin, requirePermission("users.manage", "students.manage"), async (req, res) => {
   try {
     if (Number(req.params.id) === Number(req.user.userId)) {
       return res.status(400).json({ success: false, message: "Không thể tự xóa tài khoản đang đăng nhập." });
     }
-    const [targetRows] = await pool.execute("SELECT role FROM users WHERE id = ? LIMIT 1", [req.params.id]);
-    if (!targetRows.length) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
-    if (targetRows[0].role === "admin") {
+    const ctx = await manageContext(req);
+    const target = await loadUser(req.params.id);
+    if (!target) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
+    if (!(await canManageUser(ctx, target))) return res.status(403).json({ success: false, message: "Tài khoản này ngoài phạm vi bạn quản lý." });
+    if (target.role === "admin") {
       const [countRows] = await pool.execute("SELECT COUNT(*) AS total FROM users WHERE role = 'admin' AND status = 'active'");
       if (Number(countRows[0].total) <= 1) {
         return res.status(400).json({ success: false, message: "Không thể xóa quản trị viên hoạt động cuối cùng." });
       }
     }
-    await pool.execute("DELETE FROM users WHERE id = ?", [req.params.id]);
-    try { await pool.execute("DELETE FROM user_data WHERE user_id = ?", [req.params.id]); } catch (e) {}
+    await pool.execute("DELETE FROM users WHERE id = ?", [target.id]);
+    try { await pool.execute("DELETE FROM user_data WHERE user_id = ?", [target.id]); } catch (e) {}
+    try { await pool.execute("DELETE FROM parent_students WHERE parent_id = ? OR student_id = ?", [target.id, target.id]); } catch (e) {}
+    try { await pool.execute("DELETE FROM teacher_classes WHERE teacher_id = ?", [target.id]); } catch (e) {}
     return res.json({ success: true, message: "Đã xóa tài khoản." });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ success: false, message: "Không thể xóa tài khoản." });
+    return sendError(res, error, "Không thể xóa tài khoản.");
+  }
+});
+
+app.post("/api/admin/users/import", requireLogin, requirePermission("users.import"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const rows = Array.isArray(req.body && req.body.rows) ? req.body.rows.slice(0, 1000) : [];
+    if (!rows.length) return res.status(400).json({ success: false, message: "File không có dòng dữ liệu nào." });
+    const defaultPassword = String((req.body && req.body.defaultPassword) || "123456");
+    if (defaultPassword.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu mặc định phải có ít nhất 6 ký tự." });
+    const hashCache = new Map();
+    const hashOf = async pw => { if (!hashCache.has(pw)) hashCache.set(pw, await bcrypt.hash(pw, 12)); return hashCache.get(pw); };
+    const results = [];
+    let created = 0, skipped = 0, failed = 0, parentsLinked = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i] || {};
+      const fullName = String(r.fullName || "").trim().replace(/\s+/g, " ");
+      const role = ["student", "teacher", "parent", "admin"].includes(String(r.role || "").trim().toLowerCase()) ? String(r.role).trim().toLowerCase() : "student";
+      const out = { row: i + 1, fullName, role };
+      try {
+        if (!fullName) throw Object.assign(new Error("Thiếu họ tên"), { status: 400 });
+        if (!ctx.full && role !== "student") throw Object.assign(new Error("Giáo viên chỉ nhập được học sinh"), { status: 403 });
+        if (role === "parent") {
+          const p = await upsertParent({ phone: r.phone, fullName, studentIds: [], createdBy: req.user.userId });
+          Object.assign(out, { status: p.created ? "created" : "skipped", login: p.phone, message: p.created ? `Mật khẩu ${PARENT_DEFAULT_PASSWORD}` : "Đã có" });
+          p.created ? created++ : skipped++;
+          results.push(out);
+          continue;
+        }
+        const cls = role === "student" ? cleanClass(r.className) : null;
+        if (role === "student" && !cls) throw Object.assign(new Error("Thiếu lớp"), { status: 400 });
+        if (role === "student" && !classAllowed(ctx, cls)) throw Object.assign(new Error(`Lớp ${cls} ngoài phạm vi`), { status: 403 });
+        let mail = String(r.email || "").trim().toLowerCase();
+        let studentId = null;
+        if (!mail && role === "student") {
+          const [same] = await pool.execute("SELECT id, email FROM users WHERE role = 'student' AND full_name = ? AND class_name = ? LIMIT 1", [fullName, cls]);
+          if (same.length) { studentId = same[0].id; Object.assign(out, { status: "skipped", login: same[0].email, message: "Đã có" }); skipped++; }
+          else mail = await uniqueStudentEmail(fullName, cls);
+        }
+        if (!studentId) {
+          if (!validEmail(mail)) throw Object.assign(new Error("Email không hợp lệ"), { status: 400 });
+          const [ex] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
+          if (ex.length) { studentId = role === "student" ? ex[0].id : null; Object.assign(out, { status: "skipped", login: mail, message: "Email đã tồn tại" }); skipped++; }
+          else {
+            const pw = String(r.password || defaultPassword);
+            if (pw.length < 6) throw Object.assign(new Error("Mật khẩu dưới 6 ký tự"), { status: 400 });
+            const id = await insertUser({ fullName: fullName.slice(0, 100), email: mail, passwordHash: await hashOf(pw), role, className: cls });
+            if (role === "student") studentId = id;
+            Object.assign(out, { status: "created", login: mail, message: `Mật khẩu ${r.password ? "theo file" : defaultPassword}` });
+            created++;
+          }
+        }
+        if (role === "student" && studentId && r.parentPhone && rbac.can(req.user, "parents.manage")) {
+          const p = await upsertParent({ phone: r.parentPhone, fullName: r.parentName, studentIds: [studentId], createdBy: req.user.userId });
+          out.parent = p.phone;
+          parentsLinked++;
+        }
+      } catch (e) {
+        if (!e.status) console.error("Import row", i + 1, e.message);
+        Object.assign(out, { status: "error", message: e.status ? e.message : "Lỗi hệ thống" });
+        failed++;
+      }
+      results.push(out);
+    }
+    return res.json({ success: true, created, skipped, failed, parentsLinked, results, message: `Đã tạo ${created}, bỏ qua ${skipped}, lỗi ${failed}${parentsLinked ? `, liên kết ${parentsLinked} phụ huynh` : ""}.` });
+  } catch (error) {
+    return sendError(res, error, "Không nhập được danh sách.");
+  }
+});
+
+app.get("/api/parents", requireLogin, requirePermission("parents.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const f = scope.filterSql(ctx.sc, "s");
+    const params = [...f.params];
+    let extra = "";
+    if (req.query.studentId) { extra = " AND s.id = ?"; params.push(req.query.studentId); }
+    const [rows] = await pool.execute(
+      `SELECT p.id, p.full_name, p.phone, p.status, p.must_change_password, p.created_at, s.id AS sid, s.full_name AS sname, s.class_name AS sclass
+       FROM parent_students ps JOIN users p ON p.id = ps.parent_id JOIN users s ON s.id = ps.student_id
+       WHERE p.role = 'parent' AND ${f.sql}${extra} ORDER BY p.full_name`, params);
+    const map = new Map();
+    for (const r of rows) {
+      if (!map.has(r.id)) map.set(r.id, { id: r.id, fullName: r.full_name, phone: r.phone, status: r.status, mustChangePassword: Boolean(Number(r.must_change_password)), createdAt: r.created_at, children: [] });
+      map.get(r.id).children.push({ id: r.sid, fullName: r.sname, className: r.sclass });
+    }
+    return res.json({ success: true, parents: [...map.values()] });
+  } catch (error) {
+    return sendError(res, error, "Không tải được danh sách phụ huynh.");
+  }
+});
+
+app.post("/api/parents", requireLogin, requirePermission("parents.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const ids = [...new Set((req.body && req.body.studentIds || []).map(Number).filter(Boolean))];
+    if (!ids.length && !ctx.full) return res.status(400).json({ success: false, message: "Chọn ít nhất một học sinh để liên kết." });
+    for (const id of ids) {
+      if (!(await scope.accessibleStudent(req.user, id))) return res.status(403).json({ success: false, message: "Có học sinh không tồn tại hoặc ngoài phạm vi bạn quản lý." });
+    }
+    const r = await upsertParent({ phone: req.body && req.body.phone, fullName: req.body && req.body.fullName, studentIds: ids, createdBy: req.user.userId });
+    return res.status(r.created ? 201 : 200).json({ success: true, parentId: r.parentId, created: r.created, phone: r.phone, message: r.created ? `Đã tạo tài khoản phụ huynh ${r.phone} — mật khẩu mặc định ${PARENT_DEFAULT_PASSWORD}, phụ huynh phải đổi khi đăng nhập lần đầu.` : `Đã liên kết thêm con cho phụ huynh ${r.phone}.` });
+  } catch (error) {
+    return sendError(res, error, "Không tạo được tài khoản phụ huynh.");
+  }
+});
+
+app.post("/api/parents/:id/reset-password", requireLogin, requirePermission("parents.manage"), async (req, res) => {
+  try {
+    const ctx = await manageContext(req);
+    const target = await loadUser(req.params.id);
+    if (!target || target.role !== "parent") return res.status(404).json({ success: false, message: "Không tìm thấy phụ huynh." });
+    if (!(await canManageUser(ctx, target))) return res.status(403).json({ success: false, message: "Phụ huynh này ngoài phạm vi bạn quản lý." });
+    const hash = await bcrypt.hash(PARENT_DEFAULT_PASSWORD, 12);
+    await pool.execute("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?", [hash, target.id]);
+    try { if (await hasLegacyPassword()) await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hash, target.id]); } catch (e) {}
+    return res.json({ success: true, message: `Đã đặt lại mật khẩu về ${PARENT_DEFAULT_PASSWORD}.` });
+  } catch (error) {
+    return sendError(res, error, "Không đặt lại được mật khẩu.");
+  }
+});
+
+app.delete("/api/parents/:id/students/:studentId", requireLogin, requirePermission("parents.manage"), async (req, res) => {
+  try {
+    const ctx = await manageContext(req);
+    if (!ctx.full && !(await scope.accessibleStudent(req.user, req.params.studentId))) return res.status(403).json({ success: false, message: "Học sinh ngoài phạm vi bạn quản lý." });
+    await pool.execute("DELETE FROM parent_students WHERE parent_id = ? AND student_id = ?", [req.params.id, req.params.studentId]);
+    return res.json({ success: true, message: "Đã bỏ liên kết." });
+  } catch (error) {
+    return sendError(res, error, "Không bỏ được liên kết.");
+  }
+});
+
+app.get("/api/teacher/my-classes", requireLogin, requirePermission("classes.assign_self", "students.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const mine = req.user.role === "teacher" ? await scope.teacherClasses(req.user.userId) : [];
+    let known = [];
+    try { const [rows] = await pool.query("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> ''"); known = rows.map(r => cleanClass(r.class_name)); } catch (e) {}
+    const available = [...new Set([...DEFAULT_CLASSES, ...known, ...mine])].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
+    return res.json({ success: true, classes: mine, available });
+  } catch (error) {
+    return sendError(res, error, "Không tải được lớp phụ trách.");
+  }
+});
+
+app.put("/api/teacher/my-classes", requireLogin, requirePermission("classes.assign_self"), async (req, res) => {
+  try {
+    if (req.user.role !== "teacher") return res.status(400).json({ success: false, message: "Chỉ giáo viên mới chọn lớp phụ trách." });
+    const classes = await scope.setTeacherClasses(req.user.userId, (req.body && req.body.classes) || []);
+    return res.json({ success: true, classes, message: classes.length ? `Đã lưu ${classes.length} lớp phụ trách.` : "Bạn chưa chọn lớp nào." });
+  } catch (error) {
+    return sendError(res, error, "Không lưu được lớp phụ trách.");
+  }
+});
+
+app.get("/api/admin/rbac", requireLogin, requirePermission("system.manage"), async (req, res) => {
+  try {
+    return res.json({ success: true, ...(await rbac.matrix()) });
+  } catch (error) {
+    return sendError(res, error, "Không tải được bảng phân quyền.");
+  }
+});
+
+app.put("/api/admin/rbac", requireLogin, requirePermission("system.manage"), async (req, res) => {
+  try {
+    return res.json({ success: true, message: "Đã lưu phân quyền.", ...(await rbac.setGrants((req.body && req.body.grants) || {})) });
+  } catch (error) {
+    return sendError(res, error, "Không lưu được phân quyền.");
   }
 });
 
@@ -1153,7 +1527,7 @@ function durationForTest(testType, test, analysis) {
   return n <= 20 ? 15 : Math.max(15, Math.min(45, aiFull || 15));
 }
 
-app.post("/api/tests/import-docx", requireLogin, requireRole("teacher"), async (req, res) => {
+app.post("/api/tests/import-docx", requireLogin, requirePermission("tests.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const { documentBase64, fileName = "de-kiem-tra.docx", title, className, matrixId, testType, semester, unitNo, grade } = req.body;
@@ -1256,7 +1630,7 @@ app.get("/api/tests/:id", requireLogin, async (req, res) => {
   }
 });
 
-app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.post("/api/teacher/tests/:id/analyze", requireLogin, requirePermission("tests.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const [rows] = await pool.execute(testSelect() + " WHERE id = ? LIMIT 1", [req.params.id]);
@@ -1276,7 +1650,7 @@ app.post("/api/teacher/tests/:id/analyze", requireLogin, requireRole("teacher", 
   }
 });
 
-app.patch("/api/teacher/tests/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.patch("/api/teacher/tests/:id", requireLogin, requirePermission("tests.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const { testType, semester, unitNo, className, title, grade, durationMinutes } = req.body;
@@ -1300,7 +1674,7 @@ app.patch("/api/teacher/tests/:id", requireLogin, requireRole("teacher", "admin"
   }
 });
 
-app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), async (req, res) => {
+app.post("/api/tests/:id/submissions", requireLogin, requirePermission("tests.take"), async (req, res) => {
   try {
     await assessmentReady;
     const { answers = {}, speakingAnswers = {}, tabViolations = 0, violationPenalty = 0, isForcedSubmit = false, timeSpentSeconds = null } = req.body;
@@ -1424,7 +1798,7 @@ app.post("/api/tests/:id/submissions", requireLogin, requireRole("student"), asy
   }
 });
 
-app.delete("/api/tests/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.delete("/api/tests/:id", requireLogin, requirePermission("tests.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const isTeacher = req.user.role === "teacher";
@@ -1444,7 +1818,7 @@ app.delete("/api/tests/:id", requireLogin, requireRole("teacher", "admin"), asyn
   }
 });
 
-app.delete("/api/teacher/submissions/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.delete("/api/teacher/submissions/:id", requireLogin, requirePermission("grading.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const [result] = await pool.execute("DELETE FROM writing_submissions WHERE id = ?", [req.params.id]);
@@ -1545,7 +1919,7 @@ app.get("/api/student/results", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.get("/api/teacher/results", requireLogin, requirePermission("results.view"), async (req, res) => {
   try {
     await assessmentReady;
     const { className, testId } = req.query;
@@ -1563,9 +1937,11 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
       WHERE 1=1
     `;
     const params = [];
-    if (req.user.role === "teacher") {
-      query += " AND it.teacher_id = ?";
-      params.push(req.user.userId);
+    const sc = await scope.scopeOf(req.user);
+    if (!sc.all) {
+      const f = scope.filterSql(sc, "u");
+      query += ` AND (it.teacher_id = ? OR ${f.sql})`;
+      params.push(req.user.userId, ...f.params);
     }
     if (className) {
       query += " AND u.class_name = ?";
@@ -1620,21 +1996,17 @@ app.get("/api/teacher/results", requireLogin, requireRole("teacher", "admin"), a
   }
 });
 
-app.get("/api/parent/student-data", requireLogin, async (req, res) => {
+app.get("/api/parent/student-data", requireLogin, requirePermission("progress.view"), async (req, res) => {
   try {
     await assessmentReady;
-    let targetStudentId = req.user.parent_student_id || req.query.studentId;
+    const children = req.user.role === "parent" ? (await scope.childrenOf(req.user.userId)).map(c => ({ id: c.id, fullName: c.full_name, className: c.class_name })) : [];
+    let targetStudentId = req.query.studentId || (children[0] && children[0].id) || (req.user.role === "student" ? req.user.userId : null);
     if (!targetStudentId) {
-      const [students] = await pool.execute("SELECT id FROM users WHERE role = 'student' ORDER BY id ASC LIMIT 1");
-      if (students.length) targetStudentId = students[0].id;
+      return res.json({ success: true, student: null, children, submissions: [], stats: {} });
     }
-    if (!targetStudentId) {
-      return res.json({ success: true, student: null, submissions: [], stats: {} });
-    }
-
-    const [studentRows] = await pool.execute("SELECT id, full_name, email, class_name, created_at FROM users WHERE id = ? LIMIT 1", [targetStudentId]);
-    if (!studentRows.length) return res.status(404).json({ success: false, message: "Không tìm thấy thông tin học sinh." });
-    const student = studentRows[0];
+    const student = await scope.accessibleStudent(req.user, targetStudentId);
+    if (!student) return res.status(403).json({ success: false, message: "Bạn không có quyền xem học sinh này." });
+    targetStudentId = student.id;
 
     const [submissionsRows] = await pool.execute(
       `SELECT
@@ -1680,6 +2052,7 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
     return res.json({
       success: true,
       progress,
+      children,
       student: {
         id: student.id,
         fullName: student.full_name,
@@ -1700,35 +2073,38 @@ app.get("/api/parent/student-data", requireLogin, async (req, res) => {
   }
 });
 
-app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.get("/api/teacher/results/stats", requireLogin, requirePermission("results.view"), async (req, res) => {
   try {
     await assessmentReady;
-    const isTeacher = req.user.role === "teacher";
     const teacherId = req.user.userId;
+    const sc = await scope.scopeOf(req.user);
+    const f = scope.filterSql(sc, "u");
+    const scoped = !sc.all;
 
-    const testCountQuery = isTeacher
-      ? "SELECT COUNT(*) AS totalTests FROM imported_tests WHERE teacher_id = ?"
-      : "SELECT COUNT(*) AS totalTests FROM imported_tests";
-    const [testCountRows] = await pool.execute(testCountQuery, isTeacher ? [teacherId] : []);
+    const [testCountRows] = await pool.execute(
+      scoped ? "SELECT COUNT(*) AS totalTests FROM imported_tests WHERE teacher_id = ? OR source_file_name LIKE 'bank:%'" : "SELECT COUNT(*) AS totalTests FROM imported_tests",
+      scoped ? [teacherId] : []
+    );
 
-    const subQuery = isTeacher
-      ? `SELECT ws.id, ws.objective_score, ws.manual_score, ${optCol("writing_submissions", "ws", "objective_max")}, ws.status, u.class_name, it.summary_json
-         FROM writing_submissions ws
-         JOIN imported_tests it ON it.id = ws.test_id
-         JOIN users u ON u.id = ws.student_id
-         WHERE it.teacher_id = ?`
-      : `SELECT ws.id, ws.objective_score, ws.manual_score, ${optCol("writing_submissions", "ws", "objective_max")}, ws.status, u.class_name, it.summary_json
-         FROM writing_submissions ws
-         JOIN imported_tests it ON it.id = ws.test_id
-         JOIN users u ON u.id = ws.student_id`;
-    const [subRows] = await pool.execute(subQuery, isTeacher ? [teacherId] : []);
+    const [subRows] = await pool.execute(
+      `SELECT ws.id, ws.objective_score, ws.manual_score, ${optCol("writing_submissions", "ws", "objective_max")}, ws.status, u.class_name, it.summary_json
+       FROM writing_submissions ws
+       JOIN imported_tests it ON it.id = ws.test_id
+       JOIN users u ON u.id = ws.student_id
+       ${scoped ? `WHERE (it.teacher_id = ? OR ${f.sql})` : ""}`,
+      scoped ? [teacherId, ...f.params] : []
+    );
 
-    const [studentRows] = await pool.execute("SELECT COUNT(*) AS totalStudents FROM users WHERE role = 'student' AND status = 'active'");
+    const [studentRows] = await pool.execute(`SELECT COUNT(*) AS totalStudents FROM users u WHERE u.role = 'student' AND u.status = 'active' AND ${f.sql}`, f.params);
 
     const classStats = {};
     try {
-      const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
-      [...DEFAULT_CLASSES, ...classRows.map(r => r.class_name)].forEach(c => { if (!classStats[c]) classStats[c] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 }; });
+      let base = sc.classes || [];
+      if (sc.all) {
+        const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
+        base = [...DEFAULT_CLASSES, ...classRows.map(r => r.class_name)];
+      }
+      base.forEach(c => { if (!classStats[c]) classStats[c] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 }; });
     } catch (e) {}
 
     let pendingGrading = 0;
@@ -1785,7 +2161,7 @@ app.get("/api/teacher/results/stats", requireLogin, requireRole("teacher", "admi
   }
 });
 
-app.get("/api/teacher/writing-submissions", requireLogin, requireRole("teacher"), async (req, res) => {
+app.get("/api/teacher/writing-submissions", requireLogin, requirePermission("grading.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const [rows] = await pool.execute(
@@ -1801,7 +2177,7 @@ app.get("/api/teacher/writing-submissions", requireLogin, requireRole("teacher")
   }
 });
 
-app.patch("/api/teacher/writing-submissions/:id", requireLogin, requireRole("teacher"), async (req, res) => {
+app.patch("/api/teacher/writing-submissions/:id", requireLogin, requirePermission("grading.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const score = Number(req.body.score);
@@ -1864,7 +2240,7 @@ function publicSpeakingAssignment(row) {
   };
 }
 
-app.post("/api/teacher/speaking-assignments", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.post("/api/teacher/speaking-assignments", requireLogin, requirePermission("speaking.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const { title, className, sentence, ipa, translation, stage, items, unitTitle } = req.body;
@@ -1900,7 +2276,7 @@ app.post("/api/teacher/speaking-assignments", requireLogin, requireRole("teacher
   }
 });
 
-app.post("/api/teacher/speaking-units", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.post("/api/teacher/speaking-units", requireLogin, requirePermission("speaking.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const { documentBase64, fileName = "sgk.pdf", title, unitTitle, className, stages = ["1", "2"], count = 8 } = req.body;
@@ -1979,7 +2355,7 @@ app.get("/api/speaking/assignments", requireLogin, async (req, res) => {
   }
 });
 
-app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.delete("/api/teacher/speaking-assignments/:id", requireLogin, requirePermission("speaking.manage"), async (req, res) => {
   try {
     await assessmentReady;
     let query = "DELETE FROM speaking_assignments WHERE id = ?";
@@ -2091,7 +2467,7 @@ app.post("/api/student/speaking-submissions", requireLogin, async (req, res) => 
   }
 });
 
-app.get("/api/teacher/speaking-submissions", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.get("/api/teacher/speaking-submissions", requireLogin, requirePermission("speaking.manage", "results.view"), async (req, res) => {
   try {
     await assessmentReady;
     const { assignmentId, className } = req.query;
@@ -2139,7 +2515,7 @@ app.get("/api/class-settings", requireLogin, async (req, res) => {
   }
 });
 
-app.put("/api/teacher/class-settings", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.put("/api/teacher/class-settings", requireLogin, requirePermission("classes.settings"), async (req, res) => {
   try {
     await assessmentReady;
     const settings = Array.isArray(req.body.settings) ? req.body.settings : [];
@@ -2157,7 +2533,7 @@ app.put("/api/teacher/class-settings", requireLogin, requireRole("teacher", "adm
   }
 });
 
-app.get("/api/teacher/test-matrices", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.get("/api/teacher/test-matrices", requireLogin, requirePermission("matrices.manage", "tests.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const [rows] = await pool.execute("SELECT id, teacher_id, title, source_file_name, matrix_json, created_at FROM test_matrices ORDER BY created_at DESC");
@@ -2168,7 +2544,7 @@ app.get("/api/teacher/test-matrices", requireLogin, requireRole("teacher", "admi
   }
 });
 
-app.post("/api/teacher/test-matrices", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.post("/api/teacher/test-matrices", requireLogin, requirePermission("matrices.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const { documentBase64, fileName = "ma-tran.pdf", title } = req.body;
@@ -2184,7 +2560,7 @@ app.post("/api/teacher/test-matrices", requireLogin, requireRole("teacher", "adm
   }
 });
 
-app.delete("/api/teacher/test-matrices/:id", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.delete("/api/teacher/test-matrices/:id", requireLogin, requirePermission("matrices.manage"), async (req, res) => {
   try {
     await pool.execute("DELETE FROM test_matrices WHERE id = ?", [req.params.id]);
     return res.json({ success: true, message: "Đã xóa ma trận." });
@@ -2204,11 +2580,11 @@ app.get("/api/student/progress", requireLogin, async (req, res) => {
   }
 });
 
-app.post("/api/learning-events", requireLogin, requireRole("student"), async (req, res) => {
+app.post("/api/learning-events", requireLogin, requirePermission("learning.record"), async (req, res) => {
   try {
     await assessmentReady;
     const { type, refId, title, score, maxScore, meta } = req.body;
-    if (!["vocab", "healing", "speaking", "listening", "grammar"].includes(type)) return res.status(400).json({ success: false, message: "Loại sự kiện không hợp lệ." });
+    if (!["vocab", "healing", "speaking", "listening", "grammar", "wordform"].includes(type)) return res.status(400).json({ success: false, message: "Loại sự kiện không hợp lệ." });
     await progressService.recordLearningEvent({ studentId: req.user.userId, type, refId, title: String(title || "").slice(0, 255), score: score !== undefined ? Number(score) : null, maxScore: maxScore !== undefined ? Number(maxScore) : null, meta: meta || null });
     return res.json({ success: true });
   } catch (error) {
@@ -2216,14 +2592,73 @@ app.post("/api/learning-events", requireLogin, requireRole("student"), async (re
   }
 });
 
-app.get("/api/teacher/students-overview", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.get("/api/word-families", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, families: await wordFamilies.list({ grade: req.query.grade, unit: req.query.unit }) });
+  } catch (error) {
+    return sendError(res, error, "Không tải được họ từ.");
+  }
+});
+
+app.post("/api/word-families", requireLogin, requirePermission("wordforms.manage"), async (req, res) => {
+  try {
+    const id = await wordFamilies.save(req.body || {}, req.user.userId);
+    return res.json({ success: true, id, message: "Đã lưu họ từ." });
+  } catch (error) {
+    return sendError(res, error, "Không lưu được họ từ.");
+  }
+});
+
+app.put("/api/word-families/:id", requireLogin, requirePermission("wordforms.manage"), async (req, res) => {
+  try {
+    const id = await wordFamilies.save({ ...(req.body || {}), id: req.params.id }, req.user.userId);
+    return res.json({ success: true, id, message: "Đã cập nhật họ từ." });
+  } catch (error) {
+    return sendError(res, error, "Không cập nhật được họ từ.");
+  }
+});
+
+app.delete("/api/word-families/:id", requireLogin, requirePermission("wordforms.manage"), async (req, res) => {
+  try {
+    await wordFamilies.remove(req.params.id);
+    return res.json({ success: true, message: "Đã xoá họ từ." });
+  } catch (error) {
+    return sendError(res, error, "Không xoá được họ từ.");
+  }
+});
+
+app.post("/api/learning-time", requireLogin, requirePermission("learning.record"), async (req, res) => {
+  try {
+    const added = await progressService.recordStudyTime(req.user.userId, (req.body || {}).seconds);
+    return res.json({ success: true, added });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Không ghi được thời gian học." });
+  }
+});
+
+app.get("/api/progress/students/:id/summary", requireLogin, requirePermission("progress.view"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const id = req.params.id === "me" ? req.user.userId : req.params.id;
+    const st = await scope.accessibleStudent(req.user, id);
+    if (!st) return res.status(403).json({ success: false, message: "Bạn không có quyền xem học sinh này." });
+    return res.json({ success: true, summary: await progressService.buildStudentSummary(st) });
+  } catch (error) {
+    logSchemaError(error);
+    return res.status(500).json({ success: false, message: "Không tổng hợp được tiến trình học tập." });
+  }
+});
+
+app.get("/api/teacher/students-overview", requireLogin, requirePermission("progress.view"), async (req, res) => {
   try {
     await assessmentReady;
     const { className } = req.query;
-    let query = "SELECT id, full_name, email, class_name, created_at FROM users WHERE role = 'student' AND status = 'active'";
-    const params = [];
-    if (className) { query += " AND class_name = ?"; params.push(className); }
-    query += " ORDER BY class_name, full_name LIMIT 300";
+    const sc = await scope.scopeOf(req.user);
+    const f = scope.filterSql(sc, "u");
+    let query = `SELECT u.id, u.full_name, u.email, u.class_name, u.created_at FROM users u WHERE u.role = 'student' AND u.status = 'active' AND ${f.sql}`;
+    const params = [...f.params];
+    if (className) { query += " AND u.class_name = ?"; params.push(className); }
+    query += " ORDER BY u.class_name, u.full_name LIMIT 300";
     const [students] = await pool.execute(query, params);
     const overview = [];
     for (const s of students) {
@@ -2246,11 +2681,12 @@ app.get("/api/teacher/students-overview", requireLogin, requireRole("teacher", "
   }
 });
 
-app.get("/api/teacher/students/:id/progress", requireLogin, requireRole("teacher", "admin", "parent"), async (req, res) => {
+app.get("/api/teacher/students/:id/progress", requireLogin, requirePermission("progress.view"), async (req, res) => {
   try {
     await assessmentReady;
-    const [rows] = await pool.execute("SELECT id, full_name, email, class_name FROM users WHERE id = ? AND role = 'student' LIMIT 1", [req.params.id]);
-    if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy học sinh." });
+    const st = await scope.accessibleStudent(req.user, req.params.id);
+    if (!st) return res.status(403).json({ success: false, message: "Bạn không có quyền xem học sinh này." });
+    const rows = [st];
     const progress = await progressService.buildStudentProgress(rows[0].id);
     return res.json({ success: true, student: { id: rows[0].id, fullName: rows[0].full_name, email: rows[0].email, className: rows[0].class_name }, progress });
   } catch (error) {
@@ -2259,7 +2695,7 @@ app.get("/api/teacher/students/:id/progress", requireLogin, requireRole("teacher
   }
 });
 
-app.post("/api/ai/chat", async (req, res) => {
+app.post("/api/ai/chat", requireLogin, requirePermission("ai.use"), async (req, res) => {
   try {
     const { message, history } = req.body;
     if (!message || !message.trim()) {
@@ -2273,7 +2709,7 @@ app.post("/api/ai/chat", async (req, res) => {
   }
 });
 
-app.post("/api/ai/grade-writing", async (req, res) => {
+app.post("/api/ai/grade-writing", requireLogin, requirePermission("ai.use"), async (req, res) => {
   try {
     const { prompt, content, level } = req.body;
     if (!content || !content.trim()) {
@@ -2287,7 +2723,7 @@ app.post("/api/ai/grade-writing", async (req, res) => {
   }
 });
 
-app.post("/api/ai/generate-test", async (req, res) => {
+app.post("/api/ai/generate-test", requireLogin, requirePermission("ai.use"), async (req, res) => {
   try {
     const { topic, gradeLevel, count, difficulty } = req.body;
     const generatedTest = aiService.generateTestOnDemand({ topic, gradeLevel, count, difficulty });
@@ -2298,7 +2734,7 @@ app.post("/api/ai/generate-test", async (req, res) => {
   }
 });
 
-app.post("/api/ai/translate-and-ipa", async (req, res) => {
+app.post("/api/ai/translate-and-ipa", requireLogin, requirePermission("ai.use"), async (req, res) => {
   try {
     const { sentence } = req.body;
     if (!sentence || !sentence.trim()) {
@@ -2349,7 +2785,7 @@ app.get("/api/exams/specs/:id", requireLogin, (req, res) => {
   return res.json({ success: true, spec });
 });
 
-app.post("/api/exams/specs/:id/import", requireLogin, requireRole("teacher", "admin"), async (req, res) => {
+app.post("/api/exams/specs/:id/import", requireLogin, requirePermission("tests.manage"), async (req, res) => {
   try {
     await assessmentReady;
     const spec = unitsData.examSpec(String(req.params.id));

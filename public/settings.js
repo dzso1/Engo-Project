@@ -207,6 +207,7 @@
         <div class="section-head"><div><h3><i class=mi>manage_accounts</i> Tài khoản & dữ liệu</h3></div></div>
         <div class="settings-row"><div class="sr-text"><strong>${esc(cu?.fullName || "Chưa đăng nhập")}</strong><span>${esc(cu ? [cu.email, cu.className ? "Lớp " + cu.className : "", { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị" }[cu.role] || cu.role].filter(Boolean).join(" · ") : "")}</span></div></div>
         ${cu?.role === "admin" ? `<div class="settings-row"><div class="sr-text"><strong>Sao lưu dữ liệu học tập</strong><span>Tải file .json (XP, cà rốt, lỗi đang chữa, tiến độ unit) để không mất khi đổi máy / cập nhật</span></div><div style="display:flex;gap:8px"><button type="button" class="btn btn-light btn-sm" id="setExport"><i class=mi>download</i> Sao lưu</button><button type="button" class="btn btn-light btn-sm" id="setImport"><i class=mi>upload</i> Khôi phục</button></div></div>` : ""}
+        ${cu ? `<div class="settings-row"><div class="sr-text"><strong>Đổi mật khẩu</strong><span>Nên đổi mật khẩu mặc định để bảo vệ tài khoản</span></div><button type="button" class="btn btn-light btn-sm" id="setChangePw"><i class=mi>lock_reset</i> Đổi mật khẩu</button></div>` : ""}
         <div class="settings-row"><div class="sr-text"><strong>Đặt lại cài đặt</strong><span>Về giao diện sáng, cỡ chữ vừa, bật âm thanh</span></div><button type="button" class="btn btn-light btn-sm" id="setReset"><i class=mi>restart_alt</i> Đặt lại</button></div>
       </div>`;
 
@@ -237,6 +238,7 @@
     host.querySelector("#ttsTest")?.addEventListener("click", () => { if (window.speakEnglishText) window.speakEnglishText("Hello! This is your English voice. Let's practise together.", { rate: 0.9 }); });
     host.querySelector("#setExport")?.addEventListener("click", () => { if (typeof exportMyData === "function") exportMyData(); });
     host.querySelector("#setImport")?.addEventListener("click", () => document.getElementById("importMyDataInput")?.click());
+    host.querySelector("#setChangePw")?.addEventListener("click", () => window.openChangePassword && window.openChangePassword(false));
     host.querySelector("#setReset")?.addEventListener("click", () => { window.ENGO_SETTINGS = { ...DEFAULTS }; save(window.ENGO_SETTINGS); localStorage.setItem("engoTheme", "light"); window.applyTheme("light"); applyAll(); window.renderSettings(); if (window.showToast) window.showToast("Đã đặt lại cài đặt."); });
   };
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => { if (document.getElementById("settings")?.classList.contains("active")) window.renderSettings(); };
