@@ -2654,19 +2654,6 @@ app.get("/api/progress/students/:id/summary", requireLogin, requirePermission("p
   }
 });
 
-app.get("/api/progress/students/:id/board", requireLogin, requirePermission("progress.view"), async (req, res) => {
-  try {
-    await assessmentReady;
-    const id = req.params.id === "me" ? req.user.userId : req.params.id;
-    const st = await scope.accessibleStudent(req.user, id);
-    if (!st) return res.status(403).json({ success: false, message: "Bạn không có quyền xem học sinh này." });
-    return res.json({ success: true, board: await resultsBoard.build(st, { semester: req.query.semester }) });
-  } catch (error) {
-    logSchemaError(error);
-    return res.status(500).json({ success: false, message: "Không tải được bảng kết quả." });
-  }
-});
-
 app.get("/api/progress/me/recommendations", requireLogin, requirePermission("learning.record"), async (req, res) => {
   try {
     await assessmentReady;
