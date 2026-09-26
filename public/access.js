@@ -108,6 +108,23 @@
     }
   });
   window.addEventListener("engo:must-change-password", () => openChangePassword(true));
+  let lockShown = false;
+  window.addEventListener("engo:account-locked", async e => {
+    if (lockShown) return;
+    lockShown = true;
+    const msg = (e.detail && e.detail.message) || "Tài khoản đã bị khoá. Hãy báo lại cho quản trị viên hoặc giáo viên để được mở khoá.";
+    const box = document.createElement("div");
+    box.className = "modal pp-dialog lock-dialog";
+    box.innerHTML = `<div class="modal-card" style="max-width:460px;text-align:center"><i class=mi style="font-size:48px;color:#dc2626">lock</i><h3>Tài khoản đã bị khoá</h3><p>${esc(msg.replace(/^Tài khoản đã bị khoá:\s*/, ""))}</p><p class="small muted">Nếu em không dùng công cụ gian lận, hãy báo với giáo viên chủ nhiệm hoặc quản trị viên để được kiểm tra và mở khoá.</p><button type="button" class="btn btn-primary" style="width:100%">Đã hiểu</button></div>`;
+    document.body.appendChild(box);
+    const done = () => {
+      box.remove();
+      lockShown = false;
+      document.getElementById("logoutBtn")?.click();
+      setTimeout(() => { const err = document.getElementById("loginError"); if (err && typeof setAuthError === "function") setAuthError(err, msg); }, 600);
+    };
+    box.querySelector("button").addEventListener("click", done);
+  });
   window.addEventListener("engo:logout", () => { locked = false; modal()?.classList.add("hidden"); applyPermissions(); });
 
   const start = () => { guardModal(); loginLabels(); refreshMe(); };

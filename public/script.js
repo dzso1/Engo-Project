@@ -176,7 +176,7 @@ let knownClasses = [];
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) { if (data.code === "MUST_CHANGE_PASSWORD") window.dispatchEvent(new CustomEvent("engo:must-change-password")); throw Object.assign(new Error(data.message || "Không thể thực hiện yêu cầu."), { status: response.status, code: data.code }); }
+  if (!response.ok) { if (data.code === "MUST_CHANGE_PASSWORD") window.dispatchEvent(new CustomEvent("engo:must-change-password")); if (data.code === "ACCOUNT_LOCKED") window.dispatchEvent(new CustomEvent("engo:account-locked", { detail: { message: data.message } })); throw Object.assign(new Error(data.message || "Không thể thực hiện yêu cầu."), { status: response.status, code: data.code }); }
   return data;
 }
 function setAuthError(element, message = "") { element.textContent = message; element.classList.toggle("show", Boolean(message)); }

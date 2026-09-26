@@ -36,6 +36,7 @@
     on("invite-expired", () => { showToast("Lời mời đã hết hạn."); });
     ["friend-request", "friend-accepted", "friend-removed", "chat-message", "chat-sent", "chat-read"].forEach(type => on(type, data => window.dispatchEvent(new CustomEvent("engo:social", { detail: { type, data } }))));
     es.onopen = () => window.dispatchEvent(new CustomEvent("engo:social", { detail: { type: "connected", data: {} } }));
+    on("account-locked", d => window.dispatchEvent(new CustomEvent("engo:account-locked", { detail: { message: `Tài khoản đã bị khoá: ${d.reason}. Hãy báo lại cho quản trị viên hoặc giáo viên để được mở khoá.` } })));
     es.onerror = () => {};
   }
   function disconnect() { if (S.es) { S.es.close(); S.es = null; } }

@@ -743,3 +743,7 @@ body.dark-mode .pv-rw.carrot{background:#3a2208;color:#fdba74}
 .fr-lightbox{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.85);display:grid;place-items:center;padding:20px;cursor:zoom-out}
 .fr-lightbox img{max-width:100%;max-height:100%;border-radius:10px}
 .fr-lightbox button{position:absolute;top:14px;right:18px;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:26px;cursor:pointer}
+.pp-lock{display:block;max-width:260px;margin-top:4px;font-size:11px;line-height:1.35;color:#b91c1c}
+body.dark-mode .pp-lock{color:#fca5a5}
+.lock-dialog .modal-card{overflow:hidden;display:grid;gap:8px;justify-items:center}
+.lock-dialog .modal-card h3,.lock-dialog .modal-card p{margin:0}

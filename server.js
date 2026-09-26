@@ -56,11 +56,31 @@ function publicUser(row) {
     className: row.class_name || null,
     phone: row.phone || null,
     mustChangePassword: Boolean(Number(row.must_change_password || 0)),
+    lockReason: row.lock_reason || null,
     status: row.status,
     createdAt: row.created_at,
   };
 }
 
+const lockedUsers = new Map();
+function lockMessage(reason) { return reason ? `Tài khoản đã bị khoá: ${reason}. Hãy báo lại cho quản trị viên hoặc giáo viên để được mở khoá.` : "Tài khoản đã bị khoá. Hãy báo lại cho quản trị viên hoặc giáo viên để được mở khoá."; }
+async function loadLockedUsers() {
+  try {
+    const [rows] = await pool.query("SELECT id, lock_reason FROM users WHERE status = 'locked'");
+    lockedUsers.clear();
+    rows.forEach(r => lockedUsers.set(Number(r.id), r.lock_reason || null));
+  } catch (e) {}
+}
+async function setUserLock(userId, locked, reason = null) {
+  const id = Number(userId);
+  if (locked) {
+    await pool.execute("UPDATE users SET status = 'locked', lock_reason = ?, locked_at = NOW() WHERE id = ?", [reason, id]);
+    lockedUsers.set(id, reason);
+  } else {
+    await pool.execute("UPDATE users SET lock_reason = NULL, locked_at = NULL WHERE id = ?", [id]);
+    lockedUsers.delete(id);
+  }
+}
 const MCP_ALLOWED = new Set(["/api/auth/me", "/api/auth/change-password", "/api/auth/logout"]);
 function requireLogin(req, res, next) {
   const token = req.cookies.engo_token;
@@ -71,6 +91,10 @@ function requireLogin(req, res, next) {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
     return res.status(401).json({ success: false, message: "Phiên đăng nhập đã hết hạn." });
+  }
+  if (lockedUsers.has(Number(req.user.userId))) {
+    res.clearCookie("engo_token");
+    return res.status(403).json({ success: false, code: "ACCOUNT_LOCKED", message: lockMessage(lockedUsers.get(Number(req.user.userId))) });
   }
   if (req.user.mcp && !MCP_ALLOWED.has(req.path)) {
     return res.status(403).json({ success: false, code: "MUST_CHANGE_PASSWORD", message: "Bạn cần đổi mật khẩu trước khi tiếp tục." });
@@ -308,6 +332,7 @@ async function ensureAssessmentTables() {
 
   try { await rbac.ensureTables(); } catch (e) { logSchemaError(e); }
   try { await scope.ensureTables(); } catch (e) { logSchemaError(e); }
+  await loadLockedUsers();
   try { await wordFamilies.ensureTable(); } catch (e) { logSchemaError(e); }
   try { await pvp.ensureTables(); } catch (e) { logSchemaError(e); }
   try { await social.ensureTables(); } catch (e) { logSchemaError(e); }
@@ -861,7 +886,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const identifier = String(email).trim().toLowerCase();
     const phone = scope.normalizePhone(identifier);
-    const cols = "id, full_name, email, password_hash, role, class_name, status, created_at, phone, must_change_password";
+    const cols = "id, full_name, email, password_hash, role, class_name, status, created_at, phone, must_change_password, lock_reason";
     let rows;
     if (role === "parent" && phone && !identifier.includes("@")) {
       [rows] = await pool.execute(`SELECT ${cols} FROM users WHERE phone = ? AND role = 'parent' LIMIT 1`, [phone]);
@@ -876,7 +901,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(403).json({ success: false, message: "Tài khoản đang chờ quản trị viên duyệt." });
     }
     if (user.status === "locked") {
-      return res.status(403).json({ success: false, message: "Tài khoản đã bị khóa." });
+      return res.status(403).json({ success: false, code: "ACCOUNT_LOCKED", message: lockMessage(user.lock_reason) });
     }
 
     try {
@@ -1100,7 +1125,7 @@ function classAllowed(ctx, className) {
   return Boolean(ctx.sc.classes && ctx.sc.classes.includes(cleanClass(className)));
 }
 async function loadUser(id) {
-  const [rows] = await pool.execute("SELECT id, full_name, email, role, class_name, status, created_at, phone, must_change_password FROM users WHERE id = ? LIMIT 1", [id]);
+  const [rows] = await pool.execute("SELECT id, full_name, email, role, class_name, status, created_at, phone, must_change_password, lock_reason FROM users WHERE id = ? LIMIT 1", [id]);
   return rows[0] || null;
 }
 async function canManageUser(ctx, target) {
@@ -1144,7 +1169,7 @@ app.get("/api/admin/users", requireLogin, requirePermission("users.manage", "stu
   try {
     await assessmentReady;
     const ctx = await manageContext(req);
-    const cols = "u.id, u.full_name, u.email, u.role, u.class_name, u.status, u.created_at, u.phone, u.must_change_password";
+    const cols = "u.id, u.full_name, u.email, u.role, u.class_name, u.status, u.created_at, u.phone, u.must_change_password, u.lock_reason";
     let users;
     if (ctx.full) {
       [users] = await pool.execute(`SELECT ${cols} FROM users u ORDER BY u.created_at DESC`);
@@ -1254,6 +1279,8 @@ app.patch("/api/admin/users/:id", requireLogin, requirePermission("users.manage"
     }
     if (!sets.length) return res.status(400).json({ success: false, message: "Không có thay đổi nào." });
     await pool.execute(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`, [...params, target.id]);
+    if (b.status === "locked" && target.status !== "locked") await setUserLock(target.id, true, `Bị khoá bởi ${req.user.role === "admin" ? "quản trị viên" : "giáo viên"}`);
+    else if (b.status !== undefined && b.status !== "locked") await setUserLock(target.id, false);
     return res.json({ success: true, message: "Đã cập nhật tài khoản.", user: publicUser(await loadUser(target.id)) });
   } catch (error) {
     return sendError(res, error, "Không thể cập nhật tài khoản.");
@@ -1274,6 +1301,8 @@ app.patch("/api/admin/users/:id/status", requireLogin, requirePermission("users.
     if (!target) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
     if (!(await canManageUser(ctx, target))) return res.status(403).json({ success: false, message: "Tài khoản này ngoài phạm vi bạn quản lý." });
     await pool.execute("UPDATE users SET status = ? WHERE id = ?", [status, target.id]);
+    if (status === "locked") await setUserLock(target.id, true, `Bị khoá bởi ${req.user.role === "admin" ? "quản trị viên" : "giáo viên"}`);
+    else await setUserLock(target.id, false);
     return res.json({ success: true, message: "Đã cập nhật trạng thái tài khoản." });
   } catch (error) {
     return sendError(res, error, "Không thể cập nhật tài khoản.");
@@ -2634,7 +2663,7 @@ app.post("/api/learning-events", requireLogin, requirePermission("learning.recor
   }
 });
 
-pvp.attach(app, { requireLogin, requirePermission });
+pvp.attach(app, { requireLogin, requirePermission, lockUser: (id, reason) => setUserLock(id, true, reason) });
 social.attach(app, { requireLogin, requirePermission });
 
 app.get("/api/word-families", requireLogin, async (req, res) => {

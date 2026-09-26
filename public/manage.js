@@ -3,7 +3,7 @@
   const me = () => (typeof currentUser !== "undefined" ? currentUser : null);
   const ROLE_VI = { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị" };
   const STATUS_VI = { active: "Hoạt động", pending: "Chờ duyệt", locked: "Đã khoá" };
-  const state = { tab: "users", users: [], scope: null, parents: [], classes: [], available: [], filter: { q: "", role: "", cls: "" }, importRows: [], importResult: null, rbac: null };
+  const state = { tab: "users", users: [], scope: null, parents: [], classes: [], available: [], filter: { q: "", role: "", cls: "", status: "" }, importRows: [], importResult: null, rbac: null };
   const root = () => document.getElementById("peopleRoot");
   const sortCls = list => [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
   const isFull = () => window.can("users.manage");
@@ -72,7 +72,7 @@
   function filteredUsers() {
     const f = state.filter;
     const q = f.q.trim().toLowerCase();
-    return state.users.filter(u => (!f.role || u.role === f.role) && (!f.cls || u.className === f.cls || (u.children || []).some(c => c.className === f.cls)) && (!q || [u.fullName, u.email, u.phone, u.className].some(v => String(v || "").toLowerCase().includes(q))));
+    return state.users.filter(u => (!f.status || u.status === f.status) && (!f.role || u.role === f.role) && (!f.cls || u.className === f.cls || (u.children || []).some(c => c.className === f.cls)) && (!q || [u.fullName, u.email, u.phone, u.className].some(v => String(v || "").toLowerCase().includes(q))));
   }
 
   function renderUsers(body) {
@@ -84,6 +84,7 @@
         <input type="search" id="ppQ" placeholder="Tìm tên, email, SĐT..." value="${esc(f.q)}">
         ${isFull() ? `<select id="ppRole"><option value="">Mọi vai trò</option>${Object.keys(ROLE_VI).map(r => `<option value="${r}" ${f.role === r ? "selected" : ""}>${ROLE_VI[r]} (${counts[r] || 0})</option>`).join("")}</select>` : ""}
         <select id="ppCls"><option value="">Mọi lớp</option>${classOptions(f.cls, { allowEmpty: false })}</select>
+        <select id="ppStatus"><option value="">Mọi trạng thái</option><option value="locked" ${f.status === "locked" ? "selected" : ""}>Đang bị khoá (${state.users.filter(u => u.status === "locked").length})</option><option value="pending" ${f.status === "pending" ? "selected" : ""}>Chờ duyệt</option></select>
         <span class="small muted">${list.length} tài khoản</span>
         <button type="button" class="btn btn-primary btn-sm" id="ppAdd"><i class=mi>person_add</i> Thêm tài khoản</button>
       </div>
@@ -93,7 +94,7 @@
         <td class="small">${esc(u.role === "parent" ? u.phone || u.email : u.email)}</td>
         <td><span class="badge">${ROLE_VI[u.role] || u.role}</span></td>
         <td class="small">${u.role === "parent" ? (u.children || []).map(c => `${esc(c.fullName)} (${esc(c.className || "?")})`).join(", ") || "—" : esc(u.className || "—")}</td>
-        <td><span class="badge ${u.status === "active" ? "green" : u.status === "locked" ? "red" : "orange"}">${STATUS_VI[u.status] || u.status}</span></td>
+        <td><span class="badge ${u.status === "active" ? "green" : u.status === "locked" ? "red" : "orange"}">${STATUS_VI[u.status] || u.status}</span>${u.status === "locked" && u.lockReason ? `<small class="pp-lock">${esc(u.lockReason)}</small>` : ""}</td>
         <td><div class="pp-actions">
           <button type="button" class="btn btn-light btn-sm" data-edit="${u.id}" title="Sửa"><i class=mi>edit</i></button>
           ${Number(u.id) !== Number(me()?.id) ? `<button type="button" class="btn btn-light btn-sm" data-lock="${u.id}" title="${u.status === "locked" ? "Mở khoá" : "Khoá"}"><i class=mi>${u.status === "locked" ? "lock_open" : "lock"}</i></button>
@@ -104,6 +105,7 @@
     body.querySelector("#ppQ").addEventListener("input", e => { state.filter.q = e.target.value; clearTimeout(renderUsers.t); renderUsers.t = setTimeout(() => { rerender(); const i = body.querySelector("#ppQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 200); });
     body.querySelector("#ppRole")?.addEventListener("change", e => { state.filter.role = e.target.value; rerender(); });
     body.querySelector("#ppCls").addEventListener("change", e => { state.filter.cls = e.target.value; rerender(); });
+    body.querySelector("#ppStatus").addEventListener("change", e => { state.filter.status = e.target.value; rerender(); });
     body.querySelector("#ppAdd").addEventListener("click", () => openUserForm(null));
     body.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openUserForm(state.users.find(u => String(u.id) === b.dataset.edit))));
     body.querySelectorAll("[data-lock]").forEach(b => b.addEventListener("click", async () => {

@@ -10,6 +10,11 @@ const BOT = {
 };
 const HUMAN = { seconds: 10, carrots: 10, xp: 30 };
 const TOTAL_QUESTIONS = 10;
+const CHEAT = {
+  streak: Math.max(2, Number(process.env.PVP_CHEAT_STREAK) || 4),
+  minPoints: Number(process.env.PVP_CHEAT_MIN_POINTS) || 190,
+  maxMs: Number(process.env.PVP_CHEAT_MAX_MS) || 1200,
+};
 const REVEAL_MS = 2200;
 const COUNTDOWN_MS = 3000;
 const GRACE_MS = 12000;
@@ -55,6 +60,15 @@ function ensureTables() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_pvp_p1 (p1_id, created_at),
       INDEX idx_pvp_p2 (p2_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS pvp_flags (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NOT NULL,
+      match_id VARCHAR(20) NULL,
+      reason VARCHAR(255) NOT NULL,
+      detail_json JSON NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_flags_user (user_id, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
     return true;
   })().catch(e => { ready = null; throw e; });
@@ -221,9 +235,30 @@ function submit(m, userId, qi, choice) {
   p.answers[qi] = { choice: c, correct, points, ms };
   p.score += points;
   if (correct) p.correct++;
+  if (!p.bot) {
+    const superFast = correct && points > CHEAT.minPoints && ms < CHEAT.maxMs;
+    p.fastStreak = superFast ? (p.fastStreak || 0) + 1 : 0;
+    if (superFast) (p.fastLog = p.fastLog || []).push({ qi, ms, points });
+    if (p.fastStreak >= CHEAT.streak) { setImmediate(() => flagCheat(m, p)); return { ok: true, correct, points }; }
+  }
   for (const other of m.players) if (!other.bot && other.id !== userId) send(other.id, "opponent-answered", { matchId: m.id, qi });
   if (m.players.every(x => x.answers[qi])) later(m, 450, () => reveal(m, qi));
   return { ok: true, correct, points };
+}
+
+let onCheat = null;
+async function flagCheat(m, p) {
+  if (m.phase === "end" || p.flagged) return;
+  p.flagged = true;
+  const detail = { matchId: m.id, mode: m.mode, difficulty: m.difficulty, seconds: m.seconds, answers: (p.fastLog || []).slice(-CHEAT.streak) };
+  const reason = `Nghi dùng công cụ tự động ở Đấu trường: ${CHEAT.streak} câu liên tiếp đúng trong dưới ${Math.round(Math.min(CHEAT.maxMs, m.seconds * 100))} ms`;
+  try {
+    await ensureTables();
+    await pool.execute("INSERT INTO pvp_flags (user_id, match_id, reason, detail_json) VALUES (?, ?, ?, ?)", [p.id, m.id, reason, JSON.stringify(detail)]);
+  } catch (e) { console.error("PvP flag:", e.message); }
+  try { if (onCheat) await onCheat(p.id, reason, detail); } catch (e) { console.error("PvP lock:", e.message); }
+  send(p.id, "account-locked", { reason });
+  finish(m, p.id);
 }
 
 function reveal(m, qi) {
@@ -516,7 +551,8 @@ async function ratingOf(userId) {
   try { await ensureTables(); const [r] = await pool.execute("SELECT rating, wins, matches FROM pvp_players WHERE user_id = ? LIMIT 1", [userId]); return r.length ? { rating: r[0].rating, wins: r[0].wins, matches: r[0].matches } : { rating: 1000, wins: 0, matches: 0 }; } catch (e) { return { rating: 1000, wins: 0, matches: 0 }; }
 }
 
-function attach(app, { requireLogin, requirePermission }) {
+function attach(app, { requireLogin, requirePermission, lockUser }) {
+  onCheat = lockUser || null;
   const guard = [requireLogin, requirePermission("pvp.play")];
   const wrap = fn => async (req, res) => {
     try { await ensureTables(); res.json({ success: true, ...(await fn(req)) }); }

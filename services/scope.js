@@ -10,6 +10,8 @@ function ensureTables() {
     try { await pool.query("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL"); } catch (e) {}
     try { await pool.query("ALTER TABLE users ADD UNIQUE INDEX uq_users_phone (phone)"); } catch (e) {}
     try { await pool.query("ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0"); } catch (e) {}
+    try { await pool.query("ALTER TABLE users ADD COLUMN lock_reason VARCHAR(255) NULL"); } catch (e) {}
+    try { await pool.query("ALTER TABLE users ADD COLUMN locked_at DATETIME NULL"); } catch (e) {}
     try { await pool.query("INSERT IGNORE INTO parent_students (parent_id, student_id) SELECT id, parent_student_id FROM users WHERE role = 'parent' AND parent_student_id IS NOT NULL"); } catch (e) {}
     return true;
   })().catch(e => { ready = null; throw e; });
