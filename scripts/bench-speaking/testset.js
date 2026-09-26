@@ -1,0 +1,59 @@
+// Bộ kiểm thử do tác giả xây dựng — mô phỏng văn bản mà trình duyệt nhận diện
+// từ giọng đọc học sinh. Câu mẫu lấy từ học liệu luyện nói Unit 1–12 của ENGO.
+// Nhóm A: đọc đúng. Nhóm B: lệch theo đặc điểm giọng người Việt (vẫn là đọc đúng từ).
+// Nhóm C: thiếu đuôi -s/-ed (lỗi ngữ pháp). Nhóm D: đọc sai hẳn từ. Nhóm E: sót 1 từ giữa câu.
+module.exports = [
+ // ---------------- A. doc dung ----------------
+ {g:'A', t:"I don't know where to buy local handicrafts.", s:"I don't know where to buy local handicrafts"},
+ {g:'A', t:"Traffic jams are getting worse and worse.", s:"traffic jams are getting worse and worse"},
+ {g:'A', t:"If you skip breakfast, you may feel tired at school.", s:"if you skip breakfast you may feel tired at school"},
+ {g:'A', t:"I have taken an eco-tour twice.", s:"I have taken an eco tour twice"},
+ {g:'A', t:"He asked me if I had ever seen Ha Long Bay.", s:"he asked me if I had ever seen Ha Long Bay"},
+ {g:'A', t:"Despite his low salary, he really loves his job.", s:"despite his low salary he really loves his job"},
+ {g:'A', t:"The guide who showed us the cave was very friendly.", s:"the guide who showed us the cave was very friendly"},
+ {g:'A', t:"Sea levels are rising, which worries many scientists.", s:"sea levels are rising which worries many scientists"},
+
+ // ---------------- B. giong Viet (th->t, v->w, r->l, s/z, ph->f, ch/sh, am cuoi) ----------------
+ {g:'B', t:"There are three trees in the garden.", s:"dere are tree trees in the garden", n:"th→d, th→t"},
+ {g:'B', t:"I think this is very good.", s:"I tink dis is wery good", n:"th→t, th→d, v→w"},
+ {g:'B', t:"My father works in the city.", s:"my fader works in the city", n:"th→d"},
+ {g:'B', t:"We visited the village last year.", s:"we wisited the willage last year", n:"v→w"},
+ {g:'B', t:"The river is very long.", s:"the liver is very long", n:"r→l"},
+ {g:'B', t:"I eat rice every day.", s:"I eat lice every day", n:"r→l"},
+ {g:'B', t:"She has a very pretty dress.", s:"she has a wery pletty dress", n:"v→w, r→l"},
+ {g:'B', t:"The zoo is near the museum.", s:"the sue is near the museum", n:"z→s"},
+ {g:'B', t:"Take a photo of the view.", s:"take a foto of the view", n:"ph→f"},
+ {g:'B', t:"She is washing the dishes.", s:"she is watching the dishes", n:"sh→ch"},
+ {g:'B', t:"The weather is warm today.", s:"the wedder is warm today", n:"th→d"},
+ {g:'B', t:"Thank you for the delicious food.", s:"tank you for the delicious food", n:"th→t"},
+ {g:'B', t:"Our local community is very friendly.", s:"our local community is wery friendly", n:"v→w"},
+ {g:'B', t:"My brother reads books every night.", s:"my bloder reads books every night", n:"r→l, th→d"},
+ {g:'B', t:"There is a vegetable market nearby.", s:"dere is a wegetable market nearby", n:"th→d, v→w"},
+ {g:'B', t:"I have three rulers.", s:"I have tree lulers", n:"th→t, r→l"},
+
+ // ---------------- C. thieu duoi ngu phap ----------------
+ {g:'C', t:"She walks to school every morning.", s:"she walk to school every morning", n:"-s"},
+ {g:'C', t:"My father commutes to work by metro.", s:"my father commute to work by metro", n:"-s"},
+ {g:'C', t:"He visited his grandparents yesterday.", s:"he visit his grandparents yesterday", n:"-ed"},
+ {g:'C', t:"They decided to preserve the old house.", s:"they decide to preserve the old house", n:"-ed"},
+ {g:'C', t:"Drinking enough water keeps your skin healthy.", s:"drinking enough water keep your skin healthy", n:"-s"},
+ {g:'C', t:"We explored the cave last summer.", s:"we explore the cave last summer", n:"-ed"},
+ {g:'C', t:"My grandmother enjoys telling stories.", s:"my grandmother enjoy telling stories", n:"-s"},
+ {g:'C', t:"The artisans pass their skills down.", s:"the artisan pass their skill down", n:"-s ×2"},
+
+ // ---------------- D. doc sai han ----------------
+ {g:'D', t:"I like reading books.", s:"I like eating cooks", n:"reading→eating, books→cooks"},
+ {g:'D', t:"The museum opens at nine.", s:"the moon opens at night", n:"museum→moon, nine→night"},
+ {g:'D', t:"We play football on Sundays.", s:"we pay full ball on Monday", n:"sai nhiều"},
+ {g:'D', t:"She bought a new computer.", s:"she brought a new counter", n:"computer→counter"},
+ {g:'D', t:"The festival starts tomorrow.", s:"the vessel stops tomorrow", n:"2 từ sai"},
+ {g:'D', t:"My favourite subject is history.", s:"my famous object is mystery", n:"3 từ sai"},
+
+ // ---------------- E. sot mot tu giua cau ----------------
+ {g:'E', t:"I don't know where to buy local handicrafts.", s:"I don't know where to local handicrafts", n:"sót 'buy'"},
+ {g:'E', t:"Teenagers should sleep at least eight hours a night.", s:"teenagers should sleep least eight hours a night", n:"sót 'at'"},
+ {g:'E', t:"The more crowded the city becomes, the harder it is to find housing.", s:"the more crowded the city becomes the harder is to find housing", n:"sót 'it'"},
+ {g:'E', t:"My grandmother was making sticky rice when we arrived.", s:"my grandmother making sticky rice when we arrived", n:"sót 'was'"},
+ {g:'E', t:"She advised me to back up my files every week.", s:"she advised me back up my files every week", n:"sót 'to'"},
+ {g:'E', t:"The resort which we booked online was much cheaper.", s:"the resort we booked online was much cheaper", n:"sót 'which'"},
+];

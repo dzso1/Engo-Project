@@ -1,0 +1,1022 @@
+[
+ {
+  "g": "A",
+  "t": "I don't know where to buy local handicrafts.",
+  "s": "I don't know where to buy local handicrafts",
+  "n": "",
+  "words": 9,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "A",
+  "t": "Traffic jams are getting worse and worse.",
+  "s": "traffic jams are getting worse and worse",
+  "n": "",
+  "words": 7,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "A",
+  "t": "If you skip breakfast, you may feel tired at school.",
+  "s": "if you skip breakfast you may feel tired at school",
+  "n": "",
+  "words": 10,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "A",
+  "t": "I have taken an eco-tour twice.",
+  "s": "I have taken an eco tour twice",
+  "n": "",
+  "words": 6,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 67,
+  "strictWrong": 2,
+  "strictBad": [
+   "ecotour",
+   "twice"
+  ]
+ },
+ {
+  "g": "A",
+  "t": "He asked me if I had ever seen Ha Long Bay.",
+  "s": "he asked me if I had ever seen Ha Long Bay",
+  "n": "",
+  "words": 11,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "A",
+  "t": "Despite his low salary, he really loves his job.",
+  "s": "despite his low salary he really loves his job",
+  "n": "",
+  "words": 9,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "A",
+  "t": "The guide who showed us the cave was very friendly.",
+  "s": "the guide who showed us the cave was very friendly",
+  "n": "",
+  "words": 10,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "A",
+  "t": "Sea levels are rising, which worries many scientists.",
+  "s": "sea levels are rising which worries many scientists",
+  "n": "",
+  "words": 8,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 100,
+  "strictWrong": 0,
+  "strictBad": []
+ },
+ {
+  "g": "B",
+  "t": "There are three trees in the garden.",
+  "s": "dere are tree trees in the garden",
+  "n": "th→d, th→t",
+  "words": 7,
+  "engo": 94,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 71,
+  "strictWrong": 2,
+  "strictBad": [
+   "there",
+   "three"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "I think this is very good.",
+  "s": "I tink dis is wery good",
+  "n": "th→t, th→d, v→w",
+  "words": 6,
+  "engo": 84,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 2,
+  "redWords": [
+   "this"
+  ],
+  "gram": 0,
+  "strict": 50,
+  "strictWrong": 3,
+  "strictBad": [
+   "think",
+   "this",
+   "very"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "My father works in the city.",
+  "s": "my fader works in the city",
+  "n": "th→d",
+  "words": 6,
+  "engo": 95,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "father"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "We visited the village last year.",
+  "s": "we wisited the willage last year",
+  "n": "v→w",
+  "words": 6,
+  "engo": 98,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 67,
+  "strictWrong": 2,
+  "strictBad": [
+   "visited",
+   "village"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "The river is very long.",
+  "s": "the liver is very long",
+  "n": "r→l",
+  "words": 5,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 80,
+  "strictWrong": 1,
+  "strictBad": [
+   "river"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "I eat rice every day.",
+  "s": "I eat lice every day",
+  "n": "r→l",
+  "words": 5,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 80,
+  "strictWrong": 1,
+  "strictBad": [
+   "rice"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "She has a very pretty dress.",
+  "s": "she has a wery pletty dress",
+  "n": "v→w, r→l",
+  "words": 6,
+  "engo": 96,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 67,
+  "strictWrong": 2,
+  "strictBad": [
+   "very",
+   "pretty"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "The zoo is near the museum.",
+  "s": "the sue is near the museum",
+  "n": "z→s",
+  "words": 6,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "zoo"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "Take a photo of the view.",
+  "s": "take a foto of the view",
+  "n": "ph→f",
+  "words": 6,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "photo"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "She is washing the dishes.",
+  "s": "she is watching the dishes",
+  "n": "sh→ch",
+  "words": 5,
+  "engo": 96,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 80,
+  "strictWrong": 1,
+  "strictBad": [
+   "washing"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "The weather is warm today.",
+  "s": "the wedder is warm today",
+  "n": "th→d",
+  "words": 5,
+  "engo": 94,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 80,
+  "strictWrong": 1,
+  "strictBad": [
+   "weather"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "Thank you for the delicious food.",
+  "s": "tank you for the delicious food",
+  "n": "th→t",
+  "words": 6,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "thank"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "Our local community is very friendly.",
+  "s": "our local community is wery friendly",
+  "n": "v→w",
+  "words": 6,
+  "engo": 96,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "very"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "My brother reads books every night.",
+  "s": "my bloder reads books every night",
+  "n": "r→l, th→d",
+  "words": 6,
+  "engo": 96,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "brother"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "There is a vegetable market nearby.",
+  "s": "dere is a wegetable market nearby",
+  "n": "th→d, v→w",
+  "words": 6,
+  "engo": 91,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 67,
+  "strictWrong": 2,
+  "strictBad": [
+   "there",
+   "vegetable"
+  ]
+ },
+ {
+  "g": "B",
+  "t": "I have three rulers.",
+  "s": "I have tree lulers",
+  "n": "th→t, r→l",
+  "words": 4,
+  "engo": 100,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 0,
+  "strict": 50,
+  "strictWrong": 2,
+  "strictBad": [
+   "three",
+   "rulers"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "She walks to school every morning.",
+  "s": "she walk to school every morning",
+  "n": "-s",
+  "words": 6,
+  "engo": 93,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "walks"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "My father commutes to work by metro.",
+  "s": "my father commute to work by metro",
+  "n": "-s",
+  "words": 7,
+  "engo": 94,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 86,
+  "strictWrong": 1,
+  "strictBad": [
+   "commutes"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "He visited his grandparents yesterday.",
+  "s": "he visit his grandparents yesterday",
+  "n": "-ed",
+  "words": 5,
+  "engo": 92,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 80,
+  "strictWrong": 1,
+  "strictBad": [
+   "visited"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "They decided to preserve the old house.",
+  "s": "they decide to preserve the old house",
+  "n": "-ed",
+  "words": 7,
+  "engo": 94,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 86,
+  "strictWrong": 1,
+  "strictBad": [
+   "decided"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "Drinking enough water keeps your skin healthy.",
+  "s": "drinking enough water keep your skin healthy",
+  "n": "-s",
+  "words": 7,
+  "engo": 94,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 86,
+  "strictWrong": 1,
+  "strictBad": [
+   "keeps"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "We explored the cave last summer.",
+  "s": "we explore the cave last summer",
+  "n": "-ed",
+  "words": 6,
+  "engo": 93,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 83,
+  "strictWrong": 1,
+  "strictBad": [
+   "explored"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "My grandmother enjoys telling stories.",
+  "s": "my grandmother enjoy telling stories",
+  "n": "-s",
+  "words": 5,
+  "engo": 92,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 1,
+  "strict": 80,
+  "strictWrong": 1,
+  "strictBad": [
+   "enjoys"
+  ]
+ },
+ {
+  "g": "C",
+  "t": "The artisans pass their skills down.",
+  "s": "the artisan pass their skill down",
+  "n": "-s ×2",
+  "words": 6,
+  "engo": 87,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 0,
+  "redWords": [],
+  "gram": 2,
+  "strict": 67,
+  "strictWrong": 2,
+  "strictBad": [
+   "artisans",
+   "skills"
+  ]
+ },
+ {
+  "g": "D",
+  "t": "I like reading books.",
+  "s": "I like eating cooks",
+  "n": "reading→eating, books→cooks",
+  "words": 4,
+  "engo": 88,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 2,
+  "redWords": [],
+  "gram": 0,
+  "strict": 50,
+  "strictWrong": 2,
+  "strictBad": [
+   "reading",
+   "books"
+  ]
+ },
+ {
+  "g": "D",
+  "t": "The museum opens at nine.",
+  "s": "the moon opens at night",
+  "n": "museum→moon, nine→night",
+  "words": 5,
+  "engo": 72,
+  "engoVerdict": {
+   "level": "fair",
+   "label": "Khá! Đạt yêu cầu, cần luyện thêm vài từ",
+   "xp": 8,
+   "carrots": 1
+  },
+  "pronErr": 2,
+  "redWords": [
+   "museum",
+   "nine"
+  ],
+  "gram": 0,
+  "strict": 60,
+  "strictWrong": 2,
+  "strictBad": [
+   "museum",
+   "nine"
+  ]
+ },
+ {
+  "g": "D",
+  "t": "We play football on Sundays.",
+  "s": "we pay full ball on Monday",
+  "n": "sai nhiều",
+  "words": 5,
+  "engo": 83,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 3,
+  "redWords": [],
+  "gram": 0,
+  "strict": 20,
+  "strictWrong": 4,
+  "strictBad": [
+   "play",
+   "football",
+   "on",
+   "sundays"
+  ]
+ },
+ {
+  "g": "D",
+  "t": "She bought a new computer.",
+  "s": "she brought a new counter",
+  "n": "computer→counter",
+  "words": 5,
+  "engo": 92,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [],
+  "gram": 0,
+  "strict": 60,
+  "strictWrong": 2,
+  "strictBad": [
+   "bought",
+   "computer"
+  ]
+ },
+ {
+  "g": "D",
+  "t": "The festival starts tomorrow.",
+  "s": "the vessel stops tomorrow",
+  "n": "2 từ sai",
+  "words": 4,
+  "engo": 80,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 2,
+  "redWords": [],
+  "gram": 0,
+  "strict": 50,
+  "strictWrong": 2,
+  "strictBad": [
+   "festival",
+   "starts"
+  ]
+ },
+ {
+  "g": "D",
+  "t": "My favourite subject is history.",
+  "s": "my famous object is mystery",
+  "n": "3 từ sai",
+  "words": 5,
+  "engo": 75,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 3,
+  "redWords": [
+   "favourite"
+  ],
+  "gram": 0,
+  "strict": 40,
+  "strictWrong": 3,
+  "strictBad": [
+   "favourite",
+   "subject",
+   "history"
+  ]
+ },
+ {
+  "g": "E",
+  "t": "I don't know where to buy local handicrafts.",
+  "s": "I don't know where to local handicrafts",
+  "n": "sót 'buy'",
+  "words": 9,
+  "engo": 89,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 1,
+  "redWords": [
+   "buy"
+  ],
+  "gram": 0,
+  "strict": 67,
+  "strictWrong": 3,
+  "strictBad": [
+   "buy",
+   "local",
+   "handicrafts"
+  ]
+ },
+ {
+  "g": "E",
+  "t": "Teenagers should sleep at least eight hours a night.",
+  "s": "teenagers should sleep least eight hours a night",
+  "n": "sót 'at'",
+  "words": 9,
+  "engo": 89,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 1,
+  "redWords": [
+   "at"
+  ],
+  "gram": 0,
+  "strict": 33,
+  "strictWrong": 6,
+  "strictBad": [
+   "at",
+   "least",
+   "eight",
+   "hours",
+   "a",
+   "night"
+  ]
+ },
+ {
+  "g": "E",
+  "t": "The more crowded the city becomes, the harder it is to find housing.",
+  "s": "the more crowded the city becomes the harder is to find housing",
+  "n": "sót 'it'",
+  "words": 13,
+  "engo": 92,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [
+   "it"
+  ],
+  "gram": 0,
+  "strict": 62,
+  "strictWrong": 5,
+  "strictBad": [
+   "it",
+   "is",
+   "to",
+   "find",
+   "housing"
+  ]
+ },
+ {
+  "g": "E",
+  "t": "My grandmother was making sticky rice when we arrived.",
+  "s": "my grandmother making sticky rice when we arrived",
+  "n": "sót 'was'",
+  "words": 9,
+  "engo": 89,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 1,
+  "redWords": [
+   "was"
+  ],
+  "gram": 0,
+  "strict": 22,
+  "strictWrong": 7,
+  "strictBad": [
+   "was",
+   "making",
+   "sticky",
+   "rice",
+   "when",
+   "we",
+   "arrived"
+  ]
+ },
+ {
+  "g": "E",
+  "t": "She advised me to back up my files every week.",
+  "s": "she advised me back up my files every week",
+  "n": "sót 'to'",
+  "words": 10,
+  "engo": 90,
+  "engoVerdict": {
+   "level": "excellent",
+   "label": "Xuất sắc! Phát âm rất chuẩn",
+   "xp": 15,
+   "carrots": 2
+  },
+  "pronErr": 1,
+  "redWords": [
+   "to"
+  ],
+  "gram": 0,
+  "strict": 30,
+  "strictWrong": 7,
+  "strictBad": [
+   "to",
+   "back",
+   "up",
+   "my",
+   "files",
+   "every",
+   "week"
+  ]
+ },
+ {
+  "g": "E",
+  "t": "The resort which we booked online was much cheaper.",
+  "s": "the resort we booked online was much cheaper",
+  "n": "sót 'which'",
+  "words": 9,
+  "engo": 89,
+  "engoVerdict": {
+   "level": "good",
+   "label": "Tốt! Người nghe hiểu rõ",
+   "xp": 12,
+   "carrots": 1
+  },
+  "pronErr": 1,
+  "redWords": [
+   "which"
+  ],
+  "gram": 0,
+  "strict": 22,
+  "strictWrong": 7,
+  "strictBad": [
+   "which",
+   "we",
+   "booked",
+   "online",
+   "was",
+   "much",
+   "cheaper"
+  ]
+ }
+]
