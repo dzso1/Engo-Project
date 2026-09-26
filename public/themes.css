@@ -747,3 +747,14 @@ body.dark-mode .pv-rw.carrot{background:#3a2208;color:#fdba74}
 body.dark-mode .pp-lock{color:#fca5a5}
 .lock-dialog .modal-card{overflow:hidden;display:grid;gap:8px;justify-items:center}
 .lock-dialog .modal-card h3,.lock-dialog .modal-card p{margin:0}
+.rw-now{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.rw-now>div{display:grid;justify-items:center;padding:12px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2)}
+.rw-now span{font-size:12px;font-weight:800;color:var(--muted)}
+.rw-now b{font-size:26px;display:flex;align-items:center;gap:4px}
+.rw-now small{font-size:12px;color:var(--muted)}
+.rw-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rw-row input{flex:1 1 140px;min-width:0}
+.rw-h{margin:14px 0 6px}
+.rw-hist{display:grid;gap:6px;max-height:200px;overflow:auto;font-size:13px}
+.rw-hist>div{padding:8px 10px;border-radius:10px;background:var(--surface-2)}
+.rw-hist small{display:block;color:var(--muted)}

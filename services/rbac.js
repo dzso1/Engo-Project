@@ -27,6 +27,7 @@ const PERMISSIONS = [
   { key: "pvp.play", group: "Học tập", label: "Thi đấu PvP (với bạn hoặc bot)", roles: ["student"] },
   { key: "social.use", group: "Học tập", label: "Kết bạn và nhắn tin với bạn bè", roles: ["student"] },
   { key: "ai.use", group: "Hệ thống", label: "Dùng trợ lý AI", roles: ["admin", "teacher", "student", "parent"] },
+  { key: "rewards.manage", group: "Tài khoản", label: "Tặng/trừ cà rốt, đặt lại level cho học sinh", roles: ["admin"] },
   { key: "system.manage", group: "Hệ thống", label: "Phân quyền, trạng thái hệ thống, sao lưu", roles: ["admin"] },
 ];
 

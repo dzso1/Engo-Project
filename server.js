@@ -1334,6 +1334,28 @@ app.delete("/api/admin/users/:id", requireLogin, requirePermission("users.manage
   }
 });
 
+app.get("/api/admin/users/:id/rewards", requireLogin, requirePermission("rewards.manage"), async (req, res) => {
+  try {
+    const target = await loadUser(req.params.id);
+    if (!target || target.role !== "student") return res.status(404).json({ success: false, message: "Chỉ học sinh mới có level và cà rốt." });
+    return res.json({ success: true, user: publicUser(target), rewards: await rewards.getRewards(target.id), history: await rewards.adjustHistory(target.id) });
+  } catch (error) {
+    return sendError(res, error, "Không tải được điểm thưởng.");
+  }
+});
+
+app.patch("/api/admin/users/:id/rewards", requireLogin, requirePermission("rewards.manage"), async (req, res) => {
+  try {
+    const target = await loadUser(req.params.id);
+    if (!target || target.role !== "student") return res.status(404).json({ success: false, message: "Chỉ học sinh mới có level và cà rốt." });
+    const b = req.body || {};
+    const r = await rewards.adminAdjust(target.id, req.user.userId, { level: b.level, addCarrots: b.addCarrots, setCarrots: b.setCarrots, note: b.note });
+    return res.json({ success: true, ...r, message: `Đã cập nhật: Lv ${r.before.level} → ${r.after.level}, cà rốt ${r.before.carrots} → ${r.after.carrots}.` });
+  } catch (error) {
+    return sendError(res, error, "Không cập nhật được điểm thưởng.");
+  }
+});
+
 app.post("/api/admin/users/import", requireLogin, requirePermission("users.import"), async (req, res) => {
   try {
     await assessmentReady;

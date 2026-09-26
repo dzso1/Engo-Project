@@ -210,7 +210,72 @@ async function avatarsFor(userIds) {
   return Object.fromEntries(rows.map(r => [r.user_id, avatarOf(r)]));
 }
 
+let adjustReady = null;
+function ensureAdjustTable() {
+  if (!adjustReady) adjustReady = pool.query(`CREATE TABLE IF NOT EXISTS reward_adjustments (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    admin_id BIGINT UNSIGNED NOT NULL,
+    action VARCHAR(20) NOT NULL,
+    before_json JSON NULL,
+    after_json JSON NULL,
+    note VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_adj_user (user_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(e => { adjustReady = null; throw e; });
+  return adjustReady;
+}
+
+async function adminAdjust(userId, adminId, { level, addCarrots, setCarrots, note } = {}) {
+  await ensureAdjustTable();
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await getRow(userId, conn);
+    const [rows] = await conn.execute("SELECT xp, carrots FROM student_rewards WHERE user_id = ? FOR UPDATE", [userId]);
+    const before = { xp: Number(rows[0].xp), carrots: Number(rows[0].carrots), level: levelOf(rows[0].xp).level };
+    let xp = before.xp, carrots = before.carrots;
+    const actions = [];
+    if (level !== undefined && level !== null && level !== "") {
+      const lv = Math.max(1, Math.min(200, Math.round(Number(level))));
+      if (!Number.isFinite(lv)) throw Object.assign(new Error("Level không hợp lệ."), { status: 400 });
+      xp = (lv - 1) * 100;
+      actions.push("level");
+    }
+    if (setCarrots !== undefined && setCarrots !== null && setCarrots !== "") {
+      const c = Math.round(Number(setCarrots));
+      if (!Number.isFinite(c) || c < 0 || c > 100000) throw Object.assign(new Error("Số cà rốt không hợp lệ."), { status: 400 });
+      carrots = c;
+      actions.push("set_carrots");
+    }
+    if (addCarrots !== undefined && addCarrots !== null && addCarrots !== "" && Number(addCarrots) !== 0) {
+      const a = Math.round(Number(addCarrots));
+      if (!Number.isFinite(a) || Math.abs(a) > 10000) throw Object.assign(new Error("Số cà rốt cộng thêm không hợp lệ (tối đa ±10000)."), { status: 400 });
+      carrots = Math.max(0, carrots + a);
+      actions.push("add_carrots");
+    }
+    if (!actions.length) throw Object.assign(new Error("Không có thay đổi nào."), { status: 400 });
+    await conn.execute("UPDATE student_rewards SET xp = ?, carrots = ? WHERE user_id = ?", [xp, carrots, userId]);
+    const after = { xp, carrots, level: levelOf(xp).level };
+    await conn.execute("INSERT INTO reward_adjustments (user_id, admin_id, action, before_json, after_json, note) VALUES (?, ?, ?, ?, ?, ?)", [userId, adminId, actions.join(","), JSON.stringify(before), JSON.stringify(after), note ? String(note).slice(0, 255) : null]);
+    await conn.commit();
+    return { before, after, rewards: publicRewards(await getRow(userId)) };
+  } catch (e) {
+    await conn.rollback().catch(() => {});
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+async function adjustHistory(userId) {
+  await ensureAdjustTable();
+  const [rows] = await pool.execute("SELECT a.action, a.before_json, a.after_json, a.note, a.created_at, u.full_name AS admin_name FROM reward_adjustments a LEFT JOIN users u ON u.id = a.admin_id WHERE a.user_id = ? ORDER BY a.id DESC LIMIT 10", [userId]);
+  const parse = v => (typeof v === "string" ? JSON.parse(v) : v);
+  return rows.map(r => ({ action: r.action, before: parse(r.before_json), after: parse(r.after_json), note: r.note, at: r.created_at, by: r.admin_name }));
+}
+
 module.exports = {
   DAILY_CARROT_CAP,
-  ensureTable, getRewards, earn, feed, importLocal, setAvatar, leaderboard, avatarsFor, levelOf,
+  ensureTable, getRewards, earn, feed, importLocal, setAvatar, leaderboard, avatarsFor, levelOf, adminAdjust, adjustHistory,
 };

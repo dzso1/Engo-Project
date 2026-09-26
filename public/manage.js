@@ -97,6 +97,7 @@
         <td><span class="badge ${u.status === "active" ? "green" : u.status === "locked" ? "red" : "orange"}">${STATUS_VI[u.status] || u.status}</span>${u.status === "locked" && u.lockReason ? `<small class="pp-lock">${esc(u.lockReason)}</small>` : ""}</td>
         <td><div class="pp-actions">
           <button type="button" class="btn btn-light btn-sm" data-edit="${u.id}" title="Sửa"><i class=mi>edit</i></button>
+          ${u.role === "student" && window.can("rewards.manage") ? `<button type="button" class="btn btn-light btn-sm" data-rw="${u.id}" title="Level & cà rốt"><i class=ico-carrot></i></button>` : ""}
           ${Number(u.id) !== Number(me()?.id) ? `<button type="button" class="btn btn-light btn-sm" data-lock="${u.id}" title="${u.status === "locked" ? "Mở khoá" : "Khoá"}"><i class=mi>${u.status === "locked" ? "lock_open" : "lock"}</i></button>
           <button type="button" class="btn btn-light btn-sm pp-danger" data-del="${u.id}" title="Xoá"><i class=mi>delete</i></button>` : ""}
         </div></td></tr>`).join("") || `<tr><td colspan="6" class="small muted" style="text-align:center;padding:20px">Không có tài khoản nào.</td></tr>`}</tbody></table></div>
@@ -107,6 +108,7 @@
     body.querySelector("#ppCls").addEventListener("change", e => { state.filter.cls = e.target.value; rerender(); });
     body.querySelector("#ppStatus").addEventListener("change", e => { state.filter.status = e.target.value; rerender(); });
     body.querySelector("#ppAdd").addEventListener("click", () => openUserForm(null));
+    body.querySelectorAll("[data-rw]").forEach(b => b.addEventListener("click", () => openRewards(b.dataset.rw)));
     body.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openUserForm(state.users.find(u => String(u.id) === b.dataset.edit))));
     body.querySelectorAll("[data-lock]").forEach(b => b.addEventListener("click", async () => {
       const u = state.users.find(x => String(x.id) === b.dataset.lock);
@@ -117,6 +119,38 @@
       if (!confirm(`Xoá vĩnh viễn tài khoản "${u.fullName}"? Toàn bộ bài làm và tiến độ của tài khoản này sẽ bị xoá.`)) return;
       try { const d = await apiRequest(`/api/admin/users/${u.id}`, { method: "DELETE" }); showToast(d.message); await reload(); } catch (e) { showToast(e.message); }
     }));
+  }
+
+  async function openRewards(id) {
+    let d;
+    try { d = await apiRequest(`/api/admin/users/${id}/rewards`); } catch (e) { showToast(e.message); return; }
+    const r = d.rewards;
+    const ACT = { level: "Đặt level", set_carrots: "Đặt số cà rốt", add_carrots: "Cộng/trừ cà rốt" };
+    const dlg = dialog(`Level & cà rốt · ${esc(d.user.fullName)}`, `
+      <div class="rw-now"><div><span>Level</span><b>${r.level}</b><small>${r.xp} XP</small></div><div><span>Cà rốt</span><b>${r.carrots} <i class=ico-carrot></i></b><small>Hôm nay nhận ${r.dailyCarrots}/${r.dailyCap}</small></div></div>
+      <form class="auth-form" id="rwForm">
+        <div class="auth-error" id="rwErr"></div>
+        <div class="field"><label>Đặt lại level (để trống nếu không đổi)</label><div class="rw-row"><input name="level" type="number" min="1" max="200" placeholder="Hiện tại: ${r.level}"><button type="button" class="btn btn-light btn-sm" data-lv="1">Về Lv 1</button></div><small class="muted">Level N tương ứng (N−1)×100 XP.</small></div>
+        <div class="field"><label>Tặng hoặc trừ cà rốt</label><div class="rw-row"><input name="addCarrots" type="number" min="-10000" max="10000" placeholder="VD: 10 hoặc -5">${[5, 10, 20, 50].map(n => `<button type="button" class="btn btn-soft btn-sm" data-add="${n}">+${n}</button>`).join("")}</div></div>
+        <div class="field"><label>Hoặc đặt đúng số cà rốt</label><input name="setCarrots" type="number" min="0" max="100000" placeholder="Hiện tại: ${r.carrots}"></div>
+        <div class="field"><label>Ghi chú (tuỳ chọn)</label><input name="note" maxlength="200" placeholder="VD: Thưởng thi đua tuần, xử lý gian lận..."></div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Lưu thay đổi</button>
+      </form>
+      ${d.history.length ? `<h4 class="rw-h">Lịch sử chỉnh sửa</h4><div class="rw-hist">${d.history.map(h => `<div><b>${esc(h.action.split(",").map(a => ACT[a] || a).join(", "))}</b> · Lv ${h.before.level} → ${h.after.level}, 🥕 ${h.before.carrots} → ${h.after.carrots}<small>${esc(h.by || "")} · ${new Date(h.at).toLocaleString("vi-VN")}${h.note ? ` · ${esc(h.note)}` : ""}</small></div>`).join("")}</div>` : ""}`);
+    const form = dlg.el.querySelector("#rwForm");
+    dlg.el.querySelector("[data-lv]").addEventListener("click", () => { form.level.value = 1; });
+    dlg.el.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => { form.addCarrots.value = Number(form.addCarrots.value || 0) + Number(b.dataset.add); }));
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const payload = { level: form.level.value, addCarrots: form.addCarrots.value, setCarrots: form.setCarrots.value, note: form.note.value };
+      if (payload.setCarrots !== "" && payload.addCarrots !== "") { setAuthError(dlg.el.querySelector("#rwErr"), "Chỉ chọn một: cộng/trừ hoặc đặt đúng số cà rốt."); return; }
+      try {
+        const res = await apiRequest(`/api/admin/users/${id}/rewards`, { method: "PATCH", body: JSON.stringify(payload) });
+        showToast(res.message);
+        dlg.close();
+        openRewards(id);
+      } catch (ex) { setAuthError(dlg.el.querySelector("#rwErr"), ex.message); }
+    });
   }
 
   function openUserForm(user) {
