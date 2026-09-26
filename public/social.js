@@ -1,6 +1,11 @@
 (function () {
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const me = () => (typeof currentUser !== "undefined" ? currentUser : null);
+  const EMOJI = [
+    ["Mặt cười", "😀 😁 😂 🤣 😊 😍 🥰 😘 😎 🤩 🥳 😇 🙂 😉 😋 😜 🤪 🤗 🤔 🤫 😴 😮 😲 😢 😭 😤 😡 🥺 😅 😬"],
+    ["Cử chỉ & tim", "👍 👎 👏 🙌 🙏 💪 👋 🤝 ✌️ 🤞 👌 ☝️ ❤️ 🧡 💛 💚 💙 💜 🖤 💯 ✨ 🔥 ⭐ 🌟 💥 🎉 🎊 🎁 🏆 🥇"],
+    ["Học tập", "📚 📖 ✏️ 📝 🎒 🏫 🧠 💡 ⏰ 📅 🎯 ✅ ❌ ❓ ❗ 🔤 🗣️ 🎧 🎤 🌏 🇬🇧 🇺🇸 🇻🇳 🥕 🐹 ⚔️ 🎮 ⚽ 🍜 🧋"],
+  ];
   const S = { tab: "friends", data: { friends: [], incoming: [], outgoing: [], unread: 0 }, active: null, messages: [], more: false, search: [], q: "", blocked: [] };
   const root = () => document.getElementById("friendsRoot");
   const allowed = () => { const u = me(); return Boolean(u && u.role === "student" && (!window.can || window.can("social.use"))); };
@@ -45,7 +50,7 @@
         ${S.search.map(p => `<div class="fr-row">${avatar(p)}<div class="fr-info"><b>${esc(p.name)}</b><small>${esc(p.className || "")}${p.sameClass ? " · cùng lớp" : ""}</small></div><div class="fr-acts">${p.relation === "friend" ? `<button type="button" class="btn btn-soft btn-sm" data-open="${p.id}">Nhắn tin</button>` : p.relation === "outgoing" ? `<span class="badge">Đã gửi</span>` : p.relation === "incoming" ? `<button type="button" class="btn btn-primary btn-sm" data-accept="${p.id}">Đồng ý</button>` : `<button type="button" class="btn btn-primary btn-sm" data-add="${p.id}"><i class=mi>person_add</i> Kết bạn</button>`}</div></div>`).join("") || `<p class="small muted fr-empty">Không tìm thấy ai.</p>`}
         <details class="fr-blocked"><summary>Danh sách đã chặn</summary><div id="frBlocked"><p class="small muted">Đang tải...</p></div></details>`;
     }
-    return d.friends.length ? d.friends.map(p => `<button type="button" class="fr-row fr-chat-row ${S.active === p.id ? "on" : ""}" data-open="${p.id}">${avatar(p)}<div class="fr-info"><b>${esc(p.name)}</b><small>${p.last ? `${p.last.mine ? "Bạn: " : ""}${esc(p.last.body).slice(0, 60)}` : esc(p.className || "")}</small></div><div class="fr-meta">${p.last ? `<small>${timeLabel(p.last.at)}</small>` : ""}${p.unread ? `<span class="fr-unread">${p.unread}</span>` : ""}</div></button>`).join("")
+    return d.friends.length ? d.friends.map(p => `<button type="button" class="fr-row fr-chat-row ${S.active === p.id ? "on" : ""}" data-open="${p.id}">${avatar(p)}<div class="fr-info"><b>${esc(p.name)}</b><small>${p.last ? `${p.last.mine ? "Bạn: " : ""}${p.last.body ? esc(p.last.body).slice(0, 60) : "📷 Ảnh"}` : esc(p.className || "")}</small></div><div class="fr-meta">${p.last ? `<small>${timeLabel(p.last.at)}</small>` : ""}${p.unread ? `<span class="fr-unread">${p.unread}</span>` : ""}</div></button>`).join("")
       : `<div class="fr-empty"><i class=mi>diversity_3</i><p>Chưa có bạn bè nào.</p><button type="button" class="btn btn-primary btn-sm" data-tab-go="find">Tìm bạn cùng lớp</button></div>`;
   }
 
@@ -56,7 +61,13 @@
         <div class="fr-head-acts"><button type="button" class="btn btn-soft btn-sm" id="frDuel" title="Mời đấu trường"><i class=mi>sports_esports</i> Thách đấu</button>
         <details class="fr-menu"><summary class="icon-btn"><i class=mi>more_vert</i></summary><div><button type="button" id="frUnfriend">Huỷ kết bạn</button><button type="button" id="frBlock" class="danger">Chặn</button></div></details></div></div>
       <div class="fr-msgs" id="frMsgs">${S.more ? `<button type="button" class="btn btn-light btn-sm fr-more" id="frMore">Tải tin cũ hơn</button>` : ""}${msgsHtml()}</div>
-      <form class="fr-compose" id="frCompose"><input id="frText" maxlength="500" autocomplete="off" placeholder="Nhập tin nhắn..."><div class="fr-quick">${["Chào bạn! 👋", "Đấu 1 trận không? ⚔️", "Học từ vựng cùng nhé 📚", "Cố lên! 💪"].map(t => `<button type="button" data-quick="${esc(t)}">${esc(t)}</button>`).join("")}</div><button type="submit" class="btn btn-primary" aria-label="Gửi"><i class=mi>send</i></button></form>`;
+      <form class="fr-compose" id="frCompose">
+        <div class="fr-quick">${["Chào bạn! 👋", "Đấu 1 trận không? ⚔️", "Học từ vựng cùng nhé 📚", "Cố lên! 💪"].map(t => `<button type="button" data-quick="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+        <div class="fr-tools"><button type="button" class="fr-tool" id="frEmojiBtn" aria-label="Chọn emoji" title="Emoji">😊</button><label class="fr-tool" title="Gửi ảnh" aria-label="Gửi ảnh"><i class=mi>image</i><input type="file" id="frImage" accept="image/*" hidden></label></div>
+        <input id="frText" maxlength="500" autocomplete="off" placeholder="Nhập tin nhắn...">
+        <button type="submit" class="btn btn-primary fr-send" aria-label="Gửi"><i class=mi>send</i></button>
+        <div class="fr-emoji hidden" id="frEmoji">${EMOJI.map(([name, list]) => `<div class="fr-emoji-group"><small>${name}</small><div>${list.split(" ").map(e => `<button type="button" data-emo="${e}">${e}</button>`).join("")}</div></div>`).join("")}</div>
+      </form>`;
   }
 
   function msgsHtml() {
@@ -66,7 +77,7 @@
       const sep = day !== lastDay ? `<div class="fr-day">${new Date(m.at).toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit" })}</div>` : "";
       lastDay = day;
       const lastMine = m.mine && !S.messages.slice(i + 1).some(x => x.mine);
-      return `${sep}<div class="fr-msg ${m.mine ? "mine" : ""}"><span>${esc(m.body)}</span><small>${timeLabel(m.at)}${lastMine && m.read ? " · Đã xem" : ""}</small></div>`;
+      return `${sep}<div class="fr-msg ${m.mine ? "mine" : ""}">${m.image ? `<img class="fr-img" src="${esc(m.image)}" alt="Ảnh" loading="lazy" data-zoom>` : ""}${m.body ? `<span>${esc(m.body)}</span>` : ""}<small>${timeLabel(m.at)}${lastMine && m.read ? " · Đã xem" : ""}</small></div>`;
     }).join("");
   }
 
@@ -124,6 +135,22 @@
     const input = form.querySelector("#frText");
     form.addEventListener("submit", e => { e.preventDefault(); send(input.value); });
     form.querySelectorAll("[data-quick]").forEach(b => b.addEventListener("click", () => send(b.dataset.quick)));
+    const panel = form.querySelector("#frEmoji");
+    form.querySelector("#frEmojiBtn").addEventListener("click", e => { e.stopPropagation(); panel.classList.toggle("hidden"); });
+    panel.addEventListener("click", e => {
+      const b = e.target.closest("[data-emo]");
+      if (!b) return;
+      const s = input.selectionStart ?? input.value.length, t = input.selectionEnd ?? input.value.length;
+      input.value = (input.value.slice(0, s) + b.dataset.emo + input.value.slice(t)).slice(0, 500);
+      const pos = s + b.dataset.emo.length;
+      input.focus();
+      input.setSelectionRange(pos, pos);
+    });
+    form.querySelector("#frImage").addEventListener("change", e => { const file = e.target.files[0]; e.target.value = ""; if (file) sendImage(file); });
+    input.addEventListener("paste", e => {
+      const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
+      if (item) { e.preventDefault(); sendImage(item.getAsFile()); }
+    });
     host.querySelector("#frBack")?.addEventListener("click", () => { S.active = null; render(); });
     host.querySelector("#frMore")?.addEventListener("click", loadMore);
     host.querySelector("#frDuel")?.addEventListener("click", async e => {
@@ -144,7 +171,7 @@
     try {
       const d = await api("GET", `/api/chat/${id}`);
       S.messages = d.messages; S.more = d.more; S.activeCard = d.friend;
-      api("POST", `/api/chat/${id}/read`).then(() => { const f = S.data.friends.find(x => x.id === id); if (f) f.unread = 0; S.data.unread = S.data.friends.reduce((s, x) => s + (x.unread || 0), 0); updateBadge(); }).catch(() => {});
+      api("POST", `/api/chat/${id}/read`).then(() => { const f = S.data.friends.find(x => x.id === id); if (f) f.unread = 0; S.data.unread = S.data.friends.reduce((s, x) => s + (x.unread || 0), 0); updateBadge(); redrawList(); }).catch(() => {});
     } catch (e) { showToast(e.message); }
     render();
   }
@@ -162,19 +189,66 @@
     } catch (e) { showToast(e.message); }
   }
 
-  async function send(text) {
+  async function send(text, image) {
     const body = String(text || "").trim();
-    if (!body || !S.active) return;
+    if ((!body && !image) || !S.active) return;
     const input = document.getElementById("frText");
-    if (input) input.value = "";
+    if (input && !image) input.value = "";
     try {
-      const r = await api("POST", `/api/chat/${S.active}`, { body });
+      const r = await api("POST", `/api/chat/${S.active}`, image ? { body: "", image } : { body });
       if (!S.messages.some(m => m.id === r.message.id)) S.messages.push(r.message);
       const f = S.data.friends.find(x => x.id === S.active);
-      if (f) f.last = { body: r.message.body, mine: true, at: r.message.at };
+      if (f) f.last = { body: r.message.body, image: Boolean(r.message.image), mine: true, at: r.message.at };
       redrawMessages();
-    } catch (e) { showToast(e.message); if (input && !input.value) input.value = body; }
+    } catch (e) { showToast(e.message); if (input && !input.value && !image) input.value = body; }
   }
+
+  function readAsDataUrl(blob) {
+    return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+  }
+  async function compressImage(file) {
+    if (!/^image\//.test(file.type)) throw new Error("Chỉ gửi được file ảnh.");
+    if (file.size > 20 * 1024 * 1024) throw new Error("Ảnh quá lớn (tối đa 20 MB trước khi nén).");
+    if (file.type === "image/gif" && file.size <= 1.4 * 1024 * 1024) return readAsDataUrl(file);
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Không đọc được ảnh này.")); i.src = url; });
+      const scale = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      let q = 0.82, out = c.toDataURL("image/jpeg", q);
+      while (out.length * 0.75 > 1.4 * 1024 * 1024 && q > 0.4) { q -= 0.12; out = c.toDataURL("image/jpeg", q); }
+      return out;
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function sendImage(file) {
+    if (!file || !S.active) return;
+    const box = document.getElementById("frMsgs");
+    const tmp = document.createElement("div");
+    tmp.className = "fr-msg mine fr-sending";
+    tmp.innerHTML = `<span><i class=mi>hourglass_top</i> Đang gửi ảnh...</span>`;
+    box?.appendChild(tmp); scrollBottom();
+    try { await send("", await compressImage(file)); }
+    catch (e) { showToast(e.message); }
+    finally { tmp.remove(); }
+  }
+
+  function openLightbox(src) {
+    const lb = document.createElement("div");
+    lb.className = "fr-lightbox";
+    lb.innerHTML = `<img src="${esc(src)}" alt="Ảnh"><button type="button" aria-label="Đóng">×</button>`;
+    lb.addEventListener("click", () => lb.remove());
+    document.body.appendChild(lb);
+  }
+  document.addEventListener("click", e => {
+    const img = e.target.closest(".fr-img[data-zoom]");
+    if (img) openLightbox(img.src);
+    if (!e.target.closest("#frEmoji, #frEmojiBtn")) document.getElementById("frEmoji")?.classList.add("hidden");
+  });
 
   function redrawMessages() {
     const box = document.getElementById("frMsgs");
@@ -211,14 +285,14 @@
         if (!S.messages.some(x => x.id === m.id)) S.messages.push(m);
         redrawMessages();
         api("POST", `/api/chat/${m.from}/read`).catch(() => {});
-        const f = S.data.friends.find(x => x.id === m.from); if (f) f.last = { body: m.body, mine: false, at: m.at };
+        const f = S.data.friends.find(x => x.id === m.from); if (f) f.last = { body: m.body, image: Boolean(m.image), mine: false, at: m.at };
         redrawList();
         return;
       }
       try { window.playSfx && window.playSfx("coin"); } catch (x) {}
       await refresh();
       if (inView()) redrawList();
-      else popup(data.from, m.body, () => { switchView("friends"); openChat(m.from); });
+      else popup(data.from, m.body || "📷 Đã gửi một ảnh", () => { switchView("friends"); openChat(m.from); });
       return;
     }
     if (type === "chat-sent") {

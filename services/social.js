@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const pool = require("../database/db");
 const rewards = require("./rewards");
 const pvp = require("./pvp");
@@ -37,6 +38,14 @@ function ensureTables() {
       INDEX idx_chat_pair (sender_id, receiver_id, id),
       INDEX idx_chat_unread (receiver_id, read_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS chat_images (
+      id CHAR(32) NOT NULL PRIMARY KEY,
+      owner_id BIGINT UNSIGNED NOT NULL,
+      mime VARCHAR(30) NOT NULL,
+      data MEDIUMBLOB NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    try { await pool.query("ALTER TABLE chat_messages ADD COLUMN image_id CHAR(32) NULL"); } catch (e) {}
     return true;
   })().catch(e => { ready = null; throw e; });
   return ready;
@@ -95,7 +104,7 @@ async function overview(me) {
     if (!c) continue;
     if (r.status === "accepted") {
       const lm = lastBy.get(o);
-      friends.push({ ...c, unread: unreadBy.get(o) || 0, last: lm ? { body: lm.body, mine: Number(lm.sender_id) === Number(me), at: lm.created_at } : null });
+      friends.push({ ...c, unread: unreadBy.get(o) || 0, last: lm ? { body: lm.body, image: Boolean(lm.image_id), mine: Number(lm.sender_id) === Number(me), at: lm.created_at } : null });
     } else if (Number(r.requested_by) === Number(me)) outgoing.push({ ...c, at: r.created_at });
     else incoming.push({ ...c, at: r.created_at });
   }
@@ -194,7 +203,34 @@ async function assertFriends(me, other) {
 }
 
 function toMsg(m, me) {
-  return { id: Number(m.id), from: Number(m.sender_id), to: Number(m.receiver_id), mine: Number(m.sender_id) === Number(me), body: m.body, at: m.created_at, read: Boolean(m.read_at) };
+  return { id: Number(m.id), from: Number(m.sender_id), to: Number(m.receiver_id), mine: Number(m.sender_id) === Number(me), body: m.body, image: m.image_id ? `/api/chat/images/${m.image_id}` : null, at: m.created_at, read: Boolean(m.read_at) };
+}
+
+const IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const IMAGE_MAX = 1.5 * 1024 * 1024;
+const imagesRecently = new Map();
+async function storeImage(me, dataUrl) {
+  const m = String(dataUrl || "").match(/^data:(image\/[a-z+]+);base64,([A-Za-z0-9+/=]+)$/);
+  if (!m || !IMAGE_MIME.has(m[1])) throw err(400, "Ảnh không hợp lệ (chỉ nhận JPG, PNG, WEBP, GIF).");
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > IMAGE_MAX) throw err(413, "Ảnh quá lớn (tối đa 1,5 MB sau khi nén).");
+  const now = Date.now();
+  const recent = (imagesRecently.get(Number(me)) || []).filter(t => now - t < 60000);
+  if (recent.length >= 5) throw err(429, "Bạn gửi ảnh quá nhanh, chờ một chút nhé.");
+  recent.push(now);
+  imagesRecently.set(Number(me), recent);
+  const id = crypto.randomBytes(16).toString("hex");
+  await pool.execute("INSERT INTO chat_images (id, owner_id, mime, data) VALUES (?, ?, ?, ?)", [id, me, m[1], buf]);
+  return id;
+}
+
+async function readImage(me, id) {
+  await ensureTables();
+  if (!/^[0-9a-f]{32}$/.test(String(id))) return null;
+  const [ok] = await pool.execute("SELECT id FROM chat_messages WHERE image_id = ? AND (sender_id = ? OR receiver_id = ?) LIMIT 1", [id, me, me]);
+  if (!ok.length) return null;
+  const [rows] = await pool.execute("SELECT mime, data FROM chat_images WHERE id = ? LIMIT 1", [id]);
+  return rows[0] || null;
 }
 
 async function history(me, other, before) {
@@ -208,17 +244,18 @@ async function history(me, other, before) {
   return { friend: card, messages: rows.reverse().map(m => toMsg(m, me)), more: rows.length === 40 };
 }
 
-async function sendMessage(me, other, text) {
+async function sendMessage(me, other, text, image) {
   await ensureTables();
   const body = cleanText(text);
-  if (!body) throw err(400, "Tin nhắn trống.");
+  if (!body && !image) throw err(400, "Tin nhắn trống.");
   await assertFriends(me, other);
   const now = Date.now();
   const recent = (sentRecently.get(Number(me)) || []).filter(t => now - t < RATE.windowMs);
   if (recent.length >= RATE.max) throw err(429, "Bạn gửi tin nhắn quá nhanh, chờ vài giây nhé.");
   recent.push(now);
   sentRecently.set(Number(me), recent);
-  const [r] = await pool.execute("INSERT INTO chat_messages (sender_id, receiver_id, body) VALUES (?, ?, ?)", [me, other, body]);
+  const imageId = image ? await storeImage(me, image) : null;
+  const [r] = await pool.execute("INSERT INTO chat_messages (sender_id, receiver_id, body, image_id) VALUES (?, ?, ?, ?)", [me, other, body, imageId]);
   const [rows] = await pool.execute("SELECT * FROM chat_messages WHERE id = ? LIMIT 1", [r.insertId]);
   const msg = rows[0];
   const card = (await userCard([me])).get(Number(me));
@@ -259,7 +296,16 @@ function attach(app, { requireLogin, requirePermission }) {
   app.post("/api/friends/:id/block", ...guard, wrap(req => block(me(req), id(req))));
   app.delete("/api/friends/:id/block", ...guard, wrap(req => unblock(me(req), id(req))));
   app.get("/api/chat/:id", ...guard, wrap(req => history(me(req), id(req), req.query.before)));
-  app.post("/api/chat/:id", ...guard, wrap(req => sendMessage(me(req), id(req), (req.body || {}).body)));
+  app.get("/api/chat/images/:img", ...guard, async (req, res) => {
+    try {
+      const img = await readImage(me(req), req.params.img);
+      if (!img) return res.status(404).end();
+      res.set("Content-Type", img.mime);
+      res.set("Cache-Control", "private, max-age=31536000, immutable");
+      return res.send(img.data);
+    } catch (e) { return res.status(500).end(); }
+  });
+  app.post("/api/chat/:id", ...guard, wrap(req => sendMessage(me(req), id(req), (req.body || {}).body, (req.body || {}).image)));
   app.post("/api/chat/:id/read", ...guard, wrap(req => markRead(me(req), id(req))));
 }
 

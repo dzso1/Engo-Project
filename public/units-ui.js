@@ -248,7 +248,9 @@
     if (!host) {
       host = document.createElement("div");
       host.id = "unitVocabMount";
-      view.insertBefore(host, view.children[1] || null);
+      const flash = view.querySelector(".flashcard-layout");
+      if (flash) flash.insertAdjacentElement("afterend", host);
+      else view.insertBefore(host, view.children[1] || null);
     }
     host.innerHTML = vocabPanelHTML();
 

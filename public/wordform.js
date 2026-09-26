@@ -29,7 +29,8 @@
     const card = document.createElement("div");
     card.className = "card panel section wf-card";
     card.id = "wfCard";
-    view.querySelector(".page-heading")?.insertAdjacentElement("afterend", card);
+    const anchor = document.getElementById("unitVocabMount") || view.querySelector(".flashcard-layout") || view.querySelector(".page-heading");
+    anchor?.insertAdjacentElement("afterend", card);
   }
 
   function header() {

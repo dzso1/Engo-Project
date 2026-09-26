@@ -725,3 +725,21 @@ body.dark-mode .pv-rw.carrot{background:#3a2208;color:#fdba74}
 .fr-row{min-width:0;overflow:hidden}
 .fr-chat-row .fr-info small{max-width:100%}
 @media (max-width:860px){#frDuel{font-size:0;gap:0;padding:8px}#frDuel .mi{font-size:20px}}
+.fr-compose{position:relative;grid-template-columns:auto 1fr auto;align-items:center}
+.fr-compose .fr-quick{grid-column:1 / -1;grid-row:1}
+.fr-tools{display:flex;gap:2px}
+.fr-tool{width:38px;height:38px;border-radius:50%;border:0;background:transparent;color:var(--primary);display:grid;place-items:center;cursor:pointer;font-size:20px;line-height:1}
+.fr-tool:hover{background:var(--surface-2)}
+.fr-tool .mi{font-size:22px}
+.fr-emoji{position:absolute;left:10px;bottom:calc(100% + 6px);z-index:30;width:min(340px,calc(100% - 20px));max-height:280px;overflow:auto;padding:10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 16px 40px rgba(0,0,0,.18)}
+.fr-emoji-group small{display:block;font-size:11px;font-weight:800;color:var(--muted);margin:4px 2px}
+.fr-emoji-group>div{display:grid;grid-template-columns:repeat(8,1fr);gap:2px}
+.fr-emoji-group button{border:0;background:transparent;font-size:22px;line-height:1;padding:5px 0;border-radius:8px;cursor:pointer}
+.fr-emoji-group button:hover{background:var(--surface-2);transform:scale(1.15)}
+.fr-img{display:block;max-width:min(260px,100%);max-height:320px;border-radius:14px;object-fit:cover;cursor:zoom-in;border:1px solid var(--line-2);background:var(--surface)}
+.fr-msg.mine .fr-img{justify-self:end}
+.fr-msg .fr-img+span{margin-top:4px}
+.fr-sending span{opacity:.7;display:flex;align-items:center;gap:6px}
+.fr-lightbox{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.85);display:grid;place-items:center;padding:20px;cursor:zoom-out}
+.fr-lightbox img{max-width:100%;max-height:100%;border-radius:10px}
+.fr-lightbox button{position:absolute;top:14px;right:18px;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:26px;cursor:pointer}
