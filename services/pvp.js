@@ -539,4 +539,4 @@ function attach(app, { requireLogin, requirePermission }) {
   app.post("/api/pvp/leave", ...guard, wrap(async req => leave(req.user.userId, (req.body || {}).matchId)));
 }
 
-module.exports = { attach, ensureTables, ratingOf, leaderboard, BOT, HUMAN };
+module.exports = { attach, ensureTables, ratingOf, leaderboard, BOT, HUMAN, notify: send, isOnline: online, invite };

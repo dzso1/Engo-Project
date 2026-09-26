@@ -29,6 +29,7 @@ const scope = require("./services/scope");
 const wordFamilies = require("./services/word-families");
 const pvp = require("./services/pvp");
 const resultsBoard = require("./services/results-board");
+const social = require("./services/social");
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -302,6 +303,7 @@ async function ensureAssessmentTables() {
   try { await scope.ensureTables(); } catch (e) { logSchemaError(e); }
   try { await wordFamilies.ensureTable(); } catch (e) { logSchemaError(e); }
   try { await pvp.ensureTables(); } catch (e) { logSchemaError(e); }
+  try { await social.ensureTables(); } catch (e) { logSchemaError(e); }
   await syncSubmissionColumns();
 }
 
@@ -2596,6 +2598,7 @@ app.post("/api/learning-events", requireLogin, requirePermission("learning.recor
 });
 
 pvp.attach(app, { requireLogin, requirePermission });
+social.attach(app, { requireLogin, requirePermission });
 
 app.get("/api/word-families", requireLogin, async (req, res) => {
   try {

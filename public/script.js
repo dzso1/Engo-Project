@@ -98,15 +98,15 @@ document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("cli
 const ROUTE_MAP = {
   "student-home": "/dashboard", "settings": "/settings", "leaderboard": "/leaderboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
   "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
-  "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin", "people": "/people", "pvp": "/arena"
+  "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin", "people": "/people", "pvp": "/arena", "friends": "/friends"
 };
 const REVERSE_ROUTE_MAP = {
   "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/settings": "settings", "/leaderboard": "leaderboard", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
   "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
-  "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin", "/people": "people", "/arena": "pvp", "/pvp": "pvp"
+  "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin", "/people": "people", "/arena": "pvp", "/pvp": "pvp", "/friends": "friends", "/chat": "friends"
 };
-const STUDENT_VIEWS = new Set(["student-home", "pvp", "quiz", "achievements", "leaderboard", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
+const STUDENT_VIEWS = new Set(["student-home", "pvp", "friends", "quiz", "achievements", "leaderboard", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
 const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
 
 function switchView(id, pushHistory = true) {

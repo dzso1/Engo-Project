@@ -34,6 +34,8 @@
     on("invite-cancel", d => closeInvite(d.inviteId));
     on("invite-declined", () => { showToast("Lời mời đã bị từ chối."); });
     on("invite-expired", () => { showToast("Lời mời đã hết hạn."); });
+    ["friend-request", "friend-accepted", "friend-removed", "chat-message", "chat-sent", "chat-read"].forEach(type => on(type, data => window.dispatchEvent(new CustomEvent("engo:social", { detail: { type, data } }))));
+    es.onopen = () => window.dispatchEvent(new CustomEvent("engo:social", { detail: { type: "connected", data: {} } }));
     es.onerror = () => {};
   }
   function disconnect() { if (S.es) { S.es.close(); S.es = null; } }
