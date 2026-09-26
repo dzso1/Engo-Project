@@ -2,7 +2,6 @@ const S = require('../../services/speaking-scorer');
 const T = require('./testset');
 const norm = s => S.normalizeWords(s);
 
-// Bo cham "cach cu": so tung tu theo dung vi tri, phai trung chinh ta hoan toan
 function strictScore(t, s) {
   const a = norm(t), b = norm(s);
   let ok = 0; const bad = [];
@@ -15,7 +14,6 @@ for (const x of T) {
   const e = S.scorePronunciation(x.t, x.s);
   const st = strictScore(x.t, x.s);
   const tw = norm(x.t);
-  // so tu bi bao sai phat am (do/vang) va loi ngu phap
   const pronErr = e.breakdown.filter(b => b.status === 'missed' || b.status === 'near').length;
   const redWords = e.breakdown.filter(b => b.status === 'missed').map(b => b.word);
   const gram = e.errors.filter(r => r.type === 'grammar').length;

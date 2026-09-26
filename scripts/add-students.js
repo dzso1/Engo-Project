@@ -26,7 +26,7 @@ async function main() {
   if (!className || !file) { console.error("Dùng: node scripts/add-students.js <lớp> <file tên> [mật khẩu] [--initials]"); process.exit(1); }
   const names = fs.readFileSync(file, "utf8").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const suffix = className.toLowerCase();
-  const hash = await bcrypt.hash(password, 12);
+  const hash = await bcrypt.hash(password, 10);
   const [cols] = await pool.query("SHOW COLUMNS FROM users LIKE 'password'");
   const hasLegacyPassword = cols.length > 0;
   let added = 0, skipped = 0;

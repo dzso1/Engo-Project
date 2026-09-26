@@ -17,7 +17,7 @@ async function createAdmin() {
     const email = "admin@engo.local";
     const password = "Admin@123456";
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     await connection.execute(
       `INSERT INTO users

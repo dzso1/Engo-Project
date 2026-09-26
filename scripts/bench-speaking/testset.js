@@ -1,9 +1,4 @@
-// Bộ kiểm thử do tác giả xây dựng — mô phỏng văn bản mà trình duyệt nhận diện
-// từ giọng đọc học sinh. Câu mẫu lấy từ học liệu luyện nói Unit 1–12 của ENGO.
-// Nhóm A: đọc đúng. Nhóm B: lệch theo đặc điểm giọng người Việt (vẫn là đọc đúng từ).
-// Nhóm C: thiếu đuôi -s/-ed (lỗi ngữ pháp). Nhóm D: đọc sai hẳn từ. Nhóm E: sót 1 từ giữa câu.
 module.exports = [
- // ---------------- A. doc dung ----------------
  {g:'A', t:"I don't know where to buy local handicrafts.", s:"I don't know where to buy local handicrafts"},
  {g:'A', t:"Traffic jams are getting worse and worse.", s:"traffic jams are getting worse and worse"},
  {g:'A', t:"If you skip breakfast, you may feel tired at school.", s:"if you skip breakfast you may feel tired at school"},
@@ -13,7 +8,6 @@ module.exports = [
  {g:'A', t:"The guide who showed us the cave was very friendly.", s:"the guide who showed us the cave was very friendly"},
  {g:'A', t:"Sea levels are rising, which worries many scientists.", s:"sea levels are rising which worries many scientists"},
 
- // ---------------- B. giong Viet (th->t, v->w, r->l, s/z, ph->f, ch/sh, am cuoi) ----------------
  {g:'B', t:"There are three trees in the garden.", s:"dere are tree trees in the garden", n:"th→d, th→t"},
  {g:'B', t:"I think this is very good.", s:"I tink dis is wery good", n:"th→t, th→d, v→w"},
  {g:'B', t:"My father works in the city.", s:"my fader works in the city", n:"th→d"},
@@ -31,7 +25,6 @@ module.exports = [
  {g:'B', t:"There is a vegetable market nearby.", s:"dere is a wegetable market nearby", n:"th→d, v→w"},
  {g:'B', t:"I have three rulers.", s:"I have tree lulers", n:"th→t, r→l"},
 
- // ---------------- C. thieu duoi ngu phap ----------------
  {g:'C', t:"She walks to school every morning.", s:"she walk to school every morning", n:"-s"},
  {g:'C', t:"My father commutes to work by metro.", s:"my father commute to work by metro", n:"-s"},
  {g:'C', t:"He visited his grandparents yesterday.", s:"he visit his grandparents yesterday", n:"-ed"},
@@ -41,7 +34,6 @@ module.exports = [
  {g:'C', t:"My grandmother enjoys telling stories.", s:"my grandmother enjoy telling stories", n:"-s"},
  {g:'C', t:"The artisans pass their skills down.", s:"the artisan pass their skill down", n:"-s ×2"},
 
- // ---------------- D. doc sai han ----------------
  {g:'D', t:"I like reading books.", s:"I like eating cooks", n:"reading→eating, books→cooks"},
  {g:'D', t:"The museum opens at nine.", s:"the moon opens at night", n:"museum→moon, nine→night"},
  {g:'D', t:"We play football on Sundays.", s:"we pay full ball on Monday", n:"sai nhiều"},
@@ -49,7 +41,6 @@ module.exports = [
  {g:'D', t:"The festival starts tomorrow.", s:"the vessel stops tomorrow", n:"2 từ sai"},
  {g:'D', t:"My favourite subject is history.", s:"my famous object is mystery", n:"3 từ sai"},
 
- // ---------------- E. sot mot tu giua cau ----------------
  {g:'E', t:"I don't know where to buy local handicrafts.", s:"I don't know where to local handicrafts", n:"sót 'buy'"},
  {g:'E', t:"Teenagers should sleep at least eight hours a night.", s:"teenagers should sleep least eight hours a night", n:"sót 'at'"},
  {g:'E', t:"The more crowded the city becomes, the harder it is to find housing.", s:"the more crowded the city becomes the harder is to find housing", n:"sót 'it'"},

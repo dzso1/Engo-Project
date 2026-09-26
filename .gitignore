@@ -1,7 +1,5 @@
-# Node.js / Express dependencies
 node_modules/
 
-# Logs
 logs/
 *.log
 npm-debug.log*
@@ -9,42 +7,34 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Runtime files
 .DS_Store
 Thumbs.db
 *.pid
 *.seed
 *.pid.lock
 
-# Environment files
 .env
 .env.*
 !.env.example
 !.env.sample
 
-# Build / output folders
 coverage/
 dist/
 build/
 out/
 
-# Temporary files
 tmp/
 temp/
 uploads/
 
-# IDE / editor folders
 .vscode/
 .idea/
 
-# OS-specific files
 .DS_Store
 
-# Ban sao tam / cache sinh noi dung
 *.bak
 *.part
 public/data/unit-cache/
 .import/
 
-# Claude Code
 .claude/

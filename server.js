@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const bcrypt = require("bcryptjs");
+const bcrypt = (() => { try { return require("bcrypt"); } catch (e) { return require("bcryptjs"); } })();
 const jwt = require("jsonwebtoken");
 const path = require("path");
 const https = require("https");
@@ -8,6 +8,7 @@ const dns = require("dns").promises;
 const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
+const compression = require("compression");
 const mammoth = require("mammoth");
 
 const pool = require("./database/db");
@@ -31,14 +32,20 @@ const pvp = require("./services/pvp");
 const resultsBoard = require("./services/results-board");
 const social = require("./services/social");
 
+const BCRYPT_ROUNDS = 10;
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
 app.use(helmet({ contentSecurityPolicy: false }));
+app.use(compression({ threshold: 1024, filter: (req, res) => (req.path === "/api/pvp/stream" ? false : compression.filter(req, res)) }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), { maxAge: "7d", setHeaders: (res, file) => { if (file.endsWith(".html")) res.setHeader("Cache-Control", "no-cache"); } }));
+app.use("/api", (req, res, next) => {
+  if (req.method !== "GET" && /^\/(tests|teacher\/tests|exams\/specs)/.test(req.path) && !/\/submissions$/.test(req.path)) invalidateTestCache();
+  next();
+});
 
 function publicUser(row) {
   return {
@@ -283,7 +290,7 @@ async function ensureAssessmentTables() {
   try {
     const [userRows] = await pool.query("SELECT COUNT(*) AS total FROM users");
     if (userRows && userRows[0] && userRows[0].total === 0) {
-      const defaultHash = await bcrypt.hash("123456", 12);
+      const defaultHash = await bcrypt.hash("123456", BCRYPT_ROUNDS);
       await pool.query(
         `INSERT INTO users (full_name, email, password_hash, role, status) VALUES
          ('Quản Trị Viên', 'admin@engo.edu.vn', ?, 'admin', 'active'),
@@ -441,7 +448,7 @@ function variantQuestions(test, variantName) {
   return all.filter(q => allowed.has(q.id));
 }
 
-function publicTest(test, { variantName = "full", includeAnswers = false } = {}) {
+function publicTest(test, { variantName = "full", includeAnswers = false, withSections = true } = {}) {
   const analysis = parseJsonField(test.analysis_json, null);
   const summary = parseJsonField(test.summary_json, {});
   const questions = variantQuestions(test, variantName);
@@ -483,7 +490,7 @@ function publicTest(test, { variantName = "full", includeAnswers = false } = {})
       objectivePoints: Number(objectivePoints.toFixed(2)),
       totalPoints: Number(totalPoints.toFixed(2))
     },
-    sections,
+    ...(withSections ? { sections } : {}),
   };
 }
 
@@ -819,7 +826,7 @@ app.post("/api/auth/register", async (req, res) => {
     }
 
     const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const status = role === "teacher" ? "pending" : "active";
     let insertSql = "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)";
     let insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status];
@@ -872,6 +879,18 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(403).json({ success: false, message: "Tài khoản đã bị khóa." });
     }
 
+    try {
+      if (bcrypt.getRounds(user.password_hash) > BCRYPT_ROUNDS) {
+        const plain = String(password);
+        setImmediate(async () => {
+          try {
+            const fresh = await bcrypt.hash(plain, BCRYPT_ROUNDS);
+            await pool.execute("UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?", [fresh, user.id, user.password_hash]);
+            if (await hasLegacyPassword()) await pool.execute("UPDATE users SET password = ? WHERE id = ?", [fresh, user.id]);
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
     issueToken(res, user);
     return res.json({ success: true, message: "Đăng nhập thành công.", user: { ...publicUser(user), permissions: rbac.permsOf(user.role) } });
   } catch (error) {
@@ -989,7 +1008,7 @@ app.post("/api/auth/change-password", requireLogin, async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
     if (!(await bcrypt.compare(String(currentPassword || ""), user.password_hash))) return res.status(400).json({ success: false, message: "Mật khẩu hiện tại không đúng." });
     if (await bcrypt.compare(next, user.password_hash)) return res.status(400).json({ success: false, message: "Mật khẩu mới phải khác mật khẩu cũ." });
-    const hash = await bcrypt.hash(next, 12);
+    const hash = await bcrypt.hash(next, BCRYPT_ROUNDS);
     await pool.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?", [hash, user.id]);
     try { await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hash, user.id]); } catch (e) {}
     issueToken(res, { id: user.id, role: user.role, must_change_password: 0 });
@@ -1108,7 +1127,7 @@ async function upsertParent({ phone, fullName, studentIds, createdBy }) {
     const email = parentEmail(p);
     const [dup] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
     if (dup.length) throw Object.assign(new Error("Tài khoản phụ huynh với số này đã tồn tại."), { status: 409 });
-    parentId = await insertUser({ fullName: String(fullName || `Phụ huynh ${p}`).trim().slice(0, 100), email, passwordHash: await bcrypt.hash(PARENT_DEFAULT_PASSWORD, 12), role: "parent", phone: p, mustChange: true });
+    parentId = await insertUser({ fullName: String(fullName || `Phụ huynh ${p}`).trim().slice(0, 100), email, passwordHash: await bcrypt.hash(PARENT_DEFAULT_PASSWORD, BCRYPT_ROUNDS), role: "parent", phone: p, mustChange: true });
     created = true;
   }
   for (const sid of studentIds || []) await pool.execute("INSERT IGNORE INTO parent_students (parent_id, student_id, created_by) VALUES (?, ?, ?)", [parentId, sid, createdBy || null]);
@@ -1172,7 +1191,7 @@ app.post("/api/admin/users", requireLogin, requirePermission("users.manage", "st
     if (pw.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
     const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
     if (existing.length) return res.status(409).json({ success: false, message: "Email này đã tồn tại." });
-    const id = await insertUser({ fullName: String(fullName).trim().slice(0, 100), email: mail, passwordHash: await bcrypt.hash(pw, 12), role, className: cls, status: ctx.full ? status : "active" });
+    const id = await insertUser({ fullName: String(fullName).trim().slice(0, 100), email: mail, passwordHash: await bcrypt.hash(pw, BCRYPT_ROUNDS), role, className: cls, status: ctx.full ? status : "active" });
     return res.status(201).json({ success: true, message: `Đã thêm tài khoản ${mail}.`, userId: id, email: mail });
   } catch (error) {
     return sendError(res, error, "Không thể thêm tài khoản.");
@@ -1229,7 +1248,7 @@ app.patch("/api/admin/users/:id", requireLogin, requirePermission("users.manage"
       const pw = String(b.password);
       const isParent = target.role === "parent";
       if (!isParent && pw.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
-      const hash = await bcrypt.hash(pw, 12);
+      const hash = await bcrypt.hash(pw, BCRYPT_ROUNDS);
       sets.push("password_hash = ?", "must_change_password = ?"); params.push(hash, isParent ? 1 : 0);
       if (await hasLegacyPassword()) { sets.push("password = ?"); params.push(hash); }
     }
@@ -1295,7 +1314,7 @@ app.post("/api/admin/users/import", requireLogin, requirePermission("users.impor
     const defaultPassword = String((req.body && req.body.defaultPassword) || "123456");
     if (defaultPassword.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu mặc định phải có ít nhất 6 ký tự." });
     const hashCache = new Map();
-    const hashOf = async pw => { if (!hashCache.has(pw)) hashCache.set(pw, await bcrypt.hash(pw, 12)); return hashCache.get(pw); };
+    const hashOf = async pw => { if (!hashCache.has(pw)) hashCache.set(pw, await bcrypt.hash(pw, BCRYPT_ROUNDS)); return hashCache.get(pw); };
     const results = [];
     let created = 0, skipped = 0, failed = 0, parentsLinked = 0;
     for (let i = 0; i < rows.length; i++) {
@@ -1399,7 +1418,7 @@ app.post("/api/parents/:id/reset-password", requireLogin, requirePermission("par
     const target = await loadUser(req.params.id);
     if (!target || target.role !== "parent") return res.status(404).json({ success: false, message: "Không tìm thấy phụ huynh." });
     if (!(await canManageUser(ctx, target))) return res.status(403).json({ success: false, message: "Phụ huynh này ngoài phạm vi bạn quản lý." });
-    const hash = await bcrypt.hash(PARENT_DEFAULT_PASSWORD, 12);
+    const hash = await bcrypt.hash(PARENT_DEFAULT_PASSWORD, BCRYPT_ROUNDS);
     await pool.execute("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?", [hash, target.id]);
     try { if (await hasLegacyPassword()) await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hash, target.id]); } catch (e) {}
     return res.json({ success: true, message: `Đã đặt lại mật khẩu về ${PARENT_DEFAULT_PASSWORD}.` });
@@ -1579,6 +1598,10 @@ app.post("/api/tests/import-docx", requireLogin, requirePermission("tests.manage
   }
 });
 
+const testListCache = new Map();
+const TEST_CACHE_MS = 10 * 60 * 1000;
+function invalidateTestCache() { testListCache.clear(); }
+
 app.get("/api/tests/latest", requireLogin, async (req, res) => {
   try {
     await assessmentReady;
@@ -1586,6 +1609,7 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
     const params = [];
     let variantName = "full";
     let submittedMap = {};
+    const fullList = req.query.full === "1" && rbac.can(req.user, "system.manage");
 
     if (req.user.role === "student") {
       const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
@@ -1604,10 +1628,23 @@ app.get("/api/tests/latest", requireLogin, async (req, res) => {
     }
 
     query += " ORDER BY created_at DESC LIMIT 600";
-    const [rows] = await pool.execute(query, params);
-    const tests = rows.map(row => {
-      const t = publicTest(getStoredTest(row), { variantName });
-      const sub = submittedMap[row.id];
+    let summaries;
+    if (fullList) {
+      const [rows] = await pool.execute(query, params);
+      summaries = rows.map(row => publicTest(getStoredTest(row), { variantName, withSections: true }));
+    } else {
+      const [idRows] = await pool.execute(query.replace(/^SELECT [\s\S]*? FROM imported_tests/, "SELECT id FROM imported_tests"), params);
+      const now = Date.now();
+      const key = id => `${id}:${variantName}`;
+      const missing = idRows.map(r => r.id).filter(id => { const c = testListCache.get(key(id)); return !c || now - c.at > TEST_CACHE_MS; });
+      if (missing.length) {
+        const [rows] = await pool.query(`${testSelect()} WHERE id IN (${missing.map(() => "?").join(",")})`, missing);
+        for (const row of rows) testListCache.set(key(row.id), { at: now, data: publicTest(getStoredTest(row), { variantName, withSections: false }) });
+      }
+      summaries = idRows.map(r => testListCache.get(key(r.id))).filter(Boolean).map(c => c.data);
+    }
+    const tests = summaries.map(t => {
+      const sub = submittedMap[t.id];
       return { ...t, submission: sub ? { scoreOnTen: sub.scoreOnTen, status: sub.status, submittedAt: sub.submittedAt } : null };
     });
     return res.json({ success: true, tests, variant: variantName });
@@ -2848,7 +2885,7 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(port, () => {
+app.listen({ port, backlog: 4096 }, () => {
   console.log(`Website đang chạy tại http://localhost:${port}`);
   console.log(`Kiểm tra MySQL tại http://localhost:${port}/api/health`);
 });

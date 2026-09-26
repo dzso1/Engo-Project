@@ -1,12 +1,3 @@
-/*
- * scripts/export-stats.js
- * Xuất SỐ LIỆU SỬ DỤNG TỔNG HỢP của ENGO để viết báo cáo.
- * - Chỉ ĐỌC cơ sở dữ liệu, không ghi, không sửa gì.
- * - Chỉ in ra số đếm / trung bình, KHÔNG in tên, email hay nội dung bài làm của học sinh.
- * Cách chạy (trong thư mục engo-web, khi MySQL đang bật):
- *     node scripts/export-stats.js
- * rồi copy toàn bộ phần chữ in ra, dán vào khung chat.
- */
 require("dotenv").config();
 const pool = require("../database/db");
 
@@ -22,12 +13,10 @@ async function q(label, sql, params = []) {
 }
 
 (async () => {
-  // ---------- Người dùng ----------
   await q("nguoi_dung_theo_vai_tro", "SELECT role, COUNT(*) AS so_luong FROM users GROUP BY role");
   await q("hoc_sinh_theo_lop",
     "SELECT class_name AS lop, COUNT(*) AS so_hs FROM users WHERE role='student' GROUP BY class_name ORDER BY class_name");
 
-  // ---------- Mức độ sử dụng ----------
   await q("su_kien_hoc_tap_theo_loai",
     "SELECT event_type AS loai, COUNT(*) AS so_luot, COUNT(DISTINCT student_id) AS so_hs, ROUND(AVG(CASE WHEN max_score>0 THEN score/max_score*100 END),1) AS diem_tb_phan_tram FROM learning_events GROUP BY event_type ORDER BY so_luot DESC");
   await q("khoang_thoi_gian",
@@ -39,12 +28,10 @@ async function q(label, sql, params = []) {
   await q("hoat_dong_theo_tuan",
     "SELECT YEARWEEK(created_at,1) AS tuan, COUNT(*) AS so_luot, COUNT(DISTINCT student_id) AS so_hs FROM learning_events GROUP BY tuan ORDER BY tuan");
 
-  // ---------- Luyện nói ----------
   await q("luyen_noi_tong",
     "SELECT COUNT(*) AS so_luot_doc, COUNT(DISTINCT student_id) AS so_hs, ROUND(AVG(accuracy),1) AS do_chuan_tb FROM speaking_attempts");
   await q("luyen_noi_theo_tuan",
     "SELECT YEARWEEK(created_at,1) AS tuan, COUNT(*) AS so_luot, ROUND(AVG(accuracy),1) AS do_chuan_tb FROM speaking_attempts GROUP BY tuan ORDER BY tuan");
-  // Tiến bộ từng học sinh: trung bình 3 lượt đầu so với 3 lượt cuối (chỉ tính HS có >= 6 lượt)
   await q("luyen_noi_tien_bo",
     `SELECT COUNT(*) AS so_hs_du_6_luot,
             ROUND(AVG(dau),1) AS tb_3_luot_dau, ROUND(AVG(cuoi),1) AS tb_3_luot_cuoi,
@@ -61,7 +48,6 @@ async function q(label, sql, params = []) {
           WHERE n >= 6
           GROUP BY student_id) s`);
 
-  // ---------- Bài kiểm tra ----------
   await q("bai_kiem_tra_da_tao", "SELECT COUNT(*) AS so_de FROM imported_tests");
   await q("bai_kiem_tra_da_nop",
     `SELECT COUNT(*) AS so_bai, COUNT(DISTINCT student_id) AS so_hs,
@@ -79,7 +65,6 @@ async function q(label, sql, params = []) {
     `SELECT YEARWEEK(submitted_at,1) AS tuan, COUNT(*) AS so_bai,
             ROUND(SUM(tab_violations=0)/COUNT(*)*100,1) AS pt_khong_roi_tab
        FROM writing_submissions GROUP BY tuan ORDER BY tuan`);
-  // Tiến bộ qua bài kiểm tra: bài đầu so với bài gần nhất (HS có >= 2 bài)
   await q("kiem_tra_tien_bo",
     `SELECT COUNT(*) AS so_hs_du_2_bai, ROUND(AVG(dau),2) AS diem_bai_dau_tb, ROUND(AVG(cuoi),2) AS diem_bai_cuoi_tb,
             SUM(cuoi > dau) AS so_hs_tang_diem
@@ -93,7 +78,6 @@ async function q(label, sql, params = []) {
                        FROM writing_submissions) t
               WHERE n >= 2 GROUP BY student_id) s`);
 
-  // ---------- Trò chơi hoá ----------
   await q("phan_thuong",
     "SELECT COUNT(*) AS so_hs, ROUND(AVG(xp),0) AS xp_tb, MAX(xp) AS xp_cao_nhat FROM student_rewards");
 
