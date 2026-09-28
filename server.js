@@ -9,6 +9,7 @@ const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
+const minifier = require("./services/minify");
 const mammoth = require("mammoth");
 
 const pool = require("./database/db");
@@ -41,6 +42,10 @@ app.use(compression({ threshold: 1024, filter: (req, res) => (req.path === "/api
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+if (process.env.MINIFY_JS !== "0") {
+  app.use(minifier.middleware(path.join(__dirname, "public")));
+  minifier.warm(path.join(__dirname, "public")).then(r => console.log(`[minify] ${r.files} file JS: ${Math.round(r.before / 1024)} KB -> ${Math.round(r.after / 1024)} KB`)).catch(() => {});
+}
 app.use(express.static(path.join(__dirname, "public"), { maxAge: "7d", setHeaders: (res, file) => { if (file.endsWith(".html")) res.setHeader("Cache-Control", "no-cache"); } }));
 app.use("/api", (req, res, next) => {
   if (req.method !== "GET" && /^\/(tests|teacher\/tests|exams\/specs)/.test(req.path) && !/\/submissions$/.test(req.path)) invalidateTestCache();
@@ -71,6 +76,7 @@ async function loadLockedUsers() {
     rows.forEach(r => lockedUsers.set(Number(r.id), r.lock_reason || null));
   } catch (e) {}
 }
+setInterval(() => { loadLockedUsers().catch(() => {}); }, 60000).unref();
 async function setUserLock(userId, locked, reason = null) {
   const id = Number(userId);
   if (locked) {
@@ -916,6 +922,7 @@ app.post("/api/auth/login", async (req, res) => {
         });
       }
     } catch (e) {}
+    lockedUsers.delete(Number(user.id));
     issueToken(res, user);
     return res.json({ success: true, message: "Đăng nhập thành công.", user: { ...publicUser(user), permissions: rbac.permsOf(user.role) } });
   } catch (error) {

@@ -237,7 +237,11 @@
     stage.innerHTML = `
       <div class="pv-q"><span class="pv-qn">Câu ${d.qi + 1}/${d.total}</span><p class="pv-hint">${esc(d.hint || "")}</p><h3 class="pv-prompt">${d.kind === "form" ? esc(d.prompt).replace("____", '<span class="blank-line"></span>') : esc(d.prompt)}</h3></div>
       <div class="pv-opts">${d.options.map((o, i) => `<button type="button" class="pv-opt" data-opt="${i}"><kbd>${i + 1}</kbd><span>${esc(o)}</span></button>`).join("")}</div>`;
-    stage.querySelectorAll("[data-opt]").forEach(b => b.addEventListener("click", () => choose(Number(b.dataset.opt))));
+    S.motion = { moves: 0, hover: new Set() };
+    stage.querySelectorAll("[data-opt]").forEach(b => {
+      b.addEventListener("pointerenter", e => { if (e.isTrusted) S.motion.hover.add(Number(b.dataset.opt)); });
+      b.addEventListener("click", e => { const i = Number(b.dataset.opt); choose(i, { via: e.pointerType || (e.detail === 0 ? "keyboard" : "mouse"), trusted: e.isTrusted, hovered: S.motion.hover.has(i), moves: S.motion.moves }); });
+    });
     if (alreadyAnswered) stage.querySelectorAll(".pv-opt").forEach(b => b.disabled = true);
     const bar = document.getElementById("pvTimerBar");
     const total = d.seconds * 1000;
@@ -253,13 +257,13 @@
     frame();
   }
 
-  async function choose(i) {
+  async function choose(i, proof) {
     if (S.answered !== null || !S.q || !S.match) return;
     S.answered = i;
     const q = S.q;
     document.querySelectorAll(".pv-opt").forEach(b => { b.disabled = true; if (Number(b.dataset.opt) === i) b.classList.add("picked"); });
     try {
-      const r = await api("POST", "/api/pvp/answer", { matchId: S.match.matchId, qi: q.qi, choice: i });
+      const r = await api("POST", "/api/pvp/answer", { matchId: S.match.matchId, qi: q.qi, choice: i, proof });
       const picked = document.querySelector(`.pv-opt[data-opt="${i}"]`);
       if (picked && r.correct) { picked.insertAdjacentHTML("beforeend", `<em class="pv-gain">+${r.points}</em>`); sfx("correct"); }
       else sfx("wrong");
@@ -318,12 +322,13 @@
     if (typeof syncRewardsFromServer === "function") { try { syncRewardsFromServer(); } catch (e) {} }
   }
 
+  window.addEventListener("pointermove", e => { if (e.isTrusted && S.motion) S.motion.moves++; }, { passive: true });
   document.addEventListener("keydown", e => {
     if (S.screen !== "arena" || !S.q || S.answered !== null) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "")) return;
     const k = e.key.toLowerCase();
     const idx = ["1", "2", "3", "4"].indexOf(k) >= 0 ? Number(k) - 1 : ["a", "b", "c", "d"].indexOf(k);
-    if (idx >= 0 && idx < (S.q.options || []).length) { e.preventDefault(); choose(idx); }
+    if (idx >= 0 && idx < (S.q.options || []).length) { e.preventDefault(); choose(idx, { via: "key", trusted: e.isTrusted, hovered: false, moves: S.motion ? S.motion.moves : 0 }); }
   });
 
   async function show() {

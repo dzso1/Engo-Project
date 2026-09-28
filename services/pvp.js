@@ -14,6 +14,8 @@ const CHEAT = {
   streak: Math.max(2, Number(process.env.PVP_CHEAT_STREAK) || 4),
   minPoints: Number(process.env.PVP_CHEAT_MIN_POINTS) || 190,
   maxMs: Number(process.env.PVP_CHEAT_MAX_MS) || 1200,
+  sameTime: Math.max(3, Number(process.env.PVP_CHEAT_SAME_TIME) || 5),
+  sameTimeWindowMs: Number(process.env.PVP_CHEAT_SAME_TIME_MS) || 40,
 };
 const REVEAL_MS = 2200;
 const COUNTDOWN_MS = 3000;
@@ -219,7 +221,22 @@ function nextQuestion(m) {
   }
 }
 
-function submit(m, userId, qi, choice) {
+function cleanProof(proof) {
+  if (!proof || typeof proof !== "object") return null;
+  return { via: String(proof.via || "").slice(0, 12), trusted: proof.trusted === true, hovered: Boolean(proof.hovered), moves: Math.max(0, Math.min(100000, Number(proof.moves) || 0)) };
+}
+
+function sameTimeCluster(answers) {
+  const times = answers.filter(Boolean).map(a => a.ms).sort((x, y) => x - y);
+  let best = 0, bestAt = 0;
+  for (let i = 0, j = 0; j < times.length; j++) {
+    while (times[j] - times[i] > CHEAT.sameTimeWindowMs * 2) i++;
+    if (j - i + 1 > best) { best = j - i + 1; bestAt = times[i]; }
+  }
+  return { size: best, from: bestAt, to: bestAt + CHEAT.sameTimeWindowMs * 2 };
+}
+
+function submit(m, userId, qi, choice, rawProof) {
   if (m.phase !== "question" || qi !== m.qi) return { ok: false, reason: "Câu hỏi đã kết thúc." };
   const p = m.players.find(x => x.id === userId);
   if (!p) return { ok: false, reason: "Bạn không ở trong trận này." };
@@ -227,19 +244,37 @@ function submit(m, userId, qi, choice) {
   const ms = Date.now() - m.qStart;
   const limit = m.seconds * 1000;
   if (ms > limit + 400) return { ok: false, reason: "Hết giờ." };
+  const proof = p.bot ? null : cleanProof(rawProof);
+  if (!p.bot) {
+    if (!proof) return { ok: false, reason: "Phiên bản Đấu trường đã cũ, hãy tải lại trang (F5) rồi đấu tiếp." };
+    if (!proof.trusted) {
+      p.answers[qi] = { choice: Number(choice), correct: false, points: 0, ms, proof };
+      setImmediate(() => flagCheat(m, p, "Dùng mã lệnh tự bấm đáp án ở Đấu trường (thao tác không phải do chuột, cảm ứng hay bàn phím thật)", { qi, ms, proof }));
+      return { ok: true, correct: false, points: 0 };
+    }
+  }
   const q = m.questions[qi];
   const c = Number(choice);
   const correct = c === q.answer;
   const speed = Math.max(0, 1 - Math.min(ms, limit) / limit);
   const points = correct ? 100 + Math.round(100 * speed) : 0;
-  p.answers[qi] = { choice: c, correct, points, ms };
+  p.answers[qi] = { choice: c, correct, points, ms, proof };
   p.score += points;
   if (correct) p.correct++;
   if (!p.bot) {
     const superFast = correct && points > CHEAT.minPoints && ms < CHEAT.maxMs;
     p.fastStreak = superFast ? (p.fastStreak || 0) + 1 : 0;
-    if (superFast) (p.fastLog = p.fastLog || []).push({ qi, ms, points });
-    if (p.fastStreak >= CHEAT.streak) { setImmediate(() => flagCheat(m, p)); return { ok: true, correct, points }; }
+    if (superFast) (p.fastLog = p.fastLog || []).push({ qi, ms, points, moves: proof.moves });
+    if (p.fastStreak >= CHEAT.streak) {
+      const limitMs = Math.round(Math.min(CHEAT.maxMs, m.seconds * 100));
+      setImmediate(() => flagCheat(m, p, `Nghi dùng công cụ tự động ở Đấu trường: ${CHEAT.streak} câu liên tiếp đúng trong dưới ${limitMs} ms`, { answers: p.fastLog.slice(-CHEAT.streak) }));
+      return { ok: true, correct, points };
+    }
+    const cluster = sameTimeCluster(p.answers);
+    if (cluster.size >= CHEAT.sameTime) {
+      setImmediate(() => flagCheat(m, p, `Nghi dùng công cụ tự động ở Đấu trường: ${cluster.size} câu có thời gian trả lời gần như giống hệt nhau (${cluster.from}–${cluster.to} ms)`, { answers: p.answers.filter(Boolean).map((a, i) => ({ i, ms: a.ms, correct: a.correct, moves: a.proof && a.proof.moves })) }));
+      return { ok: true, correct, points };
+    }
   }
   for (const other of m.players) if (!other.bot && other.id !== userId) send(other.id, "opponent-answered", { matchId: m.id, qi });
   if (m.players.every(x => x.answers[qi])) later(m, 450, () => reveal(m, qi));
@@ -247,11 +282,10 @@ function submit(m, userId, qi, choice) {
 }
 
 let onCheat = null;
-async function flagCheat(m, p) {
+async function flagCheat(m, p, reason, evidence) {
   if (m.phase === "end" || p.flagged) return;
   p.flagged = true;
-  const detail = { matchId: m.id, mode: m.mode, difficulty: m.difficulty, seconds: m.seconds, answers: (p.fastLog || []).slice(-CHEAT.streak) };
-  const reason = `Nghi dùng công cụ tự động ở Đấu trường: ${CHEAT.streak} câu liên tiếp đúng trong dưới ${Math.round(Math.min(CHEAT.maxMs, m.seconds * 100))} ms`;
+  const detail = { matchId: m.id, mode: m.mode, difficulty: m.difficulty, seconds: m.seconds, ...(evidence || {}) };
   try {
     await ensureTables();
     await pool.execute("INSERT INTO pvp_flags (user_id, match_id, reason, detail_json) VALUES (?, ?, ?, ?)", [p.id, m.id, reason, JSON.stringify(detail)]);
@@ -486,10 +520,10 @@ async function joinRoom(userId, code) {
 }
 function closeRoom(userId) { for (const [code, r] of rooms) if (r.host === Number(userId)) rooms.delete(code); return { ok: true }; }
 
-function answer(userId, matchId, qi, choice) {
+function answer(userId, matchId, qi, choice, proof) {
   const m = matches.get(String(matchId));
   if (!m || m.phase === "end") throw Object.assign(new Error("Trận đấu đã kết thúc."), { status: 404 });
-  const r = submit(m, Number(userId), Number(qi), choice);
+  const r = submit(m, Number(userId), Number(qi), choice, proof);
   if (!r.ok) throw Object.assign(new Error(r.reason), { status: 409 });
   return r;
 }
@@ -571,7 +605,7 @@ function attach(app, { requireLogin, requirePermission, lockUser }) {
   app.post("/api/pvp/room", ...guard, wrap(req => createRoom(req.user.userId)));
   app.post("/api/pvp/room/join", ...guard, wrap(req => joinRoom(req.user.userId, (req.body || {}).code)));
   app.delete("/api/pvp/room", ...guard, wrap(async req => closeRoom(req.user.userId)));
-  app.post("/api/pvp/answer", ...guard, wrap(async req => answer(req.user.userId, (req.body || {}).matchId, (req.body || {}).qi, (req.body || {}).choice)));
+  app.post("/api/pvp/answer", ...guard, wrap(async req => answer(req.user.userId, (req.body || {}).matchId, (req.body || {}).qi, (req.body || {}).choice, (req.body || {}).proof)));
   app.post("/api/pvp/leave", ...guard, wrap(async req => leave(req.user.userId, (req.body || {}).matchId)));
 }
 
