@@ -1151,6 +1151,7 @@ const POS_LABEL = { n: "danh từ", v: "động từ", adj: "tính từ", adv: "
 let activeDeck = Object.keys(flashDecks)[0] || "unit1", flashOrder = [], flashIndex = 0, flashViewed = new Set();
 function getVocabRecords() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoVocabV1")) || "{}"); } catch { return {}; } }
 function setVocabRecords(r) { localStorage.setItem(getUserStorageKey("engoVocabV1"), JSON.stringify(r)); }
+window.getVocabRecords = getVocabRecords;
 function currentFlash() { return flashDecks[activeDeck].cards[flashOrder[flashIndex]]; }
 function resetFlashOrder() { flashOrder = flashDecks[activeDeck].cards.map((_, i) => i); flashIndex = 0; flashViewed = new Set([0]); renderFlashcard(); }
 function renderVocabDecks() {
@@ -1365,8 +1366,14 @@ async function finishVocabQuiz() {
   const percent = Math.round((q.correct / q.total) * 100);
   const good = percent >= 80;
   const records = getVocabRecords();
-  records[activeDeck] = { best: Math.max(percent, records[activeDeck]?.best || 0), last: percent, at: new Date().toISOString() };
+  const prev = records[activeDeck] || {};
+  const at = new Date().toISOString();
+  const modes = { ...(prev.modes || {}) };
+  const prevMode = modes[q.mode];
+  modes[q.mode] = { best: Math.max(percent, prevMode?.best || 0), last: percent, at, done: true };
+  records[activeDeck] = { ...prev, best: Math.max(percent, prev.best || 0), last: percent, at, modes };
   setVocabRecords(records);
+  document.dispatchEvent(new CustomEvent("engo:vocab-record", { detail: { deck: activeDeck, mode: q.mode, percent } }));
   gainRewards(good ? 30 : 10, good ? 3 : 0, `Hoàn thành bộ ${q.deck.name}`);
   const st = getLearningStats(); st.vocabSets = (st.vocabSets || 0) + 1; setLearningStats(st);
   try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "vocab", refId: activeDeck, title: q.deck.name, score: q.correct, maxScore: q.total, meta: { mode: q.mode, percent } }) }); studentProgress = null; } catch (e) {}
@@ -1375,6 +1382,7 @@ async function finishVocabQuiz() {
     <div class="result-score" style="background:conic-gradient(${good ? "#22c55e" : "#f59e0b"} 0 ${percent}%, #e5e7eb ${percent}% 100%)"><div><strong>${percent}%</strong><span class="small muted">đúng</span></div></div>
     <h3 style="margin:0 0 6px">${good ? "<i class=mi>celebration</i> Xuất sắc! Bạn đã thuộc bộ từ này" : "<i class=mi>thumb_up</i> Hoàn thành! Ôn lại các từ chưa nhớ nhé"}</h3>
     <p class="muted">Đúng ${q.correct}/${q.total} · Thưởng ${good ? "+30 XP & +3 <i class=ico-carrot></i>" : "+10 XP"}</p>
+    <p class="small muted"><i class=mi>save</i> Đã lưu kết quả · Tốt nhất dạng này: ${modes[q.mode].best}%${prevMode ? ` · Lần trước: ${prevMode.last}%` : ""}</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><button class="btn btn-light" id="vqRetry">Học lại bộ thẻ</button><button class="btn btn-primary" id="vqOther">Làm dạng ${q.mode === "mc" ? "nối từ" : "trắc nghiệm"}</button></div></div>`;
   if (percent === 100) cheer("perfect"); else if (good) cheer("unitDone"); else playSfx("taskDone");
   document.getElementById("vqRetry").addEventListener("click", () => { exitVocabQuiz(); resetFlashOrder(); });

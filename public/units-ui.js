@@ -103,15 +103,20 @@
     const groups = {};
     deck.cards.forEach(c => { (groups[c.sec] = groups[c.sec] || []).push(c); });
 
+    let rec = {};
+    try { rec = (window.getVocabRecords ? window.getVocabRecords() : {})["unit" + u] || {}; } catch (e) {}
+    const modeRec = rec.modes || {};
+    const PRACTICE = [["mc", "quiz", "Trắc nghiệm"], ["listen", "hearing", "Nghe chọn từ"], ["spell", "keyboard", "Chính tả"], ["image", "image", "Nhìn hình"], ["gap", "edit_note", "Điền câu"], ["match", "link", "Nối từ"]];
+    const practiceBtn = ([mode, icon, label]) => {
+      const r = modeRec[mode];
+      const tip = r ? ` title="Đã làm · Tốt nhất ${r.best}% · Lần gần nhất ${r.last}%"` : "";
+      return `<button type="button" class="btn btn-soft btn-sm${r ? " practice-done" : ""}" data-practice="${mode}"${tip}><i class=mi>${r ? "check_circle" : icon}</i> ${label}${r ? ` <b class="practice-best">${r.best}%</b>` : ""}</button>`;
+    };
+    const doneCount = PRACTICE.filter(p => modeRec[p[0]]).length;
     const practiceBar = `
       <div class="vocab-practice-bar">
-        <span><i class=mi>sports_esports</i> Luyện từ Unit ${u}:</span>
-        <button type="button" class="btn btn-soft btn-sm" data-practice="mc"><i class=mi>quiz</i> Trắc nghiệm</button>
-        <button type="button" class="btn btn-soft btn-sm" data-practice="listen"><i class=mi>hearing</i> Nghe chọn từ</button>
-        <button type="button" class="btn btn-soft btn-sm" data-practice="spell"><i class=mi>keyboard</i> Chính tả</button>
-        <button type="button" class="btn btn-soft btn-sm" data-practice="image"><i class=mi>image</i> Nhìn hình</button>
-        <button type="button" class="btn btn-soft btn-sm" data-practice="gap"><i class=mi>edit_note</i> Điền câu</button>
-        <button type="button" class="btn btn-soft btn-sm" data-practice="match"><i class=mi>link</i> Nối từ</button>
+        <span><i class=mi>sports_esports</i> Luyện từ Unit ${u}${doneCount ? ` (${doneCount}/${PRACTICE.length} dạng đã làm)` : ""}:</span>
+        ${PRACTICE.map(practiceBtn).join("")}
       </div>`;
     const words = Object.keys(groups).map(sec => `
       <div class="unit-sec">
@@ -253,6 +258,7 @@
       else view.insertBefore(host, view.children[1] || null);
     }
     host.innerHTML = vocabPanelHTML();
+    if (!mountVocab.bound) { mountVocab.bound = true; document.addEventListener("engo:vocab-record", () => mountVocab()); }
 
     host.querySelectorAll("[data-vunit]").forEach(b => b.addEventListener("click", () => {
       state.vocabUnit = Number(b.dataset.vunit); mountVocab();
