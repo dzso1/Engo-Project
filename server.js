@@ -1210,8 +1210,21 @@ app.post("/api/admin/users", requireLogin, requirePermission("users.manage", "st
     if (!["pending", "active", "locked"].includes(status)) return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ." });
     if (!ctx.full && role !== "student") return res.status(403).json({ success: false, message: "Giáo viên chỉ tạo được tài khoản học sinh (phụ huynh tạo ở mục Phụ huynh)." });
     if (role === "parent") {
-      const r = await upsertParent({ phone, fullName, studentIds: [], createdBy: req.user.userId });
-      return res.status(201).json({ success: true, message: `Đã tạo tài khoản phụ huynh ${r.phone} (mật khẩu ${PARENT_DEFAULT_PASSWORD}, bắt buộc đổi khi đăng nhập).`, userId: r.parentId });
+      const p = scope.normalizePhone(phone);
+      const mail = String(email || "").trim().toLowerCase();
+      if (String(phone || "").trim() && !p) return res.status(400).json({ success: false, message: "Số điện thoại không hợp lệ (10–11 số, bắt đầu bằng 0)." });
+      if (mail && !validEmail(mail)) return res.status(400).json({ success: false, message: "Email không hợp lệ." });
+      if (!p && !mail) return res.status(400).json({ success: false, message: "Vui lòng nhập số điện thoại hoặc email cho phụ huynh." });
+      const loginEmail = mail || parentEmail(p);
+      const [dupMail] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [loginEmail]);
+      if (dupMail.length) return res.status(409).json({ success: false, message: "Email này đã tồn tại." });
+      if (p) {
+        const [dupPhone] = await pool.execute("SELECT id FROM users WHERE phone = ? LIMIT 1", [p]);
+        if (dupPhone.length) return res.status(409).json({ success: false, message: "Số điện thoại này đã được dùng." });
+      }
+      const pw = String(password || "");
+      const id = await insertUser({ fullName: String(fullName).trim().slice(0, 100), email: loginEmail, passwordHash: await bcrypt.hash(pw || PARENT_DEFAULT_PASSWORD, BCRYPT_ROUNDS), role: "parent", status, phone: p || null, mustChange: !pw });
+      return res.status(201).json({ success: true, message: `Đã tạo tài khoản phụ huynh ${p || loginEmail}${pw ? "" : ` (mật khẩu ${PARENT_DEFAULT_PASSWORD}, bắt buộc đổi khi đăng nhập)`}.`, userId: id, email: loginEmail });
     }
     const cls = role === "student" ? cleanClass(className) || null : null;
     if (role === "student" && !cls) return res.status(400).json({ success: false, message: "Vui lòng nhập lớp cho học sinh." });

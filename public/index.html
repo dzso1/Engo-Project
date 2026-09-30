@@ -997,7 +997,8 @@
       <div class="modal-head"><h3>Thêm tài khoản</h3><button class="close-btn add-user-close">×</button></div>
       <form id="addUserForm" class="form-grid">
         <div class="field full"><label>Họ và tên</label><input id="newUserName" required placeholder="Nguyễn Văn A" /></div>
-        <div class="field full"><label>Email hoặc mã tài khoản</label><input id="newUserEmail" required placeholder="student02@engo.edu.vn" /></div>
+        <div class="field full"><label id="newUserEmailLabel">Email hoặc mã tài khoản</label><input id="newUserEmail" required placeholder="student02@engo.edu.vn" /></div>
+        <div class="field full" id="newUserPhoneGroup" style="display:none"><label>Số điện thoại phụ huynh</label><input id="newUserPhone" type="tel" inputmode="tel" placeholder="0912345678" /></div>
         <div class="field"><label>Vai trò</label><select id="newUserRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option><option value="admin">Quản trị viên</option></select></div>
         <div class="field" id="newUserClassGroup"><label>Lớp học</label><input id="newUserClass" list="classNameList" placeholder="9A1" /></div>
         <div class="field"><label>Trạng thái</label><select id="newUserStatus"><option value="active">Đang hoạt động</option><option value="pending">Chờ duyệt</option><option value="locked">Đã khóa</option></select></div>

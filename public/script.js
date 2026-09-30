@@ -2210,12 +2210,21 @@ document.querySelectorAll("[data-data-tab]").forEach(btn => btn.addEventListener
 document.getElementById("dataSearch")?.addEventListener("input", () => renderDataAdmin());
 document.getElementById("openAddUser")?.addEventListener("click", () => openModal("addUserModal"));
 document.querySelectorAll(".add-user-close").forEach(btn => btn.addEventListener("click", () => closeModal("addUserModal")));
-document.getElementById("newUserRole")?.addEventListener("change", e => { document.getElementById("newUserClassGroup").style.display = e.target.value === "student" ? "grid" : "none"; });
+function syncNewUserRole() {
+  const role = document.getElementById("newUserRole")?.value;
+  if (!role) return;
+  const isParent = role === "parent";
+  document.getElementById("newUserClassGroup").style.display = role === "student" ? "grid" : "none";
+  document.getElementById("newUserPhoneGroup").style.display = isParent ? "grid" : "none";
+  document.getElementById("newUserEmail").required = !isParent;
+  document.getElementById("newUserEmailLabel").textContent = isParent ? "Email (không bắt buộc nếu có SĐT)" : "Email hoặc mã tài khoản";
+}
+document.getElementById("newUserRole")?.addEventListener("change", syncNewUserRole);
 document.getElementById("addUserForm")?.addEventListener("submit", async e => {
   e.preventDefault();
   try {
-    await apiRequest("/api/admin/users", { method: "POST", body: JSON.stringify({ fullName: document.getElementById("newUserName").value.trim(), email: document.getElementById("newUserEmail").value.trim(), password: document.getElementById("newUserPassword").value, role: document.getElementById("newUserRole").value, className: document.getElementById("newUserClass").value.trim().toUpperCase(), status: document.getElementById("newUserStatus").value }) });
-    closeModal("addUserModal"); e.target.reset(); addAdminLog("Thêm tài khoản", "Đã thêm tài khoản mới"); showToast("Đã thêm tài khoản"); renderDataAdmin(); loadClassNames();
+    await apiRequest("/api/admin/users", { method: "POST", body: JSON.stringify({ fullName: document.getElementById("newUserName").value.trim(), email: document.getElementById("newUserEmail").value.trim(), password: document.getElementById("newUserPassword").value, role: document.getElementById("newUserRole").value, className: document.getElementById("newUserClass").value.trim().toUpperCase(), status: document.getElementById("newUserStatus").value, phone: document.getElementById("newUserPhone").value.trim() }) });
+    closeModal("addUserModal"); e.target.reset(); syncNewUserRole(); addAdminLog("Thêm tài khoản", "Đã thêm tài khoản mới"); showToast("Đã thêm tài khoản"); renderDataAdmin(); loadClassNames();
   } catch (err) { showToast(err.message); }
 });
 function downloadJSON(data, filename) { const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
