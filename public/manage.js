@@ -154,7 +154,6 @@
         <select id="ppCls"><option value="">Mọi lớp</option>${classOptions(f.cls, { allowEmpty: false, grade: f.grade === "8" || f.grade === "9" ? f.grade : "" })}</select>
         <select id="ppStatus"><option value="">Mọi trạng thái</option><option value="locked" ${f.status === "locked" ? "selected" : ""}>Đang bị khoá (${state.users.filter(u => u.status === "locked").length})</option><option value="pending" ${f.status === "pending" ? "selected" : ""}>Chờ duyệt</option></select>
         <span class="small muted">${list.length} tài khoản</span>
-        <button type="button" class="btn btn-soft btn-sm" id="ppCreateClassAcc"><i class=mi>group_add</i> Tạo TK lớp</button>
         <button type="button" class="btn btn-primary btn-sm" id="ppAdd"><i class=mi>person_add</i> Thêm tài khoản</button>
       </div>
       <div class="table-wrap"><table class="pp-table"><thead><tr><th>Họ tên</th><th>Đăng nhập</th><th>Vai trò</th><th>Khối · Lớp / Con</th><th>Trạng thái</th><th></th></tr></thead>
@@ -189,7 +188,6 @@
     body.querySelector("#ppRole")?.addEventListener("change", e => { state.filter.role = e.target.value; rerender(); });
     body.querySelector("#ppCls").addEventListener("change", e => { state.filter.cls = e.target.value; rerender(); });
     body.querySelector("#ppStatus").addEventListener("change", e => { state.filter.status = e.target.value; rerender(); });
-    body.querySelector("#ppCreateClassAcc")?.addEventListener("click", () => openClassAccountsModal(f.cls || "", f.grade === "8" || f.grade === "9" ? Number(f.grade) : 8));
     body.querySelector("#ppAdd").addEventListener("click", () => openUserForm(null));
     body.querySelectorAll("[data-rw]").forEach(b => b.addEventListener("click", () => openRewards(b.dataset.rw)));
     body.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openUserForm(state.users.find(u => String(u.id) === b.dataset.edit))));
@@ -211,7 +209,7 @@
       <div class="pp-class-col">
         <div class="pp-class-head">
           <h4>Khối ${grade} <span class="badge ${grade === 8 ? "blue" : "green"}">${list.length} lớp</span></h4>
-          <button type="button" class="btn btn-soft btn-sm" data-new-cls-acc="${grade}"><i class=mi>group_add</i> Tạo TK lớp K${grade}</button>
+          <button type="button" class="btn btn-soft btn-sm" data-new-cls-stu="${grade}"><i class=mi>person_add</i> Thêm HS K${grade}</button>
         </div>
         <div class="pp-class-list">${list.map(c => `
           <div class="pp-class-item">
@@ -223,7 +221,7 @@
             </select>
             <div class="pp-class-acts">
               <button type="button" class="btn btn-light btn-sm" data-cls-view="${esc(c.className)}" data-cls-grade="${grade}" title="Xem danh sách"><i class=mi>visibility</i></button>
-              <button type="button" class="btn btn-soft btn-sm" data-cls-acc="${esc(c.className)}" data-cls-grade="${grade}" title="Tạo tài khoản lớp"><i class=mi>person_add</i></button>
+              <button type="button" class="btn btn-soft btn-sm" data-cls-add="${esc(c.className)}" data-cls-grade="${grade}" title="Thêm học sinh vào lớp"><i class=mi>person_add</i></button>
               ${isFull() && c.studentCount === 0 ? `<button type="button" class="btn btn-light btn-sm pp-danger" data-cls-del="${esc(c.className)}" title="Xoá lớp"><i class=mi>delete</i></button>` : ""}
             </div>
           </div>`).join("") || `<p class="small muted">Chưa có lớp khối ${grade}.</p>`}</div>
@@ -241,7 +239,6 @@
           <option value="advanced">Lớp tăng cường</option>
         </select>
         <button type="submit" class="btn btn-primary btn-sm"><i class=mi>add</i> Lưu lớp</button>
-        <button type="button" class="btn btn-soft btn-sm" id="ppOpenClsAccBtn"><i class=mi>group_add</i> Tạo tài khoản lớp</button>
       </form>
       ${CLASS_NOTE}
       <div class="pp-class-grid">
@@ -267,12 +264,8 @@
       } catch (ex) { showToast(ex.message); }
     });
 
-    body.querySelector("#ppOpenClsAccBtn").addEventListener("click", () => {
-      const g = Number(gradeSel.value) || 8;
-      openClassAccountsModal(normCls(clsInput.value, g), g);
-    });
-    body.querySelectorAll("[data-new-cls-acc]").forEach(b => b.addEventListener("click", () => openClassAccountsModal("", Number(b.dataset.newClsAcc))));
-    body.querySelectorAll("[data-cls-acc]").forEach(b => b.addEventListener("click", () => openClassAccountsModal(b.dataset.clsAcc, Number(b.dataset.clsGrade))));
+    body.querySelectorAll("[data-new-cls-stu]").forEach(b => b.addEventListener("click", () => openUserForm(null, "", Number(b.dataset.newClsStu))));
+    body.querySelectorAll("[data-cls-add]").forEach(b => b.addEventListener("click", () => openUserForm(null, b.dataset.clsAdd, Number(b.dataset.clsGrade))));
     body.querySelectorAll("[data-cls-view]").forEach(b => b.addEventListener("click", () => {
       state.tab = "users";
       state.filter.grade = String(b.dataset.clsGrade || "");
@@ -295,118 +288,6 @@
         if (typeof loadClassNames === "function") loadClassNames();
       } catch (ex) { showToast(ex.message); }
     }));
-  }
-
-  function openClassAccountsModal(presetCls, presetGrade) {
-    const initGrade = [8, 9].includes(Number(presetGrade)) ? Number(presetGrade) : (gradeOf(presetCls) || 8);
-    const listId = "ppClassAccDl_" + Date.now();
-    const dlg = dialog("Tạo tài khoản lớp", `
-      <form class="auth-form" id="ppClassAccForm">
-        <div class="auth-error" id="ppClassAccErr"></div>
-        <div class="form-grid">
-          <div class="field"><label>Khối</label>
-            <select name="grade" id="ppCaGrade">
-              <option value="8" ${initGrade === 8 ? "selected" : ""}>Khối 8</option>
-              <option value="9" ${initGrade === 9 ? "selected" : ""}>Khối 9</option>
-            </select>
-          </div>
-          <div class="field"><label>Tên lớp</label>
-            <input name="className" id="ppCaCls" list="${listId}" required value="${esc(presetCls || "")}" placeholder="VD: ${initGrade}A1">
-            <datalist id="${listId}"></datalist>
-          </div>
-          ${isFull() ? `<div class="field"><label>Phân loại lớp</label><select name="tier"><option value="regular">Lớp thường</option><option value="advanced">Lớp tăng cường</option></select></div>` : ""}
-          <div class="field"><label>Mật khẩu mặc định</label><input name="defaultPassword" value="123456" minlength="6" required></div>
-        </div>
-        ${CLASS_NOTE}
-        <div class="field">
-          <label>Kiểu tạo tài khoản</label>
-          <div class="seg" id="ppCaModeSeg">
-            <button type="button" class="active" data-ca-mode="shared">TK chung của lớp</button>
-            <button type="button" data-ca-mode="list">Danh sách học sinh</button>
-            <button type="button" data-ca-mode="batch">Tạo theo số lượng</button>
-          </div>
-        </div>
-        <div class="field" data-ca-box="shared">
-          <label>Tên hiển thị (tuỳ chọn)</label>
-          <input name="fullName" placeholder="Mặc định: Lớp 8A1 (email: lop8a1@engo.web)">
-        </div>
-        <div class="field hidden" data-ca-box="list">
-          <label>Danh sách họ tên (mỗi học sinh 1 dòng)</label>
-          <textarea name="namesText" rows="5" placeholder="Nguyễn Văn An&#10;Trần Thị Bình&#10;Lê Minh Khôi"></textarea>
-        </div>
-        <div class="field hidden" data-ca-box="batch">
-          <label>Số lượng tài khoản (1–60)</label>
-          <input name="count" type="number" min="1" max="60" value="35">
-        </div>
-        <button class="btn btn-primary" type="submit" style="width:100%">Tạo tài khoản</button>
-      </form>
-      <div id="ppCaResult" style="margin-top:12px"></div>`, { wide: true });
-
-    const el = dlg.el;
-    const form = el.querySelector("#ppClassAccForm");
-    const gradeSel = el.querySelector("#ppCaGrade");
-    const clsInput = el.querySelector("#ppCaCls");
-    const dl = el.querySelector(`#${listId}`);
-    let mode = "shared";
-
-    bindUpperInput(clsInput);
-    const refreshDl = () => {
-      const g = Number(gradeSel.value);
-      clsInput.placeholder = `VD: ${g}A1`;
-      dl.innerHTML = knownClassList(g).map(c => `<option value="${esc(c)}"></option>`).join("");
-    };
-    gradeSel.addEventListener("change", refreshDl);
-    refreshDl();
-
-    const syncMode = () => {
-      el.querySelectorAll("[data-ca-mode]").forEach(b => b.classList.toggle("active", b.dataset.caMode === mode));
-      el.querySelectorAll("[data-ca-box]").forEach(b => b.classList.toggle("hidden", b.dataset.caBox !== mode));
-    };
-    el.querySelectorAll("[data-ca-mode]").forEach(b => b.addEventListener("click", () => { mode = b.dataset.caMode; syncMode(); }));
-
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
-      const err = el.querySelector("#ppClassAccErr");
-      setAuthError(err, "");
-      const grade = Number(gradeSel.value);
-      const className = normCls(clsInput.value, grade);
-      clsInput.value = className;
-      const fd = Object.fromEntries(new FormData(form).entries());
-      const payload = {
-        grade,
-        className,
-        tier: fd.tier || undefined,
-        mode,
-        fullName: fd.fullName || "",
-        names: String(fd.namesText || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean),
-        count: Number(fd.count || 1),
-        defaultPassword: fd.defaultPassword || "123456"
-      };
-      const btn = form.querySelector("button[type=submit]");
-      btn.disabled = true; btn.textContent = "Đang tạo...";
-      try {
-        const res = await apiRequest("/api/admin/classes/accounts", { method: "POST", body: JSON.stringify(payload) });
-        showToast(res.message);
-        await reload();
-        if (typeof loadClassNames === "function") loadClassNames();
-        const box = el.querySelector("#ppCaResult");
-        box.innerHTML = `
-          <div class="notice"><strong>${esc(res.message)}</strong></div>
-          ${res.results?.length ? `
-            <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button type="button" class="btn btn-light btn-sm" id="ppCaExport"><i class=mi>download</i> Tải danh sách (CSV)</button></div>
-            <div class="table-wrap" style="max-height:240px;overflow:auto"><table class="pp-table"><thead><tr><th>#</th><th>Họ tên</th><th>Email đăng nhập</th><th>Mật khẩu</th><th>Trạng thái</th></tr></thead>
-            <tbody>${res.results.map(r => `<tr><td>${r.row}</td><td>${esc(r.fullName)}</td><td class="small">${esc(r.login)}</td><td class="small">${esc(r.password || "")}</td><td><span class="badge ${r.status === "created" ? "green" : ""}">${r.status === "created" ? "Đã tạo" : "Đã có"}</span></td></tr>`).join("")}</tbody></table></div>` : ""}`;
-        box.querySelector("#ppCaExport")?.addEventListener("click", () => {
-          const lines = ["STT,Họ tên,Lớp,Email đăng nhập,Mật khẩu,Trạng thái"];
-          res.results.forEach(r => lines.push([r.row, r.fullName, res.className, r.login, r.password || "", r.status].map(csvCell).join(",")));
-          downloadText(`tai-khoan-lop-${res.className}.csv`, lines.join("\r\n"));
-        });
-      } catch (ex) {
-        setAuthError(err, ex.message);
-      } finally {
-        btn.disabled = false; btn.textContent = "Tạo tài khoản";
-      }
-    });
   }
 
   async function openRewards(id) {
@@ -441,12 +322,12 @@
     });
   }
 
-  function openUserForm(user) {
+  function openUserForm(user, presetCls = "", presetGrade = null) {
     const editing = Boolean(user);
     const full = isFull();
     const role = editing ? user.role : "student";
-    const initCls = user?.className || state.filter.cls || "";
-    const initGrade = gradeOf(initCls) || (state.filter.grade === "9" ? 9 : 8);
+    const initCls = user?.className || presetCls || state.filter.cls || "";
+    const initGrade = gradeOf(initCls) || ([8, 9].includes(Number(presetGrade)) ? Number(presetGrade) : (state.filter.grade === "9" ? 9 : 8));
     const listId = "ppUserClsDl_" + Date.now();
     const dlg = dialog(editing ? `Sửa tài khoản` : "Thêm tài khoản", `
       <form class="auth-form" id="ppUserForm">

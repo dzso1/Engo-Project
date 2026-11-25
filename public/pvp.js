@@ -56,7 +56,7 @@
     if (!host) return;
     S.screen = "lobby";
     const st = S.stats || { rating: 1000, wins: 0, losses: 0, draws: 0, matches: 0, streak: 0, recent: [], dailyLeft: 30, dailyCap: 30, botWins: {} };
-    const g = S.grade || (window.ENGO_DATA ? window.ENGO_DATA.getGrade() : 9);
+    const g = window.ENGO_DATA ? window.ENGO_DATA.defaultGrade() : 9;
     S.grade = g;
     const units = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${String(S.unit) === String(i + 1) ? "selected" : ""}>Unit ${i + 1}</option>`).join("");
     host.innerHTML = `
@@ -72,7 +72,7 @@
       <div class="pv-modes">
         <div class="card panel pv-mode">
           <h3><i class=mi>smart_toy</i> Đấu với bot</h3>
-          <div style="display:flex;gap:10px;flex-wrap:wrap"><label class="pv-unit">Khối <select id="pvGrade"><option value="8" ${g === 8 ? "selected" : ""}>Khối 8</option><option value="9" ${g === 9 ? "selected" : ""}>Khối 9</option></select></label><label class="pv-unit">Chủ đề <select id="pvUnit"><option value="">Tất cả Unit</option>${units}</select></label></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="badge ${g === 8 ? "blue" : "green"}">Khối ${g}</span><label class="pv-unit">Chủ đề <select id="pvUnit"><option value="">Tất cả Unit</option>${units}</select></label></div>
           <div class="pv-diffs">${Object.entries(DIFF).map(([k, d]) => `<button type="button" class="pv-diff ${d.cls}" data-bot="${k}"><i class=mi>${d.icon}</i><b>${d.label}</b><span>${d.seconds} giây/câu</span><em>Thắng +${d.carrots} <i class=ico-carrot></i></em><small>Đã thắng ${(st.botWins || {})[k] || 0}</small></button>`).join("")}</div>
         </div>
         <div class="card panel pv-mode">
@@ -92,7 +92,6 @@
         <div class="card panel"><h4><i class=mi>history</i> Trận gần đây</h4>${(st.recent || []).length ? `<div class="pv-recent">${st.recent.map(r => `<div class="pv-rec ${r.outcome}"><span class="pv-out">${r.outcome === "win" ? "Thắng" : r.outcome === "draw" ? "Hoà" : "Thua"}</span><div><b>${esc(r.opponent || "")}</b><small>${r.mode === "bot" ? `Bot ${DIFF[r.difficulty]?.label || ""}` : "Người"}${r.forfeit ? " · bỏ cuộc" : ""}</small></div><span class="pv-sc">${r.myScore} – ${r.opScore}</span></div>`).join("")}</div>` : `<p class="small muted">Chưa có trận nào.</p>`}</div>
         <div class="card panel"><h4><i class=mi>leaderboard</i> Xếp hạng đấu trường trong lớp</h4>${S.lb.length ? `<div class="pv-lb">${S.lb.slice(0, 10).map(p => `<div class="pv-lb-row ${p.id === me()?.id ? "me" : ""}"><span>${p.rank}</span><b>${esc(p.name)}</b><em>${p.rating}</em></div>`).join("")}</div>` : `<p class="small muted">Chưa có ai trong lớp thi đấu.</p>`}</div>
       </div>`;
-    host.querySelector("#pvGrade")?.addEventListener("change", e => { S.grade = Number(e.target.value); });
     host.querySelector("#pvUnit").addEventListener("change", e => { S.unit = e.target.value; });
     host.querySelectorAll("[data-bot]").forEach(b => b.addEventListener("click", () => startBot(b.dataset.bot)));
     host.querySelector("#pvQueue").addEventListener("click", startQueue);

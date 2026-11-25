@@ -21,6 +21,11 @@
     try { return typeof currentUser !== "undefined" ? currentUser : null; } catch (_) { return null; }
   }
 
+  function isStudent() {
+    const u = currentUserObj();
+    return Boolean(u && u.role === "student");
+  }
+
   function gradeFromClass(cls) {
     const m = String(cls || "").trim().match(/^([89])/);
     return m ? Number(m[1]) : 9;
@@ -39,6 +44,10 @@
   let activeGrade = null;
 
   function getGrade() {
+    if (isStudent()) {
+      activeGrade = defaultGrade();
+      return activeGrade;
+    }
     if (activeGrade === 8 || activeGrade === 9) return activeGrade;
     try {
       const saved = Number(sessionStorage.getItem(gradeKey()));
@@ -49,6 +58,7 @@
   }
 
   function setGrade(g) {
+    if (isStudent()) return defaultGrade();
     const next = Number(g) === 8 ? 8 : 9;
     if (activeGrade === next) return next;
     activeGrade = next;
@@ -110,6 +120,9 @@
     examBank: () => window.ENGO_EXAM_BANK || null,
     healingBank: () => window.ENGO_HEALING_BANK || {},
     gradeChipHtml(g = getGrade()) {
+      if (isStudent()) {
+        return `<span class="badge ${g === 8 ? "blue" : "green"}">Khối ${g}</span>`;
+      }
       return '<div class="seg grade-switch" role="group" aria-label="Chọn khối lớp">' +
         [8, 9].map(x => `<button type="button" class="${x === g ? "active" : ""}" data-engo-grade="${x}">Khối ${x}</button>`).join("") +
         "</div>";

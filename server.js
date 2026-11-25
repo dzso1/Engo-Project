@@ -40,6 +40,28 @@ app.use(compression({ threshold: 1024, filter: (req, res) => (req.path === "/api
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+const GRADE9_DATA_FILES = new Set([
+  "/vocab-units.js", "/vocab-decks.js", "/grammar-units.js",
+  "/speaking-units.js", "/speaking-sets.js",
+  "/listening-units.js", "/listening-sets.js", "/word-families.js"
+]);
+app.use("/data", async (req, res, next) => {
+  const p = String(req.path || "");
+  const isG8 = p.startsWith("/grade8/");
+  const isG9 = GRADE9_DATA_FILES.has(p) || p.startsWith("/unit-cache/");
+  if (!isG8 && !isG9) return next();
+  const token = req.cookies && req.cookies.engo_token;
+  if (!token) return res.status(401).type("text/plain").send("Unauthorized");
+  let payload;
+  try { payload = jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).type("text/plain").send("Unauthorized"); }
+  if (payload.role === "student") {
+    const sg = await getStudentGrade(payload.userId, payload.grade);
+    if ((sg === 8 && isG9) || (sg === 9 && isG8)) {
+      return res.status(403).type("text/plain").send("Forbidden");
+    }
+  }
+  return next();
+});
 if (process.env.MINIFY_JS !== "0") {
   app.use(minifier.middleware(path.join(__dirname, "public")));
   minifier.warm(path.join(__dirname, "public")).then(r => console.log(`[minify] ${r.files} file JS: ${Math.round(r.before / 1024)} KB -> ${Math.round(r.after / 1024)} KB`)).catch(() => {});
@@ -109,13 +131,42 @@ function requireLogin(req, res, next) {
 const requirePermission = rbac.requirePermission;
 
 function issueToken(res, user) {
-  const token = jwt.sign({ userId: user.id, role: user.role, ...(Number(user.must_change_password) ? { mcp: 1 } : {}) }, process.env.JWT_SECRET, { expiresIn: "8h" });
+  const g = user.role === "student" ? gradeOfClass(user.class_name) : null;
+  const token = jwt.sign({ userId: user.id, role: user.role, ...(g ? { grade: g } : {}), ...(Number(user.must_change_password) ? { mcp: 1 } : {}) }, process.env.JWT_SECRET, { expiresIn: "8h" });
   res.cookie("engo_token", token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     maxAge: 8 * 60 * 60 * 1000,
   });
+}
+
+const studentGradeCache = new Map();
+function invalidateStudentGrade(userId) { studentGradeCache.delete(Number(userId)); }
+async function getStudentGrade(userId, jwtGrade) {
+  if (jwtGrade === 8 || jwtGrade === 9) return jwtGrade;
+  const id = Number(userId);
+  const cached = studentGradeCache.get(id);
+  if (cached && Date.now() - cached.at < 60000) return cached.grade;
+  try {
+    const [rows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [id]);
+    const g = gradeOfClass(rows[0]?.class_name);
+    studentGradeCache.set(id, { grade: g, at: Date.now() });
+    return g;
+  } catch (e) { return null; }
+}
+async function resolveAuthorizedGrade(req, res) {
+  const requested = req.query.grade !== undefined && req.query.grade !== "" ? Number(req.query.grade) : null;
+  if (req.user && req.user.role === "student") {
+    const sg = await getStudentGrade(req.user.userId, req.user.grade);
+    const own = sg === 8 ? 8 : 9;
+    if (requested !== null && requested !== own) {
+      res.status(403).json({ success: false, message: `Học sinh Khối ${own} không được xem học liệu Khối ${requested}.` });
+      return null;
+    }
+    return own;
+  }
+  return requested === 8 ? 8 : 9;
 }
 
 const schemaErrors = new Set();
@@ -723,7 +774,7 @@ app.post("/api/auth/change-password", requireLogin, async (req, res) => {
     const next = String(newPassword || "");
     if (next.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu mới phải có ít nhất 6 ký tự." });
     if (["123", "123456", "12345678", "000000", "111111"].includes(next)) return res.status(400).json({ success: false, message: "Mật khẩu mới quá dễ đoán, hãy chọn mật khẩu khác." });
-    const [rows] = await pool.execute("SELECT id, role, password_hash, phone, must_change_password FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
+    const [rows] = await pool.execute("SELECT id, role, class_name, password_hash, phone, must_change_password FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
     const user = rows[0];
     if (!user) return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản." });
     if (!(await bcrypt.compare(String(currentPassword || ""), user.password_hash))) return res.status(400).json({ success: false, message: "Mật khẩu hiện tại không đúng." });
@@ -731,7 +782,7 @@ app.post("/api/auth/change-password", requireLogin, async (req, res) => {
     const hash = await bcrypt.hash(next, BCRYPT_ROUNDS);
     await pool.execute("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?", [hash, user.id]);
     try { await pool.execute("UPDATE users SET password = ? WHERE id = ?", [hash, user.id]); } catch (e) {}
-    issueToken(res, { id: user.id, role: user.role, must_change_password: 0 });
+    issueToken(res, { id: user.id, role: user.role, class_name: user.class_name, must_change_password: 0 });
     return res.json({ success: true, message: "Đã đổi mật khẩu." });
   } catch (error) {
     console.error(error);
@@ -1009,6 +1060,7 @@ app.patch("/api/admin/users/:id", requireLogin, requirePermission("users.manage"
     }
     if (!sets.length) return res.status(400).json({ success: false, message: "Không có thay đổi nào." });
     await pool.execute(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`, [...params, target.id]);
+    invalidateStudentGrade(target.id);
     if (b.status === "locked" && target.status !== "locked") await setUserLock(target.id, true, `Bị khoá bởi ${req.user.role === "admin" ? "quản trị viên" : "giáo viên"}`);
     else if (b.status !== undefined && b.status !== "locked") await setUserLock(target.id, false);
     return res.json({ success: true, message: "Đã cập nhật tài khoản.", user: publicUser(await loadUser(target.id)) });
@@ -1216,81 +1268,6 @@ app.delete("/api/admin/classes/:className", requireLogin, requirePermission("use
     return res.json({ success: true, message: `Đã xoá lớp ${cls}.` });
   } catch (error) {
     return sendError(res, error, "Không xoá được lớp.");
-  }
-});
-
-app.post("/api/admin/classes/accounts", requireLogin, requirePermission("users.manage", "students.manage"), async (req, res) => {
-  try {
-    await assessmentReady;
-    const ctx = await manageContext(req);
-    const { grade, className, tier, mode = "shared", names = [], count = 1, fullName, defaultPassword = "123456" } = req.body || {};
-    const cls = normalizeClassName(className, grade);
-    if (!isValidGrade89Class(cls)) return res.status(400).json({ success: false, message: "Tên lớp phải thuộc khối 8 hoặc 9 (VD: 8A1, 9A6)." });
-    const g = gradeOfClass(cls);
-    if (grade !== undefined && grade !== null && grade !== "" && Number(grade) !== g) {
-      return res.status(400).json({ success: false, message: `Lớp ${cls} không thuộc Khối ${grade}.` });
-    }
-    if (!classAllowed(ctx, cls)) return res.status(403).json({ success: false, message: `Lớp ${cls} ngoài phạm vi bạn phụ trách.` });
-    const pw = String(defaultPassword || "123456");
-    if (pw.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
-    await ensureClassInSettings(cls, req.user.userId, ctx.full && (tier === "advanced" || tier === "regular") ? tier : null);
-    const hash = await bcrypt.hash(pw, BCRYPT_ROUNDS);
-    const results = [];
-    let created = 0, skipped = 0, failed = 0;
-
-    if (mode === "shared") {
-      const displayName = String(fullName || "").trim() || `Lớp ${cls}`;
-      const mail = `lop${cls.toLowerCase()}@engo.web`;
-      const [ex] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
-      if (ex.length) {
-        skipped++;
-        results.push({ row: 1, fullName: displayName, login: mail, password: "", status: "skipped" });
-      } else {
-        await insertUser({ fullName: displayName.slice(0, 100), email: mail, passwordHash: hash, role: "student", className: cls });
-        created++;
-        results.push({ row: 1, fullName: displayName, login: mail, password: pw, status: "created" });
-      }
-    } else if (mode === "list") {
-      const list = (Array.isArray(names) ? names : String(names || "").split(/\r?\n/))
-        .map(s => String(s || "").trim().replace(/\s+/g, " "))
-        .filter(Boolean)
-        .slice(0, 100);
-      if (!list.length) return res.status(400).json({ success: false, message: "Vui lòng nhập ít nhất 1 họ tên." });
-      for (let i = 0; i < list.length; i++) {
-        const name = list[i];
-        const [same] = await pool.execute("SELECT id, email FROM users WHERE role = 'student' AND full_name = ? AND class_name = ? LIMIT 1", [name, cls]);
-        if (same.length) {
-          skipped++;
-          results.push({ row: i + 1, fullName: name, login: same[0].email, password: "", status: "skipped" });
-        } else {
-          const mail = await uniqueStudentEmail(name, cls);
-          await insertUser({ fullName: name.slice(0, 100), email: mail, passwordHash: hash, role: "student", className: cls });
-          created++;
-          results.push({ row: i + 1, fullName: name, login: mail, password: pw, status: "created" });
-        }
-      }
-    } else if (mode === "batch") {
-      const n = Math.min(60, Math.max(1, Math.round(Number(count) || 1)));
-      for (let i = 1; i <= n; i++) {
-        const pad = String(i).padStart(2, "0");
-        const mail = `hs${pad}.${cls.toLowerCase()}@engo.web`;
-        const name = `Học sinh ${pad} · ${cls}`;
-        const [ex] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
-        if (ex.length) {
-          skipped++;
-          results.push({ row: i, fullName: name, login: mail, password: "", status: "skipped" });
-        } else {
-          await insertUser({ fullName: name, email: mail, passwordHash: hash, role: "student", className: cls });
-          created++;
-          results.push({ row: i, fullName: name, login: mail, password: pw, status: "created" });
-        }
-      }
-    } else {
-      return res.status(400).json({ success: false, message: "Kiểu tạo tài khoản không hợp lệ." });
-    }
-    return res.json({ success: true, className: cls, grade: g, created, skipped, failed, results, message: `Lớp ${cls} (Khối ${g}): đã tạo ${created}, bỏ qua ${skipped}.` });
-  } catch (error) {
-    return sendError(res, error, "Không tạo được tài khoản lớp.");
   }
 });
 
@@ -1580,13 +1557,20 @@ app.get("/api/tests/:id", requireLogin, async (req, res) => {
     await assessmentReady;
     const [rows] = await pool.execute(testSelect() + " WHERE id = ? LIMIT 1", [req.params.id]);
     if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
+    const row = rows[0];
     let variantName = "full";
     if (req.user.role === "student") {
       const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
-      variantName = resolveVariantName(await getClassTier(uRows[0]?.class_name), { variants: true });
+      const userClass = uRows[0]?.class_name;
+      const sg = gradeOfClass(userClass);
+      const tg = row.grade ? Number(row.grade) : gradeOfClass(row.class_name);
+      if ((row.class_name && cleanClass(row.class_name) !== cleanClass(userClass)) || (sg && tg && tg !== sg)) {
+        return res.status(403).json({ success: false, message: "Bài kiểm tra này không thuộc khối hoặc lớp của bạn." });
+      }
+      variantName = resolveVariantName(await getClassTier(userClass), { variants: true });
     }
     const isTeacher = req.user.role === "teacher" || req.user.role === "admin";
-    return res.json({ success: true, test: publicTest(getStoredTest(rows[0]), { variantName, includeAnswers: isTeacher }) });
+    return res.json({ success: true, test: publicTest(getStoredTest(row), { variantName, includeAnswers: isTeacher }) });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ success: false, message: "Không thể tải bài kiểm tra." });
@@ -1621,9 +1605,9 @@ app.patch("/api/teacher/tests/:id", requireLogin, requirePermission("tests.manag
     if (hasCol("imported_tests", "test_type") && ["kttx", "ktgk", "ktck"].includes(String(testType))) { sets.push("test_type = ?"); params.push(String(testType)); }
     if (hasCol("imported_tests", "semester") && (Number(semester) === 1 || Number(semester) === 2)) { sets.push("semester = ?"); params.push(Number(semester)); }
     if (hasCol("imported_tests", "unit_no") && unitNo !== undefined) { sets.push("unit_no = ?"); params.push(unitNo ? Math.max(1, Math.min(12, Number(unitNo))) : null); }
-    if (hasCol("imported_tests", "grade") && grade !== undefined) { sets.push("grade = ?"); params.push([6, 7, 8, 9].includes(Number(grade)) ? Number(grade) : null); }
+    if (hasCol("imported_tests", "grade") && grade !== undefined) { sets.push("grade = ?"); params.push([8, 9].includes(Number(grade)) ? Number(grade) : null); }
     if (hasCol("imported_tests", "duration_minutes") && durationMinutes !== undefined) { sets.push("duration_minutes = ?"); params.push(Math.max(5, Math.min(180, Number(durationMinutes) || 45))); }
-    if (className !== undefined) { sets.push("class_name = ?"); params.push(String(className || "").trim() || null); }
+    if (className !== undefined) { sets.push("class_name = ?"); params.push(cleanClass(className) || null); }
     if (title) { sets.push("title = ?"); params.push(String(title).trim().slice(0, 255)); }
     if (!sets.length) return res.status(400).json({ success: false, message: "Không có gì để cập nhật." });
     params.push(req.params.id);
@@ -1645,7 +1629,15 @@ app.post("/api/tests/:id/submissions", requireLogin, requirePermission("tests.ta
     if (!rows.length) return res.status(404).json({ success: false, message: "Không tìm thấy bài kiểm tra." });
     const stored = getStoredTest(rows[0]);
     const [uRows] = await pool.execute("SELECT class_name FROM users WHERE id = ? LIMIT 1", [req.user.userId]);
-    const variantName = resolveVariantName(await getClassTier(uRows[0]?.class_name), { variants: true });
+    const userClass = uRows[0]?.class_name;
+    if (req.user.role === "student") {
+      const sg = gradeOfClass(userClass);
+      const tg = rows[0].grade ? Number(rows[0].grade) : gradeOfClass(rows[0].class_name);
+      if ((rows[0].class_name && cleanClass(rows[0].class_name) !== cleanClass(userClass)) || (sg && tg && tg !== sg)) {
+        return res.status(403).json({ success: false, message: "Bài kiểm tra này không thuộc khối hoặc lớp của bạn." });
+      }
+    }
+    const variantName = resolveVariantName(await getClassTier(userClass), { variants: true });
     const questionsInVariant = variantQuestions(stored, variantName);
 
     const objective = questionsInVariant.filter(question => !question.manual && question.type !== "speaking");
@@ -2566,7 +2558,10 @@ social.attach(app, { requireLogin, requirePermission });
 
 app.get("/api/word-families", requireLogin, async (req, res) => {
   try {
-    return res.json({ success: true, families: await wordFamilies.list({ grade: req.query.grade, unit: req.query.unit }) });
+    const g = await resolveAuthorizedGrade(req, res);
+    if (!g) return;
+    const gradeParam = req.user.role === "student" ? g : req.query.grade;
+    return res.json({ success: true, families: await wordFamilies.list({ grade: gradeParam, unit: req.query.unit }) });
   } catch (error) {
     return sendError(res, error, "Không tải được họ từ.");
   }
@@ -2739,32 +2734,33 @@ app.post("/api/ai/translate-and-ipa", requireLogin, requirePermission("ai.use"),
   }
 });
 
-function queryGrade(req) {
-  const g = Number(req.query.grade);
-  return g === 8 ? 8 : 9;
-}
-
-app.get("/api/units", requireLogin, (req, res) => {
+app.get("/api/units", requireLogin, async (req, res) => {
   try {
-    return res.json({ success: true, ...unitsData.summary(queryGrade(req)) });
+    const g = await resolveAuthorizedGrade(req, res);
+    if (!g) return;
+    return res.json({ success: true, ...unitsData.summary(g) });
   } catch (error) {
     console.error("Lỗi đọc học liệu theo unit:", error);
     return res.status(500).json({ success: false, message: "Không đọc được học liệu theo unit." });
   }
 });
 
-app.get("/api/units/:n", requireLogin, (req, res) => {
+app.get("/api/units/:n", requireLogin, async (req, res) => {
   const n = Number(req.params.n);
   if (!Number.isInteger(n) || n < 1 || n > 12) {
     return res.status(400).json({ success: false, message: "Unit phải là số từ 1 đến 12." });
   }
-  const data = unitsData.unit(n, queryGrade(req));
+  const g = await resolveAuthorizedGrade(req, res);
+  if (!g) return;
+  const data = unitsData.unit(n, g);
   if (!data) return res.status(404).json({ success: false, message: `Chưa có học liệu cho Unit ${n}.` });
   return res.json({ success: true, ...data });
 });
 
-app.get("/api/units/meta/error-codes", requireLogin, (req, res) => {
-  return res.json({ success: true, codes: unitsData.errorCodes(queryGrade(req)) });
+app.get("/api/units/meta/error-codes", requireLogin, async (req, res) => {
+  const g = await resolveAuthorizedGrade(req, res);
+  if (!g) return;
+  return res.json({ success: true, codes: unitsData.errorCodes(g) });
 });
 
 app.get("/api/exams/specs", requireLogin, (req, res) => {

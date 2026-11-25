@@ -462,7 +462,7 @@ async function startBot(userId, difficulty, unit, grade) {
   queue.delete(Number(userId));
   const me = await playerInfo(userId);
   const cfg = BOT[difficulty];
-  const g = (Number(grade) === 8 || Number(grade) === 9) ? Number(grade) : gradeOfClass(me.className);
+  const g = gradeOfClass(me.className);
   const bot = { id: -1, bot: true, name: cfg.name, className: `Mức ${cfg.label}`, rating: { easy: 800, normal: 1100, hard: 1400 }[difficulty], title: `${cfg.seconds} giây/câu` };
   const m = await createMatch({ mode: "bot", difficulty, unit: unit ? Number(unit) : null, grade: g, players: [me, bot] });
   return { matchId: m.id };
@@ -473,19 +473,21 @@ async function joinQueue(userId) {
   busy(id);
   if (!online(id)) throw Object.assign(new Error("Mất kết nối tới đấu trường, hãy tải lại trang."), { status: 409 });
   const me = await playerInfo(id);
+  const myGrade = gradeOfClass(me.className);
   let best = null;
   for (const [otherId, q] of queue) {
     if (otherId === id || !online(otherId) || currentMatch(otherId)) { if (!online(otherId)) queue.delete(otherId); continue; }
+    if (q.grade !== myGrade) continue;
     const diff = Math.abs(q.rating - me.rating) - (Date.now() - q.since) / 200;
     if (!best || diff < best.diff) best = { otherId, diff };
   }
   if (best) {
     queue.delete(best.otherId);
     const other = await playerInfo(best.otherId);
-    const m = await createMatch({ mode: "human", players: shuffle([me, other]) });
+    const m = await createMatch({ mode: "human", grade: myGrade, players: shuffle([me, other]) });
     return { matched: true, matchId: m.id };
   }
-  queue.set(id, { since: Date.now(), rating: me.rating });
+  queue.set(id, { since: Date.now(), rating: me.rating, grade: myGrade });
   send(id, "queued", { waiting: queue.size });
   return { matched: false, waiting: queue.size };
 }
@@ -497,10 +499,13 @@ async function invite(fromId, toId) {
   busy(from);
   if (!online(to)) throw Object.assign(new Error("Bạn này hiện không online trên ENGO."), { status: 409 });
   if (currentMatch(to)) throw Object.assign(new Error("Bạn này đang trong một trận khác."), { status: 409 });
-  const [rows] = await pool.execute("SELECT role FROM users WHERE id = ? LIMIT 1", [to]);
+  const [rows] = await pool.execute("SELECT role, class_name FROM users WHERE id = ? LIMIT 1", [to]);
   if (!rows.length || rows[0].role !== "student") throw Object.assign(new Error("Chỉ mời được học sinh."), { status: 400 });
-  const inviteId = newId(6);
   const me = await playerInfo(from);
+  if (gradeOfClass(me.className) !== gradeOfClass(rows[0].class_name)) {
+    throw Object.assign(new Error("Chỉ có thể mời bạn cùng khối lớp."), { status: 400 });
+  }
+  const inviteId = newId(6);
   invites.set(inviteId, { from, to, at: Date.now() });
   setTimeout(() => { if (invites.has(inviteId)) { invites.delete(inviteId); send(from, "invite-expired", { inviteId }); send(to, "invite-cancel", { inviteId }); } }, 30000);
   send(to, "invite", { inviteId, from: publicPlayer(me), expiresMs: 30000 });
@@ -515,7 +520,9 @@ async function respondInvite(userId, inviteId, accept) {
   if (currentMatch(inv.from) || !online(inv.from)) throw Object.assign(new Error("Người mời không còn sẵn sàng."), { status: 409 });
   busy(userId);
   const [a, b] = await Promise.all([playerInfo(inv.from), playerInfo(userId)]);
-  const m = await createMatch({ mode: "human", players: [a, b] });
+  const ga = gradeOfClass(a.className), gb = gradeOfClass(b.className);
+  if (ga !== gb) throw Object.assign(new Error("Chỉ có thể thi đấu cùng khối lớp."), { status: 400 });
+  const m = await createMatch({ mode: "human", grade: ga, players: [a, b] });
   return { matchId: m.id };
 }
 
@@ -535,9 +542,11 @@ async function joinRoom(userId, code) {
   if (r.host === Number(userId)) throw Object.assign(new Error("Đây là phòng của bạn — hãy gửi mã cho bạn bè."), { status: 400 });
   if (!online(r.host) || currentMatch(r.host)) { rooms.delete(c); throw Object.assign(new Error("Chủ phòng không còn sẵn sàng."), { status: 409 }); }
   busy(userId);
-  rooms.delete(c);
   const [a, b] = await Promise.all([playerInfo(r.host), playerInfo(userId)]);
-  const m = await createMatch({ mode: "human", players: [a, b] });
+  const ga = gradeOfClass(a.className), gb = gradeOfClass(b.className);
+  if (ga !== gb) throw Object.assign(new Error("Chỉ có thể vào phòng thi đấu cùng khối lớp."), { status: 400 });
+  rooms.delete(c);
+  const m = await createMatch({ mode: "human", grade: ga, players: [a, b] });
   return { matchId: m.id };
 }
 function closeRoom(userId) { for (const [code, r] of rooms) if (r.host === Number(userId)) rooms.delete(code); return { ok: true }; }
@@ -557,10 +566,12 @@ function leave(userId, matchId) {
 
 async function onlinePlayers(userId, className) {
   const ids = [...streams.keys()].filter(id => id !== Number(userId));
+  const myGrade = className ? gradeOfClass(className) : null;
   const list = [];
   for (const id of ids.slice(0, 200)) {
     try {
       const info = await playerInfo(id);
+      if (myGrade && gradeOfClass(info.className) !== myGrade) continue;
       list.push({ ...publicPlayer(info), status: currentMatch(id) ? "playing" : queue.has(id) ? "queue" : "idle", sameClass: Boolean(className && info.className === className) });
     } catch (e) {}
   }

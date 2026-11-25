@@ -286,7 +286,7 @@
       });
       host.addEventListener("click", e => {
         const gBtn = e.target.closest("[data-engo-grade]");
-        if (gBtn && DATA()) { DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
+        if (gBtn && DATA()) { if (CU()?.role !== "student") DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
         const vUnit = e.target.closest("[data-vunit]");
         if (vUnit) { state.vocabUnit = Number(vUnit.dataset.vunit); mountVocab(); return; }
         const vTab = e.target.closest("[data-vtab]");
@@ -371,7 +371,7 @@
       mountSpeaking.bound = true;
       host.addEventListener("click", e => {
         const gBtn = e.target.closest("[data-engo-grade]");
-        if (gBtn && DATA()) { DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
+        if (gBtn && DATA()) { if (CU()?.role !== "student") DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
         const sBtn = e.target.closest("[data-sunit]");
         if (sBtn) { state.speakUnit = Number(sBtn.dataset.sunit); mountSpeaking(); return; }
         const sayBtn = e.target.closest("[data-say]");
@@ -431,7 +431,7 @@
       mountListening.bound = true;
       host.addEventListener("click", e => {
         const gBtn = e.target.closest("[data-engo-grade]");
-        if (gBtn && DATA()) { DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
+        if (gBtn && DATA()) { if (CU()?.role !== "student") DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
         const lBtn = e.target.closest("[data-lunit]");
         if (lBtn) { state.listenUnit = Number(lBtn.dataset.lunit); mountListening(); return; }
         const curU = state.listenUnit, curPfx = gPrefix();
