@@ -1,11 +1,13 @@
 (function () {
   "use strict";
 
-  const VOCAB = () => window.ENGO_VOCAB_UNITS || {};
-  const GRAM = () => window.ENGO_GRAMMAR_UNITS || {};
-  const SPEAK = () => window.ENGO_SPEAKING_UNITS || {};
-  const LISTEN = () => window.ENGO_LISTENING_UNITS || {};
-  const EXAM = () => window.ENGO_EXAM_BANK || null;
+  const DATA = () => window.ENGO_DATA;
+  const GRADE = () => (DATA() ? DATA().getGrade() : 9);
+  const VOCAB = () => (DATA() ? DATA().vocabUnits() : window.ENGO_VOCAB_UNITS || {});
+  const GRAM = () => (DATA() ? DATA().grammarUnits() : window.ENGO_GRAMMAR_UNITS || {});
+  const SPEAK = () => (DATA() ? DATA().speakingUnits() : window.ENGO_SPEAKING_UNITS || {});
+  const LISTEN = () => (DATA() ? DATA().listeningUnits() : window.ENGO_LISTENING_UNITS || {});
+  const EXAM = () => (DATA() ? DATA().examBank() : window.ENGO_EXAM_BANK || null);
   const UNITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   const esc = s => String(s ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m]));
@@ -13,10 +15,11 @@
   const say = (t, rate, onDone) => (window.speakEnglishText ? window.speakEnglishText(t, { rate: rate || 0.85, onDone }) : onDone && onDone());
   const reward = (xp, carrots, why) => { try { window.gainRewards && window.gainRewards(xp, carrots, why || ""); } catch (_) {} };
   const cheerUp = kind => { try { window.cheer ? window.cheer(kind) : window.playSfx && window.playSfx(kind); } catch (_) {} };
-  const sfx = name => { try { window.playSfx && window.playSfx(name); } catch (_) {} };
   const $ = (sel, root) => (root || document).querySelector(sel);
   const CU = () => { try { return typeof currentUser !== "undefined" ? currentUser : null; } catch (_) { return null; } };
   const TESTS = () => { try { if (typeof testsCache !== "undefined" && Array.isArray(testsCache) && testsCache.length) return testsCache; } catch (_) {} try { if (typeof teacherTestsCache !== "undefined" && Array.isArray(teacherTestsCache)) return teacherTestsCache; } catch (_) {} return []; };
+  const gPrefix = () => (GRADE() === 8 ? "g8-" : "");
+
   async function logEvent(type, refId, title, score, maxScore, meta) {
     try {
       const cu = CU();
@@ -25,13 +28,15 @@
       if (typeof invalidateProgress === "function") invalidateProgress();
     } catch (_) {}
   }
+
   function exampleFor(unit, word) {
-    const deck = (window.ENGO_VOCAB_DECKS || {})["unit" + unit];
+    const deck = (DATA() ? DATA().vocabDecks() : window.ENGO_VOCAB_DECKS || {})["unit" + unit];
     if (!deck) return null;
     const key = String(word).toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
     const c = deck.cards.find(x => x.word.toLowerCase() === key) || deck.cards.find(x => key.startsWith(x.word.toLowerCase()) || x.word.toLowerCase().startsWith(key));
     return c && c.examples && c.examples[0] ? { en: c.examples[0], vi: c.exampleVi || "" } : null;
   }
+
   function imageFor(word) {
     const map = window.ENGO_VOCAB_IMAGES || {};
     const w = String(word || "").toLowerCase().trim();
@@ -41,14 +46,15 @@
     const k = Object.keys(map).find(x => map[x] && (base.startsWith(x.toLowerCase()) || x.toLowerCase().startsWith(base)) && Math.abs(x.length - base.length) <= 3);
     return k ? map[k] : "";
   }
+
   function listeningTasks(u) {
     const base = (LISTEN()["unit" + u] || {}).tasks || [];
-    const ai = ((window.ENGO_LISTENING_SETS || {})["unit" + u] || {}).levels || [];
+    const ai = ((DATA() ? DATA().listeningSets() : window.ENGO_LISTENING_SETS || {})["unit" + u] || {}).levels || [];
     const LV = { easy: 1, medium: 2, hard: 3 };
     const extra = ai.map(l => ({
       level: LV[l.level] || 2, rate: l.level === "easy" ? 0.82 : l.level === "medium" ? 0.9 : 0.95, ai: true,
       title: l.title + " (AI)", intro: l.intro || "",
-      script: (l.script || []).join(" "),
+      script: Array.isArray(l.script) ? l.script.join(" ") : String(l.script || ""),
       qs: (l.questions || []).map(q => ({ type: "mcq", q: q.prompt, opts: (q.options || []).map(o => String(o).replace(/^[A-D]\.\s*/, "")), a: Number(q.answer) || 0, why: q.explanation || "" }))
     })).filter(t => t.qs.length && t.script);
     return [...base, ...extra].sort((a, b) => a.level - b.level);
@@ -58,12 +64,8 @@
     try { if (window.getUserStorageKey) return window.getUserStorageKey("engoUnitsProgressV1"); } catch (_) {}
     return "engoUnitsProgressV1_guest";
   }
-  function loadProg() {
-    try { return JSON.parse(localStorage.getItem(storeKey()) || "") || {}; } catch (_) { return {}; }
-  }
-  function saveProg(p) {
-    try { localStorage.setItem(storeKey(), JSON.stringify(p)); } catch (_) {}
-  }
+  function loadProg() { try { return JSON.parse(localStorage.getItem(storeKey()) || "") || {}; } catch (_) { return {}; } }
+  function saveProg(p) { try { localStorage.setItem(storeKey(), JSON.stringify(p)); } catch (_) {} }
   function markDone(bucket, id) {
     const p = loadProg();
     p[bucket] = p[bucket] || {};
@@ -93,18 +95,35 @@
     ).join("") + "</div>";
   }
 
+  function gradeSwitchHtml() {
+    return DATA() ? DATA().gradeChipHtml(GRADE()) : "";
+  }
+
+  function ensureHost(view, id, afterSel) {
+    let host = document.getElementById(id);
+    if (!host) {
+      host = document.createElement("div");
+      host.id = id;
+      const anchor = afterSel ? view.querySelector(afterSel) : null;
+      if (anchor) anchor.insertAdjacentElement("afterend", host);
+      else view.insertBefore(host, view.children[1] || null);
+    }
+    return host;
+  }
+
   function vocabPanelHTML() {
-    const u = state.vocabUnit;
-    const deck = VOCAB()["unit" + u];
+    const u = state.vocabUnit, g = GRADE();
+    const allVocab = VOCAB();
+    const deck = allVocab["unit" + u];
     const gram = GRAM()["unit" + u];
-    if (!deck) return '<div class="card panel"><p class="small muted">Chưa nạp được dữ liệu từ vựng.</p></div>';
+    if (!deck) return '<div class="card panel"><p class="small muted">Chưa có dữ liệu từ vựng cho khối ' + g + '.</p></div>';
 
     const SECN = { GS: "Getting Started", CL1: "A Closer Look 1", CL2: "A Closer Look 2", COM: "Communication", SK1: "Skills 1", SK2: "Skills 2", LB: "Looking Back", PRJ: "Project" };
     const groups = {};
     deck.cards.forEach(c => { (groups[c.sec] = groups[c.sec] || []).push(c); });
 
     let rec = {};
-    try { rec = (window.getVocabRecords ? window.getVocabRecords() : {})["unit" + u] || {}; } catch (e) {}
+    try { rec = (window.getVocabRecords ? window.getVocabRecords() : {})[(g === 8 ? "g8-" : "") + "unit" + u] || {}; } catch (e) {}
     const modeRec = rec.modes || {};
     const PRACTICE = [["mc", "quiz", "Trắc nghiệm"], ["listen", "hearing", "Nghe chọn từ"], ["spell", "keyboard", "Chính tả"], ["image", "image", "Nhìn hình"], ["gap", "edit_note", "Điền câu"], ["match", "link", "Nối từ"]];
     const practiceBtn = ([mode, icon, label]) => {
@@ -149,11 +168,11 @@
         </div>`).join("")}
       <div class="unit-codes">
         <b class="small">Mã lỗi Phòng Chữa Lỗi nhận ra ở unit này:</b>
-        ${gram.codes.map(c => `<span class="unit-code" title="${esc(c.hint)}">${esc(c.id)} · ${esc(c.label)}</span>`).join("")}
+        ${(gram.codes || []).map(c => `<span class="unit-code" title="${esc(c.hint)}">${esc(c.id)} · ${esc(c.label)}</span>`).join("")}
       </div>
       <div class="unit-quiz" id="unitGrammarQuiz">
         <h4>Luyện tập nhanh</h4>
-        ${gram.quiz.map((q, i) => {
+        ${(gram.quiz || []).map((q, i) => {
           const opts = [q.a].concat(q.b).map((o, k) => ({ o, k })).sort(() => Math.random() - 0.5);
           return `<div class="unit-q" data-answer="${esc(q.a)}" data-code="${esc(q.code)}">
             <p><b>${i + 1}.</b> ${esc(q.q)}</p>
@@ -164,12 +183,17 @@
         <span class="small muted" id="unitGrammarScore"></span>
       </div>`;
 
+    const totalWords = Object.values(allVocab).reduce((a, x) => a + (x.cards ? x.cards.length : 0), 0);
+    const totalUnits = Object.keys(allVocab).length;
     return `
       <div class="card panel unit-panel">
         <div class="section-head">
           <div><h3>Học theo Unit · ${esc(deck.name)}</h3>
-            <p class="small muted">${deck.cards.length} từ vựng và ${gram ? gram.points.length : 0} điểm ngữ pháp bám sát sách Global Success 9.</p></div>
-          <span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:700">700 từ · 12 unit</span>
+            <p class="small muted">${deck.cards.length} từ vựng và ${gram ? gram.points.length : 0} điểm ngữ pháp bám sát sách Global Success ${g}.</p></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${gradeSwitchHtml()}
+            <span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:700">${totalWords} từ · ${totalUnits} unit</span>
+          </div>
         </div>
         ${unitChips(u, "data-vunit")}
         <div class="healing-tabs" style="margin-top:12px">
@@ -214,6 +238,7 @@
         </div>
       </div>`;
   }
+
   function normalizeAns(v) { return String(v || "").toLowerCase().replace(/[.,!?;:"']/g, "").replace(/\s+/g, " ").trim(); }
   function checkAiGrammar(host, u, gram) {
     let right = 0, total = 0;
@@ -238,85 +263,93 @@
       q.querySelector(".unit-why").classList.remove("hidden");
     });
     const pct = total ? Math.round((right / total) * 100) : 0;
+    const g = GRADE();
     $("#unitGrammarScore").textContent = `Đúng ${right}/${total} (${pct}%)`;
     if (wrongList.length && typeof recordUnitGrammarErrors === "function") recordUnitGrammarErrors(u, gram.title || `Unit ${u}`, wrongList);
-    wrongList.forEach(() => api.pushError("U" + u));
-    logEvent("grammar", "unit" + u, `Ngữ pháp Unit ${u}: ${gram.title || ""}`, right, total, { unit: u, percent: pct });
- if (pct >= 80 && markDone("grammar","u"+ u)) { reward(30, 3,`Ngữ pháp Unit ${u}`); cheerUp(pct === 100 ? "perfect" : "unitDone"); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3`); }
+    wrongList.forEach(() => api.pushError(gPrefix() + "U" + u));
+    logEvent("grammar", gPrefix() + "unit" + u, `Ngữ pháp Unit ${u} (Khối ${g}): ${gram.title || ""}`, right, total, { grade: g, unit: u, percent: pct });
+    if (pct >= 80 && markDone("grammar", gPrefix() + "u" + u)) { reward(30, 3, `Ngữ pháp Unit ${u} (Khối ${g})`); cheerUp(pct === 100 ? "perfect" : "unitDone"); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3`); }
     else if (pct < 80) toast(`Đúng ${right}/${total}. Xem giải thích và làm lại để đạt ≥ 80% nhé!`);
   }
 
-  function mountVocab() {
+  async function mountVocab() {
     const view = document.getElementById("vocabulary");
     if (!view) return;
-    let host = document.getElementById("unitVocabMount");
-    if (!host) {
-      host = document.createElement("div");
-      host.id = "unitVocabMount";
-      const flash = view.querySelector(".flashcard-layout");
-      if (flash) flash.insertAdjacentElement("afterend", host);
-      else view.insertBefore(host, view.children[1] || null);
-    }
+    const host = ensureHost(view, "unitVocabMount", ".flashcard-layout");
+    if (!Object.keys(VOCAB()).length) host.innerHTML = '<div class="card panel"><p class="small muted">Đang tải dữ liệu bài học...</p></div>';
+    if (DATA()) await DATA().ensure("vocab");
     host.innerHTML = vocabPanelHTML();
-    if (!mountVocab.bound) { mountVocab.bound = true; document.addEventListener("engo:vocab-record", () => mountVocab()); }
-
-    host.querySelectorAll("[data-vunit]").forEach(b => b.addEventListener("click", () => {
-      state.vocabUnit = Number(b.dataset.vunit); mountVocab();
-    }));
-    host.querySelectorAll("[data-vtab]").forEach(b => b.addEventListener("click", () => {
-      state.vocabTab = b.dataset.vtab; mountVocab();
-    }));
-    host.querySelectorAll("[data-say]").forEach(b => b.addEventListener("click", () => say(b.dataset.say, 0.8)));
-    host.querySelectorAll("[data-practice]").forEach(b => b.addEventListener("click", () => {
-      if (typeof window.practiceVocabUnit === "function") window.practiceVocabUnit(state.vocabUnit, b.dataset.practice);
-    }));
-
-    host.querySelectorAll(".unit-q").forEach(q => q.querySelectorAll(".unit-opt").forEach(o => o.addEventListener("click", () => {
-      q.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked"));
-      o.classList.add("picked");
-    })));
-    const check = document.getElementById("unitGrammarCheck");
-    const gramData = GRAM()["unit" + state.vocabUnit];
-    if (check && gramData && Array.isArray(gramData.exercises)) check.addEventListener("click", () => checkAiGrammar(host, state.vocabUnit, gramData));
-    else if (check) check.addEventListener("click", () => {
-      const qs = [...host.querySelectorAll(".unit-q")];
-      let right = 0;
-      qs.forEach(q => {
-        const picked = q.querySelector(".unit-opt.picked");
-        const ok = picked && picked.dataset.val === q.dataset.answer;
-        if (ok) right++;
-        q.querySelectorAll(".unit-opt").forEach(o => {
-          o.classList.toggle("right", o.dataset.val === q.dataset.answer);
-          o.classList.toggle("wrong", o === picked && !ok);
-        });
-        if (!ok && window.ENGO_UNITS_UI) window.ENGO_UNITS_UI.pushError(q.dataset.code);
+    if (!mountVocab.bound) {
+      mountVocab.bound = true;
+      document.addEventListener("engo:vocab-record", () => {
+        if (document.getElementById("vocabulary")?.classList.contains("active")) mountVocab();
       });
-      $("#unitGrammarScore").textContent = `Đúng ${right}/${qs.length}`;
-      if (right === qs.length && markDone("grammar", "u" + state.vocabUnit)) {
-        reward(30, 3, `Ngữ pháp Unit ${state.vocabUnit}`);
-        cheerUp("perfect");
- toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3`);
-      }
-    });
+      host.addEventListener("click", e => {
+        const gBtn = e.target.closest("[data-engo-grade]");
+        if (gBtn && DATA()) { DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
+        const vUnit = e.target.closest("[data-vunit]");
+        if (vUnit) { state.vocabUnit = Number(vUnit.dataset.vunit); mountVocab(); return; }
+        const vTab = e.target.closest("[data-vtab]");
+        if (vTab) { state.vocabTab = vTab.dataset.vtab; mountVocab(); return; }
+        const sayBtn = e.target.closest("[data-say]");
+        if (sayBtn) { say(sayBtn.dataset.say, 0.8); return; }
+        const pracBtn = e.target.closest("[data-practice]");
+        if (pracBtn) { typeof window.practiceVocabUnit === "function" && window.practiceVocabUnit(state.vocabUnit, pracBtn.dataset.practice); return; }
+        const opt = e.target.closest(".unit-opt");
+        if (opt) {
+          const q = opt.closest(".unit-q");
+          q?.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked"));
+          opt.classList.add("picked");
+          return;
+        }
+        if (e.target.closest("#unitGrammarCheck")) {
+          const gramData = GRAM()["unit" + state.vocabUnit];
+          if (gramData && Array.isArray(gramData.exercises)) checkAiGrammar(host, state.vocabUnit, gramData);
+          else {
+            const qs = [...host.querySelectorAll(".unit-q")];
+            let right = 0;
+            qs.forEach(q => {
+              const picked = q.querySelector(".unit-opt.picked");
+              const ok = picked && picked.dataset.val === q.dataset.answer;
+              if (ok) right++;
+              q.querySelectorAll(".unit-opt").forEach(o => {
+                o.classList.toggle("right", o.dataset.val === q.dataset.answer);
+                o.classList.toggle("wrong", o === picked && !ok);
+              });
+              if (!ok) api.pushError(q.dataset.code);
+            });
+            $("#unitGrammarScore").textContent = `Đúng ${right}/${qs.length}`;
+            if (right === qs.length && markDone("grammar", gPrefix() + "u" + state.vocabUnit)) {
+              reward(30, 3, `Ngữ pháp Unit ${state.vocabUnit}`);
+              cheerUp("perfect");
+              toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3`);
+            }
+          }
+        }
+      });
+    }
   }
 
-  function mountSpeaking() {
+  async function mountSpeaking() {
     const view = document.getElementById("speaking-lab");
     if (!view) return;
-    let host = document.getElementById("unitSpeakMount");
-    if (!host) {
-      host = document.createElement("div");
-      host.id = "unitSpeakMount";
-      view.insertBefore(host, view.children[1] || null);
-    }
-    const u = state.speakUnit;
-    const set = SPEAK()["unit" + u];
+    const host = ensureHost(view, "unitSpeakMount", null);
+    if (!Object.keys(SPEAK()).length) host.innerHTML = '<div class="card panel"><p class="small muted">Đang tải dữ liệu luyện nói...</p></div>';
+    if (DATA()) await DATA().ensure("speaking");
+    const u = state.speakUnit, g = GRADE();
+    const allSpeak = SPEAK();
+    const set = allSpeak["unit" + u];
+    const totalItems = Object.values(allSpeak).reduce((a, x) => a + (x.levels || []).reduce((b, l) => b + l.items.length, 0), 0);
+    const totalUnits = Object.keys(allSpeak).length;
     host.innerHTML = !set ? "" : `
       <div class="card panel unit-panel">
         <div class="section-head">
           <div><h3>Luyện nói theo Unit · ${esc(set.name)}</h3>
             <p class="small muted">Ba cấp độ tăng dần. Nghe câu mẫu, bấm micro ở bảng dưới để đọc theo; điểm phát âm chấm theo cách đọc nên giọng miền nào cũng công bằng.</p></div>
-          <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700">96 câu · 12 unit</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            ${gradeSwitchHtml()}
+            <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700">${totalItems} câu · ${totalUnits} unit</span>
+          </div>
         </div>
         ${unitChips(u, "data-sunit")}
         <div class="unit-body">
@@ -335,37 +368,53 @@
             </div>`).join("")}
         </div>
       </div>`;
-    host.querySelectorAll("[data-sunit]").forEach(b => b.addEventListener("click", () => { state.speakUnit = Number(b.dataset.sunit); mountSpeaking(); }));
-    host.querySelectorAll("[data-say]").forEach(b => b.addEventListener("click", () => say(b.dataset.say, 0.8)));
+    if (!mountSpeaking.bound) {
+      mountSpeaking.bound = true;
+      host.addEventListener("click", e => {
+        const gBtn = e.target.closest("[data-engo-grade]");
+        if (gBtn && DATA()) { DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
+        const sBtn = e.target.closest("[data-sunit]");
+        if (sBtn) { state.speakUnit = Number(sBtn.dataset.sunit); mountSpeaking(); return; }
+        const sayBtn = e.target.closest("[data-say]");
+        if (sayBtn) say(sayBtn.dataset.say, 0.8);
+      });
+    }
   }
 
-  function mountListening() {
+  async function mountListening() {
     const host = document.getElementById("listeningMount");
     if (!host) return;
-    const u = state.listenUnit;
+    if (!Object.keys(LISTEN()).length) host.innerHTML = '<div class="card panel"><p class="small muted">Đang tải dữ liệu luyện nghe...</p></div>';
+    if (DATA()) await DATA().ensure("listening");
+    const u = state.listenUnit, g = GRADE();
     const base = LISTEN()["unit" + u];
     const set = base ? { ...base, tasks: listeningTasks(u) } : null;
     const badge = document.getElementById("listenProgressBadge");
     const totalTasks = UNITS.reduce((a, x) => a + listeningTasks(x).length, 0);
-    if (badge) badge.textContent = `${countDone("listen")} / ${totalTasks} đoạn`;
-    if (!set) { host.innerHTML = '<div class="card panel"><p class="small muted">Chưa nạp được dữ liệu luyện nghe.</p></div>'; return; }
+    const doneForGrade = () => Object.keys(loadProg().listen || {}).filter(k => g === 8 ? k.startsWith("g8-") : !k.startsWith("g8-")).length;
+    if (badge) badge.textContent = `${doneForGrade()} / ${totalTasks} đoạn`;
+    if (!set) { host.innerHTML = `<div class="card panel"><div class="section-head"><h3>Chưa có dữ liệu luyện nghe khối ${g}</h3>${gradeSwitchHtml()}</div></div>`; return; }
 
+    const pfx = gPrefix();
     host.innerHTML = `
       <div class="card panel unit-panel">
         <div class="section-head">
           <div><h3>${esc(set.name)}</h3>
             <p class="small muted">Nghe tối đa 3 lần mỗi đoạn, sau đó làm bài tập. Xem lời thoại chỉ nên bấm sau khi đã trả lời.</p></div>
+          ${gradeSwitchHtml()}
         </div>
         ${unitChips(u, "data-lunit")}
       </div>
-      ${set.tasks.map((t, ti) => `
+      ${set.tasks.map((t, ti) => {
+        const key = pfx + "u" + u + "t" + ti;
+        return `
         <div class="card panel unit-panel" data-task="${ti}">
           <div class="section-head">
             <div><h3><span class="unit-lv lv${t.level}">Cấp ${t.level}</span> ${esc(t.title)}</h3>
-              <p class="small muted">${t.intro ? esc(t.intro) + " · " : ""}${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen["u" + u + "t" + ti] ? "· <i class=mi>check_circle</i> đã hoàn thành" : ""}</p></div>
+              <p class="small muted">${t.intro ? esc(t.intro) + " · " : ""}${t.script.split(/\s+/).length} từ · tốc độ ${t.rate}× ${loadProg().listen && loadProg().listen[key] ? "· <i class=mi>check_circle</i> đã hoàn thành" : ""}</p></div>
             <div style="display:flex;gap:8px;align-items:center">
-              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button" ${playsLeft("u" + u + "t" + ti) <= 0 ? "disabled" : ""}><i class=mi>play_arrow</i> Nghe</button>
-              <span class="small muted" data-plays="${ti}">Còn ${playsLeft("u" + u + "t" + ti)} lượt</span>
+              <button class="btn btn-primary btn-sm" data-play="${ti}" type="button" ${playsLeft(key) <= 0 ? "disabled" : ""}><i class=mi>play_arrow</i> Nghe</button>
+              <span class="small muted" data-plays="${ti}">Còn ${playsLeft(key)} lượt</span>
             </div>
           </div>
           <div class="unit-body">
@@ -377,64 +426,71 @@
             </div>
             <div class="unit-script hidden" data-scripttext="${ti}">${esc(t.script)}</div>
           </div>
-        </div>`).join("")}`;
+        </div>`;
+      }).join("")}`;
 
-    host.querySelectorAll("[data-lunit]").forEach(b => b.addEventListener("click", () => { state.listenUnit = Number(b.dataset.lunit); mountListening(); }));
+    if (!mountListening.bound) {
+      mountListening.bound = true;
+      host.addEventListener("click", e => {
+        const gBtn = e.target.closest("[data-engo-grade]");
+        if (gBtn && DATA()) { DATA().setGrade(Number(gBtn.dataset.engoGrade)); return; }
+        const lBtn = e.target.closest("[data-lunit]");
+        if (lBtn) { state.listenUnit = Number(lBtn.dataset.lunit); mountListening(); return; }
+        const curU = state.listenUnit, curPfx = gPrefix();
+        const curTasks = listeningTasks(curU);
 
-    set.tasks.forEach((t, ti) => {
-      const key = "u" + u + "t" + ti;
-      const playBtn = host.querySelector(`[data-play="${ti}"]`);
-      const label = host.querySelector(`[data-plays="${ti}"]`);
-      const showPlays = () => { const left = playsLeft(key); label.textContent = `Còn ${left} lượt`; playBtn.disabled = left <= 0; };
-      playBtn.addEventListener("click", () => {
-        const left = playsLeft(key);
-        if (left <= 0) { toast("Đã hết lượt nghe cho đoạn này. Bấm Kiểm tra để nộp, lần làm sau sẽ có lại 3 lượt."); return; }
-        setPlaysLeft(key, left - 1);
-        showPlays();
-        playBtn.disabled = true;
-        say(t.script, t.rate, () => showPlays());
-      });
-      host.querySelector(`[data-script="${ti}"]`).addEventListener("click", () => {
-        host.querySelector(`[data-scripttext="${ti}"]`).classList.toggle("hidden");
-      });
-      host.querySelectorAll(`[data-task="${ti}"] .unit-opt`).forEach(o => o.addEventListener("click", () => {
-        o.parentElement.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked"));
-        o.classList.add("picked");
-      }));
-      host.querySelector(`[data-check="${ti}"]`).addEventListener("click", () => {
-        let right = 0;
-        t.qs.forEach((q, qi) => {
-          const box = host.querySelector(`[data-task="${ti}"] [data-q="${qi}"]`);
-          let ok = false;
-          if (q.type === "gap") {
-            const val = (box.querySelector("input").value || "").trim().toLowerCase();
-            ok = val === String(q.a).toLowerCase();
-            box.querySelector("input").classList.toggle("wrong", !ok);
-            box.querySelector("input").classList.toggle("right", ok);
-          } else {
-            const picked = box.querySelector(".unit-opt.picked");
-            const want = q.type === "tf" ? (q.a ? "Đúng" : "Sai") : q.opts[q.a];
-            ok = picked && picked.dataset.val === want;
-            box.querySelectorAll(".unit-opt").forEach(o => {
-              o.classList.toggle("right", o.dataset.val === want);
-              o.classList.toggle("wrong", o === picked && !ok);
-            });
+        const playBtn = e.target.closest("[data-play]");
+        if (playBtn) {
+          const ti = Number(playBtn.dataset.play), t = curTasks[ti], key = curPfx + "u" + curU + "t" + ti;
+          const label = host.querySelector(`[data-plays="${ti}"]`);
+          const left = playsLeft(key);
+          if (left <= 0) { toast("Đã hết lượt nghe cho đoạn này. Bấm Kiểm tra để nộp, lần làm sau sẽ có lại 3 lượt."); return; }
+          setPlaysLeft(key, left - 1);
+          if (label) label.textContent = `Còn ${left - 1} lượt`;
+          playBtn.disabled = true;
+          say(t.script, t.rate, () => { const l2 = playsLeft(key); if (label) label.textContent = `Còn ${l2} lượt`; playBtn.disabled = l2 <= 0; });
+          return;
+        }
+        const scriptBtn = e.target.closest("[data-script]");
+        if (scriptBtn) { host.querySelector(`[data-scripttext="${scriptBtn.dataset.script}"]`)?.classList.toggle("hidden"); return; }
+        const opt = e.target.closest(".unit-opt");
+        if (opt) { opt.parentElement.querySelectorAll(".unit-opt").forEach(x => x.classList.remove("picked")); opt.classList.add("picked"); return; }
+        const checkBtn = e.target.closest("[data-check]");
+        if (checkBtn) {
+          const ti = Number(checkBtn.dataset.check), t = curTasks[ti], key = curPfx + "u" + curU + "t" + ti;
+          let right = 0;
+          t.qs.forEach((q, qi) => {
+            const box = host.querySelector(`[data-task="${ti}"] [data-q="${qi}"]`);
+            let ok = false;
+            if (q.type === "gap") {
+              const inp = box.querySelector("input");
+              ok = (inp.value || "").trim().toLowerCase() === String(q.a).toLowerCase();
+              inp.classList.toggle("wrong", !ok); inp.classList.toggle("right", ok);
+            } else {
+              const picked = box.querySelector(".unit-opt.picked");
+              const want = q.type === "tf" ? (q.a ? "Đúng" : "Sai") : q.opts[q.a];
+              ok = picked && picked.dataset.val === want;
+              box.querySelectorAll(".unit-opt").forEach(o => { o.classList.toggle("right", o.dataset.val === want); o.classList.toggle("wrong", o === picked && !ok); });
+            }
+            if (ok) right++;
+          });
+          host.querySelector(`[data-score="${ti}"]`).textContent = `Đúng ${right}/${t.qs.length}`;
+          setPlaysLeft(key, MAX_PLAYS);
+          const lbl = host.querySelector(`[data-plays="${ti}"]`), pb = host.querySelector(`[data-play="${ti}"]`);
+          if (lbl) lbl.textContent = `Còn ${MAX_PLAYS} lượt`;
+          if (pb) pb.disabled = false;
+          host.querySelectorAll(`[data-task="${ti}"] .unit-why`).forEach(w => w.classList.remove("hidden"));
+          logEvent("listening", key, `Nghe Unit ${curU} (Khối ${GRADE()}) · ${t.title}`, right, t.qs.length, { grade: GRADE(), unit: curU, level: t.level, ai: Boolean(t.ai) });
+          if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", key)) {
+            reward(30, 3, `Nghe Unit ${curU} cấp ${t.level} (Khối ${GRADE()})`);
+            cheerUp(right === t.qs.length ? "perfect" : "taskDone");
+            toast(`Hoàn thành đoạn nghe: +30 XP, +3`);
+            const b = document.getElementById("listenProgressBadge");
+            if (b) b.textContent = `${Object.keys(loadProg().listen || {}).filter(k => GRADE() === 8 ? k.startsWith("g8-") : !k.startsWith("g8-")).length} / ${UNITS.reduce((a, x) => a + listeningTasks(x).length, 0)} đoạn`;
           }
-          if (ok) right++;
-        });
-        host.querySelector(`[data-score="${ti}"]`).textContent = `Đúng ${right}/${t.qs.length}`;
-        setPlaysLeft(key, MAX_PLAYS);
-        showPlays();
-        host.querySelectorAll(`[data-task="${ti}"] .unit-why`).forEach(w => w.classList.remove("hidden"));
-        logEvent("listening", "u" + u + "t" + ti, `Nghe Unit ${u} · ${t.title}`, right, t.qs.length, { unit: u, level: t.level, ai: Boolean(t.ai) });
-        if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", "u" + u + "t" + ti)) {
-          reward(30, 3, `Nghe Unit ${u} cấp ${t.level}`);
-          cheerUp(right === t.qs.length ? "perfect" : "taskDone");
- toast(`Hoàn thành đoạn nghe: +30 XP, +3`);
-          if (badge) badge.textContent = `${countDone("listen")} / ${totalTasks} đoạn`;
         }
       });
-    });
+    }
   }
 
   function renderQ(q, ti, qi) {
@@ -444,16 +500,13 @@
     return `<div class="unit-q" data-q="${qi}">${head}<div class="unit-opts">${opts.map(o => `<button type="button" class="unit-opt" data-val="${esc(o)}">${esc(o)}</button>`).join("")}</div>${q.why ? `<div class="unit-why hidden">${esc(q.why)}</div>` : ""}</div>`;
   }
 
-  function mountExams() {
+  async function mountExams() {
     const view = document.getElementById("tests");
+    if (!view) return;
+    if (DATA() && !EXAM()) await DATA().ensure("exam");
     const B = EXAM();
-    if (!view || !B) return;
-    let host = document.getElementById("unitExamMount");
-    if (!host) {
-      host = document.createElement("div");
-      host.id = "unitExamMount";
-      view.insertBefore(host, view.children[1] || null);
-    }
+    if (!B) return;
+    const host = ensureHost(view, "unitExamMount", null);
     const term = state.examTerm;
     const specs = B.byTerm(term);
     const TYPEN = { KTTX: "Thường xuyên", KTGK: "Giữa kì", KTCK: "Cuối kì" };
@@ -504,13 +557,23 @@
           </table>
         </div>
       </div>`;
-    host.querySelectorAll("[data-term]").forEach(b => b.addEventListener("click", () => { state.examTerm = Number(b.dataset.term); mountExams(); }));
-    host.querySelectorAll("[data-exam-grade]").forEach(b => b.addEventListener("click", () => { state.examGrade = Number(b.dataset.examGrade); mountExams(); }));
-    host.querySelectorAll("[data-take]").forEach(b => b.addEventListener("click", () => typeof startImportedTest === "function" && startImportedTest(b.dataset.take)));
-    host.querySelectorAll("[data-upload-spec]").forEach(b => b.addEventListener("click", () => {
-      const spec = specs.find(x => x.id === b.dataset.uploadSpec);
-      if (typeof openCreateTestForSpec === "function") openCreateTestForSpec(spec);
-    }));
+    if (!mountExams.bound) {
+      mountExams.bound = true;
+      host.addEventListener("click", e => {
+        const termBtn = e.target.closest("[data-term]");
+        if (termBtn) { state.examTerm = Number(termBtn.dataset.term); mountExams(); return; }
+        const gBtn = e.target.closest("[data-exam-grade]");
+        if (gBtn) { state.examGrade = Number(gBtn.dataset.examGrade); mountExams(); return; }
+        const takeBtn = e.target.closest("[data-take]");
+        if (takeBtn) { typeof startImportedTest === "function" && startImportedTest(takeBtn.dataset.take); return; }
+        const upBtn = e.target.closest("[data-upload-spec]");
+        if (upBtn) {
+          const curSpecs = EXAM()?.byTerm(state.examTerm) || [];
+          const spec = curSpecs.find(x => x.id === upBtn.dataset.uploadSpec);
+          if (typeof openCreateTestForSpec === "function") openCreateTestForSpec(spec);
+        }
+      });
+    }
   }
 
   function bindOverview() {
@@ -553,11 +616,16 @@
     },
     errorMap() { return loadProg().errors || {}; },
     refreshExams() { try { if (document.getElementById("tests")?.classList.contains("active")) mountExams(); } catch (_) {} },
-    stats() {
-      return { grammarDone: countDone("grammar"), listenDone: countDone("listen"), errors: api.errorMap() };
-    }
+    stats() { return { grammarDone: countDone("grammar"), listenDone: countDone("listen"), errors: api.errorMap() }; }
   };
   window.ENGO_UNITS_UI = api;
+
+  window.addEventListener("engo:grade-change", () => {
+    const active = document.querySelector(".view.active")?.id;
+    if (active === "vocabulary") mountVocab();
+    else if (active === "speaking-lab") mountSpeaking();
+    else if (active === "listening-lab") mountListening();
+  });
 
   document.addEventListener("DOMContentLoaded", () => {
     bindOverview();

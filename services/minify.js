@@ -11,7 +11,7 @@ async function build(file) {
   const src = fs.readFileSync(file, "utf8");
   let code = src;
   try {
-    const out = await minify(src, { compress: { passes: 2, drop_debugger: false }, mangle: true, format: { comments: false } });
+    const out = await minify(src, { compress: { passes: 1, drop_debugger: false }, mangle: true, format: { comments: false } });
     if (out && out.code) code = out.code;
   } catch (e) {
     console.warn("[minify] giữ nguyên", path.basename(file), e.message);
@@ -24,7 +24,7 @@ function middleware(publicDir) {
   const root = path.resolve(publicDir);
   return async (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
-    if (!req.path.endsWith(".js")) return next();
+    if (!req.path.endsWith(".js") || req.path.startsWith("/data/")) return next();
     const file = path.resolve(root, "." + decodeURIComponent(req.path));
     if (!file.startsWith(root + path.sep) || !fs.existsSync(file)) return next();
     try {
@@ -42,7 +42,7 @@ function middleware(publicDir) {
 async function warm(publicDir) {
   const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) return e.name === "unit-cache" ? [] : walk(p);
+    if (e.isDirectory()) return e.name === "unit-cache" || e.name === "data" ? [] : walk(p);
     return e.name.endsWith(".js") ? [p] : [];
   });
   const files = walk(path.resolve(publicDir));

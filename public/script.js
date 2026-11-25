@@ -48,7 +48,7 @@ function playWrongSound() {
   } catch (e) {}
 }
 document.addEventListener("click", e => {
-  if (e.target.closest("button, .btn, .nav-btn, .auth-tab, .option, .deck-item, [data-view]")) playClickSound();
+  if (e.target.closest("button, .btn, .nav-btn, .option, .deck-item, [data-view]")) playClickSound();
 }, true);
 
 const THEME_STORAGE_KEY = "engoTheme";
@@ -187,14 +187,10 @@ function getInitials(name, role) {
 }
 function sortClasses(list) { return [...new Set(list)].sort((x, y) => x.localeCompare(y, "vi", { numeric: true })); }
 async function loadClassNames() {
+  if (!currentUser) return;
   try {
-    if (currentUser) {
-      const data = await apiRequest("/api/class-settings");
-      knownClasses = sortClasses([...(data.knownClasses || []), ...(data.settings || []).map(s => s.className)]);
-    } else {
-      const data = await apiRequest("/api/classes");
-      knownClasses = sortClasses(data.classes || []);
-    }
+    const data = await apiRequest("/api/class-settings");
+    knownClasses = sortClasses([...(data.knownClasses || []), ...(data.settings || []).map(s => s.className)]);
   } catch (e) { knownClasses = knownClasses.length ? knownClasses : Array.from({ length: 13 }, (_, i) => `9A${i + 1}`); }
   const dl = document.getElementById("classNameList");
   if (dl) dl.innerHTML = knownClasses.map(c => `<option value="${escapeHTML(c)}"></option>`).join("");
@@ -383,23 +379,9 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 function completeLogin(user) { updateUserUI(user); authScreen.classList.add("hidden"); applyRole(user.role); showToast(`Xin chào, ${user.fullName}`); }
 
-document.querySelectorAll("[data-auth-tab]").forEach(tab => tab.addEventListener("click", () => {
-  document.querySelectorAll("[data-auth-tab]").forEach(x => x.classList.toggle("active", x === tab));
-  const login = tab.dataset.authTab === "login";
-  document.getElementById("loginPane").classList.toggle("hidden", !login);
-  document.getElementById("registerPane").classList.toggle("hidden", login);
-  setAuthError(document.getElementById("loginError")); setAuthError(document.getElementById("registerError"));
-}));
 document.querySelectorAll("[data-password-target]").forEach(btn => btn.addEventListener("click", () => {
   const input = document.getElementById(btn.dataset.passwordTarget); input.type = input.type === "password" ? "text" : "password";
 }));
-const registerRoleSelect = document.getElementById("registerRole");
-const registerClassGroup = document.getElementById("registerClassGroup");
-registerRoleSelect?.addEventListener("change", () => {
-  const isStudent = registerRoleSelect.value === "student";
-  registerClassGroup.style.display = isStudent ? "grid" : "none";
-  if (!isStudent) document.getElementById("registerClass").value = "";
-});
 document.getElementById("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
   const error = document.getElementById("loginError"); setAuthError(error);
@@ -407,26 +389,6 @@ document.getElementById("loginForm").addEventListener("submit", async e => {
   try {
     const data = await apiRequest("/api/auth/login", { method: "POST", body: JSON.stringify({ email: document.getElementById("loginEmail").value.trim(), password: document.getElementById("loginPassword").value, role: document.getElementById("loginRole").value }) });
     completeLogin(data.user);
-  } catch (err) { setAuthError(error, err.message); } finally { if (submit) submit.disabled = false; }
-});
-document.getElementById("registerForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const error = document.getElementById("registerError"); setAuthError(error);
-  const fullName = document.getElementById("registerName").value.trim();
-  const email = document.getElementById("registerEmail").value.trim();
-  const password = document.getElementById("registerPassword").value;
-  const confirm = document.getElementById("registerConfirm").value;
-  const role = document.getElementById("registerRole").value;
-  const className = (document.getElementById("registerClass")?.value || "").trim().toUpperCase();
-  if (!fullName || !email || !password) return setAuthError(error, "Vui lòng điền đầy đủ các trường thông tin.");
-  if (password.length < 6) return setAuthError(error, "Mật khẩu phải có tối thiểu 6 ký tự.");
-  if (password !== confirm) return setAuthError(error, "Hai mật khẩu chưa trùng khớp.");
-  if (role === "student" && !className) return setAuthError(error, "Vui lòng nhập lớp học của bạn (ví dụ 9A1).");
-  const submit = e.submitter || document.getElementById("registerSubmitBtn"); if (submit) submit.disabled = true;
-  try {
-    const data = await apiRequest("/api/auth/register", { method: "POST", body: JSON.stringify({ fullName, email, password, role, className }) });
-    showToast(data.message || "Đăng ký thành công!"); e.target.reset();
-    document.getElementById("loginEmail").value = email; document.querySelector('[data-auth-tab="login"]').click();
   } catch (err) { setAuthError(error, err.message); } finally { if (submit) submit.disabled = false; }
 });
 document.getElementById("logoutBtn").addEventListener("click", async () => {
@@ -1146,25 +1108,50 @@ async function renderAchievements() {
   document.getElementById("achievementCount").textContent = `${unlocked}/${achievementDefs.length} đã mở khóa`;
 }
 
-const flashDecks = window.ENGO_VOCAB_DECKS || {};
-const POS_LABEL = { n: "danh từ", v: "động từ", adj: "tính từ", adv: "trạng từ", phr: "cụm từ", "phr v": "cụm động từ", modal: "động từ khuyết thiếu", "v/n": "động từ / danh từ" };
-let activeDeck = Object.keys(flashDecks)[0] || "unit1", flashOrder = [], flashIndex = 0, flashViewed = new Set();
+const getFlashDecks = () => (window.ENGO_DATA ? window.ENGO_DATA.vocabDecks() : (window.ENGO_VOCAB_DECKS || {}));
+const activeGradeNum = () => (window.ENGO_DATA ? window.ENGO_DATA.getGrade() : 9);
+const vocabRecKey = key => (activeGradeNum() === 8 ? "g8-" : "") + key;
+const POS_LABEL = { n: "danh từ", v: "động từ", adj: "tính từ", adv: "trạng từ", phr: "cụm từ", "phr v": "cụm động từ", "phr.v": "cụm động từ", modal: "động từ khuyết thiếu", "v/n": "động từ / danh từ", "n/v": "danh từ / động từ" };
+let activeDeck = "unit1", flashOrder = [], flashIndex = 0, flashViewed = new Set();
 function getVocabRecords() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoVocabV1")) || "{}"); } catch { return {}; } }
 function setVocabRecords(r) { localStorage.setItem(getUserStorageKey("engoVocabV1"), JSON.stringify(r)); }
 window.getVocabRecords = getVocabRecords;
-function currentFlash() { return flashDecks[activeDeck].cards[flashOrder[flashIndex]]; }
-function resetFlashOrder() { flashOrder = flashDecks[activeDeck].cards.map((_, i) => i); flashIndex = 0; flashViewed = new Set([0]); renderFlashcard(); }
-function renderVocabDecks() {
+function currentFlash() { const d = getFlashDecks()[activeDeck]; return d && d.cards ? d.cards[flashOrder[flashIndex]] : null; }
+function resetFlashOrder() {
+  const decks = getFlashDecks();
+  if (!decks[activeDeck]) activeDeck = Object.keys(decks)[0] || "unit1";
+  const deck = decks[activeDeck];
+  if (!deck || !deck.cards || !deck.cards.length) return;
+  flashOrder = deck.cards.map((_, i) => i); flashIndex = 0; flashViewed = new Set([0]); renderFlashcard();
+}
+async function renderVocabDecks() {
   const list = document.getElementById("deckList"); if (!list) return;
+  if (window.ENGO_DATA) {
+    if (!Object.keys(getFlashDecks()).length) list.innerHTML = '<div class="small muted" style="padding:12px">Đang tải từ vựng...</div>';
+    await window.ENGO_DATA.ensure("vocab");
+  }
+  const decks = getFlashDecks();
+  if (!decks[activeDeck]) activeDeck = Object.keys(decks)[0] || "unit1";
+  const sidebarHead = document.querySelector("#vocabulary .flash-sidebar .section-head");
+  if (sidebarHead && window.ENGO_DATA) {
+    let sw = sidebarHead.querySelector(".grade-switch");
+    if (!sw) {
+      sidebarHead.insertAdjacentHTML("beforeend", window.ENGO_DATA.gradeChipHtml());
+      sidebarHead.querySelectorAll("[data-engo-grade]").forEach(b => b.addEventListener("click", () => window.ENGO_DATA.setGrade(Number(b.dataset.engoGrade))));
+    } else {
+      sw.querySelectorAll("[data-engo-grade]").forEach(b => b.classList.toggle("active", Number(b.dataset.engoGrade) === activeGradeNum()));
+    }
+  }
   const records = getVocabRecords();
-  list.innerHTML = Object.entries(flashDecks).map(([key, deck]) => {
-    const rec = records[key];
+  list.innerHTML = Object.entries(decks).map(([key, deck]) => {
+    const rec = records[vocabRecKey(key)];
     return `<button class="deck-item ${key === activeDeck ? "active" : ""}" data-deck="${key}"><div><strong>${escapeHTML(deck.name)}</strong><span>${deck.cards.length} từ${rec ? ` · Tốt nhất ${rec.best}%` : ""}</span></div><b>${rec && rec.best >= 80 ? "<i class=mi>check</i>" : "→"}</b></button>`;
   }).join("");
   list.querySelectorAll("[data-deck]").forEach(btn => btn.addEventListener("click", () => { activeDeck = btn.dataset.deck; exitVocabQuiz(); resetFlashOrder(); renderVocabDecks(); }));
+  if (!flashOrder.length || !currentFlash()) resetFlashOrder();
 }
 function renderFlashcard() {
-  const deck = flashDecks[activeDeck], card = currentFlash(); if (!card) return;
+  const deck = getFlashDecks()[activeDeck], card = currentFlash(); if (!deck || !card) return;
   document.getElementById("flashcardInner").classList.remove("flipped");
   document.getElementById("flashDeckName").textContent = deck.name;
   document.getElementById("flashProgressText").textContent = `Thẻ ${flashIndex + 1} / ${deck.cards.length}`;
@@ -1211,13 +1198,16 @@ function vocabImage(word) {
   const base = w.replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim();
   return map[base] || "";
 }
-window.practiceVocabUnit = function (unit, mode) {
+window.practiceVocabUnit = async function (unit, mode) {
+  if (window.ENGO_DATA) await window.ENGO_DATA.ensure("vocab");
+  const decks = getFlashDecks();
   const key = "unit" + unit;
-  if (flashDecks[key]) { activeDeck = key; resetFlashOrder(); renderVocabDecks(); flashOrder.forEach((_, i) => flashViewed.add(i)); }
+  if (decks[key]) { activeDeck = key; resetFlashOrder(); renderVocabDecks(); flashOrder.forEach((_, i) => flashViewed.add(i)); }
   startVocabQuiz(mode || "mc");
 };
 function startVocabQuiz(mode) {
-  const deck = flashDecks[activeDeck];
+  const deck = getFlashDecks()[activeDeck];
+  if (!deck) return;
   let pool = deck.cards;
   if (mode === "image") pool = deck.cards.filter(c => vocabImage(c.word));
   if (mode === "gap") pool = deck.cards.filter(c => (c.examples || []).some(e => new RegExp("\\b" + c.word.split(" ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(e)));
@@ -1365,18 +1355,18 @@ async function finishVocabQuiz() {
   const q = vocabQuiz; if (!q) return;
   const percent = Math.round((q.correct / q.total) * 100);
   const good = percent >= 80;
-  const records = getVocabRecords();
-  const prev = records[activeDeck] || {};
+  const records = getVocabRecords(), recKey = vocabRecKey(activeDeck);
+  const prev = records[recKey] || {};
   const at = new Date().toISOString();
   const modes = { ...(prev.modes || {}) };
   const prevMode = modes[q.mode];
   modes[q.mode] = { best: Math.max(percent, prevMode?.best || 0), last: percent, at, done: true };
-  records[activeDeck] = { ...prev, best: Math.max(percent, prev.best || 0), last: percent, at, modes };
+  records[recKey] = { ...prev, best: Math.max(percent, prev.best || 0), last: percent, at, modes };
   setVocabRecords(records);
-  document.dispatchEvent(new CustomEvent("engo:vocab-record", { detail: { deck: activeDeck, mode: q.mode, percent } }));
-  gainRewards(good ? 30 : 10, good ? 3 : 0, `Hoàn thành bộ ${q.deck.name}`);
+  document.dispatchEvent(new CustomEvent("engo:vocab-record", { detail: { deck: activeDeck, grade: activeGradeNum(), mode: q.mode, percent } }));
+  gainRewards(good ? 30 : 10, good ? 3 : 0, `Hoàn thành bộ ${q.deck.name} (Khối ${activeGradeNum()})`);
   const st = getLearningStats(); st.vocabSets = (st.vocabSets || 0) + 1; setLearningStats(st);
-  try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "vocab", refId: activeDeck, title: q.deck.name, score: q.correct, maxScore: q.total, meta: { mode: q.mode, percent } }) }); studentProgress = null; } catch (e) {}
+  try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "vocab", refId: recKey, title: `${q.deck.name} (Khối ${activeGradeNum()})`, score: q.correct, maxScore: q.total, meta: { grade: activeGradeNum(), mode: q.mode, percent } }) }); studentProgress = null; } catch (e) {}
   document.getElementById("vocabQuizProgress").style.width = "100%";
   document.getElementById("vocabQuizBody").innerHTML = `<div style="text-align:center;padding:20px 0">
     <div class="result-score" style="background:conic-gradient(${good ? "#22c55e" : "#f59e0b"} 0 ${percent}%, #e5e7eb ${percent}% 100%)"><div><strong>${percent}%</strong><span class="small muted">đúng</span></div></div>
@@ -1398,7 +1388,8 @@ let speakingRole = "A";
 let ttsAutoTimer = null;
 
 function buildSpeakingTasks(apiAssignments, progress) {
-  const system = (window.ENGO_SPEAKING_SETS || []).map(s => ({ ...s, source: s.unit ? `Hệ thống · Unit ${s.unit}` : "Hệ thống", teacherName: "ENGO", progress: null }));
+  const sets = window.ENGO_DATA ? window.ENGO_DATA.speakingSets() : (window.ENGO_SPEAKING_SETS || []);
+  const system = sets.map(s => ({ ...s, source: s.unit ? `Hệ thống · Unit ${s.unit}` : "Hệ thống", teacherName: "ENGO", progress: null }));
   const teacher = (apiAssignments || []).map(a => ({ id: `t-${a.id}`, assignmentId: a.id, title: a.title, stage: a.stage, system: false, source: a.teacherName || "Giáo viên", className: a.className, situation: a.translation && a.stage === 2 ? a.translation : "", items: a.items || [], progress: a.progress || null, unitTitle: a.unitTitle }));
 
   const local = getLocalSpeakingRecords();
@@ -1417,6 +1408,17 @@ function stageUnlocked(stage) {
 async function renderSpeakingLab() {
   if (!currentUser || currentUser.role !== "student") return;
   renderCapybaraCompanion();
+  const ctrl = document.querySelector("#speakingListPanel .results-controls");
+  if (ctrl && window.ENGO_DATA) {
+    let sw = ctrl.querySelector(".grade-switch");
+    if (!sw) {
+      ctrl.insertAdjacentHTML("afterbegin", window.ENGO_DATA.gradeChipHtml());
+      ctrl.querySelectorAll("[data-engo-grade]").forEach(b => b.addEventListener("click", () => window.ENGO_DATA.setGrade(Number(b.dataset.engoGrade))));
+    } else {
+      sw.querySelectorAll("[data-engo-grade]").forEach(b => b.classList.toggle("active", Number(b.dataset.engoGrade) === activeGradeNum()));
+    }
+  }
+  if (window.ENGO_DATA) await window.ENGO_DATA.ensure("speaking");
   const tbody = document.getElementById("speakingTableBody");
   try {
     const res = await apiRequest("/api/speaking/assignments");
@@ -1629,7 +1631,7 @@ async function finishSpeakingTask() {
   renderSpeakingLab();
 }
 
-const healingExercisesBank = window.ENGO_HEALING_BANK || {};
+const getHealingBank = () => (window.ENGO_DATA ? window.ENGO_DATA.healingBank() : (window.ENGO_HEALING_BANK || {}));
 const defaultHealingProfile = { pronunciation: [], grammar: [], test: [], healedHistory: [], healingStreak: 0, heatmapStatus: {} };
 function getHealingProfile() {
   try { const raw = localStorage.getItem(getUserStorageKey("engoHealingProfileV3")); if (raw) return { ...JSON.parse(JSON.stringify(defaultHealingProfile)), ...JSON.parse(raw) }; } catch (e) {}
@@ -1653,7 +1655,9 @@ function detectGrammarCode(text) {
   return null;
 }
 function addGrammarError(profile, code, triggerQuestion, selected, correct, source) {
-  if (!code || !healingExercisesBank[code]) return;
+  if (!code) return;
+  const bank = getHealingBank();
+  if (Object.keys(bank).length && !bank[code]) return;
   if (profile.grammar.some(e => e.code === code)) return;
   profile.grammar.unshift({ id: `err-${Date.now()}-${code}`, code, triggerQuestion, selected, correct, source, createdAt: new Date().toISOString() });
   profile.heatmapStatus[code] = "weak";
@@ -1698,7 +1702,9 @@ function recordTestErrorsForHealing(wrongList, testTitle) {
 async function logHealingEvent(title, meta) {
   try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "healing", title, score: 1, maxScore: 1, meta }) }); studentProgress = null; } catch (e) {}
 }
-function renderHealingRoom() {
+async function renderHealingRoom() {
+  if (window.ENGO_DATA) await window.ENGO_DATA.ensure("healing");
+  const healingExercisesBank = getHealingBank();
   const profile = getHealingProfile();
   const pendingTest = profile.test.filter(t => !t.reviewed);
   document.getElementById("healingStatPron").textContent = profile.pronunciation.length;
@@ -1812,8 +1818,9 @@ document.getElementById("pronDrillMic").addEventListener("click", () => {
 });
 
 let activeHealingSession = null;
-function startHealingExercise(errorCode, errorId) {
-  const bank = healingExercisesBank[errorCode]; if (!bank || !bank.questions?.length) { showToast("Chưa có bài tập cho dạng này."); return; }
+async function startHealingExercise(errorCode, errorId) {
+  if (window.ENGO_DATA) await window.ENGO_DATA.ensure("healing");
+  const bank = getHealingBank()[errorCode]; if (!bank || !bank.questions?.length) { showToast("Chưa có bài tập cho dạng này."); return; }
   activeHealingSession = { errorCode, errorId, label: bank.label, questions: shuffleArray(bank.questions).slice(0, 3), currentIndex: 0, correctCount: 0 };
   document.getElementById("healingModalTitle").textContent = `Chữa lỗi: ${bank.label}`;
   renderHealingModalStep(); openModal("healingExerciseModal");
@@ -2257,14 +2264,39 @@ let chatHistory = [];
 function toggleCapybaraChat() { const hidden = capybaraChatWindow.classList.contains("hidden"); capybaraChatWindow.classList.toggle("hidden", !hidden); if (hidden) setTimeout(() => capybaraChatInput.focus(), 150); }
 document.getElementById("capybaraChatTrigger")?.addEventListener("click", toggleCapybaraChat);
 document.getElementById("btnMinimizeChat")?.addEventListener("click", toggleCapybaraChat);
+let katexLoading = null;
+function ensureKatex() {
+  if (window.renderMathInElement) return Promise.resolve(true);
+  if (katexLoading) return katexLoading;
+  katexLoading = new Promise(res => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+    document.head.appendChild(css);
+    const s1 = document.createElement("script");
+    s1.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js";
+    s1.onload = () => {
+      const s2 = document.createElement("script");
+      s2.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js";
+      s2.onload = () => res(true); s2.onerror = () => res(false);
+      document.head.appendChild(s2);
+    };
+    s1.onerror = () => res(false);
+    document.head.appendChild(s1);
+  });
+  return katexLoading;
+}
 function appendChatMessage(sender, text) {
   const el = document.createElement("div"); el.className = sender === "user" ? "chat-msg user-msg" : "chat-msg capybara-msg";
   const formatted = escapeHTML(text).replace(/### (.*)/g, '<strong style="display:block;font-size:14px;color:#047857;margin-bottom:6px">$1</strong>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\n\* (.*)/g, '<div style="margin-left:8px">• $1</div>').replace(/\n/g, "<br/>");
   el.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="${sender}" /><div class="chat-bubble"><div>${formatted}</div></div>`;
   capybaraChatMessages.appendChild(el); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
-  try {
-    if (window.renderMathInElement) renderMathInElement(el.querySelector(".chat-bubble"), { delimiters: [{ left: "$", right: "$", display: true }, { left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }, { left: "$", right: "$", display: false }], throwOnError: false });
-  } catch (_) {}
+  if (/\$|\\\[|\\\(/.test(String(text || ""))) {
+    ensureKatex().then(ok => {
+      try {
+        if (ok && window.renderMathInElement) renderMathInElement(el.querySelector(".chat-bubble"), { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }, { left: "$", right: "$", display: false }], throwOnError: false });
+      } catch (_) {}
+    });
+  }
 }
 async function sendCapybaraMessage(textToSend) {
   const text = (textToSend || capybaraChatInput.value).trim(); if (!text) return;
@@ -2287,8 +2319,11 @@ document.getElementById("globalSearch")?.addEventListener("keydown", e => {
   if (/từ vựng|vocab|unit/.test(q)) switchView("vocabulary"); else if (/nói|speak|phát âm/.test(q)) switchView("speaking-lab"); else if (/lỗi|chữa/.test(q)) switchView("errorHealing"); else switchView("tests");
 });
 
+window.addEventListener("engo:grade-change", () => {
+  const active = document.querySelector(".view.active")?.id;
+  if (active === "vocabulary") { activeDeck = "unit1"; exitVocabQuiz(); renderVocabDecks(); }
+  if (active === "speaking-lab") renderSpeakingLab();
+});
+
 renderNotifications();
-resetFlashOrder();
-renderVocabDecks();
-loadClassNames();
 restoreSession();

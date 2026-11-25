@@ -9,17 +9,25 @@
   const cheer = k => { try { window.cheer ? window.cheer(k) : sfx(k); } catch (e) {} };
   const state = { unit: 1, families: [], cache: {}, mode: "study", game: null };
 
-  async function load(unit) {
-    if (state.cache[unit]) return state.cache[unit];
+  const curGrade = () => (window.ENGO_DATA ? window.ENGO_DATA.getGrade() : 9);
+
+  async function load(unit, grade = curGrade()) {
+    const ck = `${grade}:${unit}`;
+    if (state.cache[ck]) return state.cache[ck];
     let list = [];
-    try { const d = await apiRequest(`/api/word-families?unit=${unit}`); list = d.families || []; } catch (e) {}
-    if (!list.length) list = ((window.ENGO_WORD_FAMILIES || {})[`unit${unit}`] || []).map((f, i) => ({ id: `s${unit}-${i}`, unit, ...f }));
-    state.cache[unit] = list;
+    try { const d = await apiRequest(`/api/word-families?grade=${grade}&unit=${unit}`); list = d.families || []; } catch (e) {}
+    if (!list.length) {
+      if (window.ENGO_DATA) await window.ENGO_DATA.ensure("wordform", grade);
+      const wfMap = window.ENGO_DATA ? window.ENGO_DATA.wordFamilies(grade) : (window.ENGO_WORD_FAMILIES || {});
+      list = (wfMap[`unit${unit}`] || []).map((f, i) => ({ id: `s${grade}-${unit}-${i}`, grade, unit, ...f }));
+    }
+    state.cache[ck] = list;
     return list;
   }
 
-  function unitName(u) {
-    const d = (window.ENGO_VOCAB_UNITS || {})[`unit${u}`];
+  function unitName(u, grade = curGrade()) {
+    const map = window.ENGO_DATA ? window.ENGO_DATA.vocabUnits(grade) : (window.ENGO_VOCAB_UNITS || {});
+    const d = map[`unit${u}`];
     return d && d.name ? d.name : `Unit ${u}`;
   }
 
@@ -50,10 +58,12 @@
     const u = me();
     card.classList.toggle("hidden", !u || u.role !== "student");
     if (!u || u.role !== "student") return;
+    const grade = curGrade();
+    if (window.ENGO_DATA) await window.ENGO_DATA.ensure("wordform", grade);
     card.innerHTML = header();
     card.querySelector("#wfUnit").addEventListener("change", async e => { state.unit = Number(e.target.value); state.game = null; await render(); });
     card.querySelectorAll("[data-wf-mode]").forEach(b => b.addEventListener("click", () => { state.mode = b.dataset.wfMode; state.game = null; render(); }));
-    state.families = await load(state.unit);
+    state.families = await load(state.unit, grade);
     const stage = card.querySelector("#wfStage");
     if (!state.families.length) { stage.innerHTML = `<p class="small muted">Unit này chưa có họ từ.</p>`; return; }
     if (state.mode === "study") renderStudy(stage);
@@ -146,8 +156,9 @@
   }
 
   async function record(score, max, meta) {
+    const grade = curGrade();
     const percent = max ? Math.round((score / max) * 100) : 0;
-    try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "wordform", refId: `unit${state.unit}`, title: `Word form · ${unitName(state.unit)}`, score, maxScore: max, meta: { unit: state.unit, percent, ...meta } }) }); } catch (e) {}
+    try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "wordform", refId: `${grade === 8 ? "g8-" : ""}unit${state.unit}`, title: `Word form (Khối ${grade}) · ${unitName(state.unit, grade)}`, score, maxScore: max, meta: { grade, unit: state.unit, percent, ...meta } }) }); } catch (e) {}
     if (typeof studentProgress !== "undefined") { try { studentProgress = null; } catch (e) {} }
     if (typeof gainRewards === "function" && percent >= 50) gainRewards(Math.round(percent / 5), percent >= 80 ? 3 : 1, "Luyện word form");
     return percent;
@@ -275,13 +286,14 @@
     document.body.appendChild(m);
     m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-x]")) m.remove(); });
     const box = m.querySelector(".wf-editor");
-    let unit = state.unit;
+    let unit = state.unit, grade = curGrade();
     const draw = async () => {
-      delete state.cache[unit];
+      delete state.cache[`${grade}:${unit}`];
+      if (window.ENGO_DATA) await window.ENGO_DATA.ensure("wordform", grade);
       let list = [];
-      try { list = (await apiRequest(`/api/word-families?unit=${unit}`)).families || []; } catch (e) { box.innerHTML = esc(e.message); return; }
+      try { list = (await apiRequest(`/api/word-families?grade=${grade}&unit=${unit}`)).families || []; } catch (e) { box.innerHTML = esc(e.message); return; }
       box.innerHTML = `
-        <div class="pp-toolbar"><select id="wfEdUnit">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${unit === i + 1 ? "selected" : ""}>${esc(unitName(i + 1))}</option>`).join("")}</select><button type="button" class="btn btn-primary btn-sm" id="wfNew"><i class=mi>add</i> Thêm họ từ</button></div>
+        <div class="pp-toolbar"><select id="wfEdGrade"><option value="8" ${grade === 8 ? "selected" : ""}>Khối 8</option><option value="9" ${grade === 9 ? "selected" : ""}>Khối 9</option></select><select id="wfEdUnit">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${unit === i + 1 ? "selected" : ""}>${esc(unitName(i + 1, grade))}</option>`).join("")}</select><button type="button" class="btn btn-primary btn-sm" id="wfNew"><i class=mi>add</i> Thêm họ từ</button></div>
         <div class="wf-ed-list">${list.map(f => `<div class="wf-ed-row"><div><b>${esc(f.root)}</b>: ${f.members.map(x => `${esc(x.w)} <i>${esc(x.pos)}</i>`).join(", ")}<br><small class="muted">${(f.items || []).length} câu luyện${f.source === "teacher" ? " · GV đã sửa" : ""}</small></div><div class="pp-actions"><button type="button" class="btn btn-light btn-sm" data-ed="${f.id}"><i class=mi>edit</i></button><button type="button" class="btn btn-light btn-sm pp-danger" data-rm="${f.id}"><i class=mi>delete</i></button></div></div>`).join("") || `<p class="small muted">Chưa có họ từ.</p>`}</div>
         <form class="wf-ed-form hidden" id="wfForm">
           <input type="hidden" name="id">
@@ -291,6 +303,7 @@
           <div class="auth-error" id="wfFormErr"></div>
           <button type="submit" class="btn btn-primary">Lưu họ từ</button>
         </form>`;
+      box.querySelector("#wfEdGrade").addEventListener("change", e => { grade = Number(e.target.value); draw(); });
       box.querySelector("#wfEdUnit").addEventListener("change", e => { unit = Number(e.target.value); draw(); });
       const form = box.querySelector("#wfForm");
       const fill = f => {
@@ -311,7 +324,7 @@
         e.preventDefault();
         const members = form.members.value.split("\n").map(l => l.split("|").map(x => x.trim())).filter(p => p[0]).map(([w, pos, vi]) => ({ w, pos: (pos || "n").toLowerCase(), vi: vi || "" }));
         const items = form.items.value.split("\n").map(l => l.split("|").map(x => x.trim())).filter(p => p[0] && p[1]).map(([s, a]) => ({ s, a }));
-        const payload = { unit, root: form.root.value.trim(), members, items };
+        const payload = { grade, unit, root: form.root.value.trim(), members, items };
         try {
           const d = form.id.value
             ? await apiRequest(`/api/word-families/${form.id.value}`, { method: "PUT", body: JSON.stringify(payload) })
@@ -325,6 +338,9 @@
   }
 
   window.addEventListener("engo:view", e => { if (e.detail === "vocabulary") render(); if (e.detail === "teacher-home") teacherTools(); });
+  window.addEventListener("engo:grade-change", () => {
+    if (document.getElementById("vocabulary")?.classList.contains("active")) { state.game = null; render(); }
+  });
   window.addEventListener("engo:user-ready", () => {
     const a = document.querySelector(".view.active");
     if (a && a.id === "vocabulary") render();

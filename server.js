@@ -4,13 +4,11 @@ const bcrypt = (() => { try { return require("bcrypt"); } catch (e) { return req
 const jwt = require("jsonwebtoken");
 const path = require("path");
 const https = require("https");
-const dns = require("dns").promises;
 const express = require("express");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
 const minifier = require("./services/minify");
-const mammoth = require("mammoth");
 
 const pool = require("./database/db");
 const { parseDocxAssessment } = require("./services/docx-assessment-parser");
@@ -569,317 +567,6 @@ app.get("/api/tts", (req, res) => {
     console.error("TTS proxy error:", err);
     res.status(500).send("TTS Error");
   });
-});
-
-const DISPOSABLE_EMAIL_DOMAINS = new Set([
-  "tempmail.com", "10minutemail.com", "mailinator.com", "guerrillamail.com",
-  "yopmail.com", "sharklasers.com", "trashmail.com", "getairmail.com",
-  "dispostable.com", "burnermail.io", "fakeinbox.com", "temp-mail.org",
-  "throwawaymail.com", "getnada.com", "fakemailgenerator.com", "mohmal.com",
-  "crazymailing.com", "tempail.com", "emailondeck.com", "maildrop.cc"
-]);
-
-const ABSTRACT_EMAIL_API_KEY = process.env.ABSTRACT_EMAIL_API_KEY || "";
-const HUNTER_EMAIL_API_KEY = process.env.HUNTER_EMAIL_API_KEY || "";
-
-function isGibberishUsername(username) {
-  const u = String(username || "").toLowerCase();
-  if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(u)) return true;
-
-  const lettersOnly = u.replace(/[^a-z]/g, "");
-  if (lettersOnly.length >= 7) {
-    const vowels = (lettersOnly.match(/[aeiou]/g) || []).length;
-    const vowelRatio = vowels / lettersOnly.length;
-    if (vowelRatio < 0.15) return true;
-  }
-
-  const spamPatterns = [
-    "asdf", "dfgh", "ghjk", "hjkl", "jkl;", "qwerty", "werty", "ertyu", "rtyui", "tyuio",
-    "zxcv", "xcvb", "cvbn", "vbnm", "aksj", "sjod", "joda", "jodw", "odaw", "dajo", "ajod",
-    "12345", "23456", "34567", "45678", "56789", "aaaaa", "bbbbb", "ccccc", "ddddd"
-  ];
-  let spamCount = 0;
-  for (const pat of spamPatterns) {
-    if (u.includes(pat)) {
-      spamCount++;
-      if (pat.length >= 5 || spamCount >= 2) return true;
-    }
-  }
-  return false;
-}
-
-async function verifyEmailWithAPI(email) {
-  if (ABSTRACT_EMAIL_API_KEY) {
-    try {
-      const res = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${ABSTRACT_EMAIL_API_KEY}&email=${encodeURIComponent(email)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.deliverability === "UNDELIVERABLE" || data.is_smtp_valid?.value === false) {
-          return { valid: false, reason: "Hộp thư Gmail này không tồn tại trên hệ thống của Google." };
-        }
-        if (data.deliverability === "DELIVERABLE" && data.is_smtp_valid?.value === true) {
-          return { valid: true, domain: email.split("@")[1], isGmail: email.includes("gmail"), provider: "AbstractAPI" };
-        }
-      }
-    } catch (e) {
-      console.warn("[EmailAPI] AbstractAPI check failed:", e.message);
-    }
-  }
-
-  if (HUNTER_EMAIL_API_KEY) {
-    try {
-      const res = await fetch(`https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_EMAIL_API_KEY}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.result === "undeliverable") {
-          return { valid: false, reason: "Địa chỉ email này không tồn tại trên hệ thống máy chủ." };
-        }
-        if (data.data?.result === "deliverable") {
-          return { valid: true, domain: email.split("@")[1], isGmail: email.includes("gmail"), provider: "Hunter.io" };
-        }
-      }
-    } catch (e) {
-      console.warn("[EmailAPI] Hunter.io check failed:", e.message);
-    }
-  }
-
-  return null;
-}
-
-async function verifyEmailAddress(email) {
-  const trimmed = String(email || "").trim().toLowerCase();
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
-  if (!trimmed || !emailRegex.test(trimmed)) {
-    return { valid: false, reason: "Định dạng email không hợp lệ (ví dụ đúng: student@gmail.com)." };
-  }
-
-  const [username, domain] = trimmed.split("@");
-  if (!username || !domain) {
-    return { valid: false, reason: "Email thiếu tên người dùng hoặc tên miền." };
-  }
-
-  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
-    return { valid: false, reason: "Không được sử dụng email tạm thời / email rác để đăng ký." };
-  }
-
-  if (domain === "gmail.com" || domain === "googlemail.com") {
-    if (username.length < 6 || username.length > 30) {
-      return { valid: false, reason: "Tên tài khoản Gmail phải có độ dài từ 6 đến 30 ký tự." };
-    }
-    if (!/^[a-z0-9.]+$/.test(username)) {
-      return { valid: false, reason: "Tên tài khoản Gmail chỉ được chứa chữ cái (a-z), số (0-9) và dấu chấm (.)." };
-    }
-    if (username.startsWith(".") || username.endsWith(".") || username.includes("..")) {
-      return { valid: false, reason: "Tên tài khoản Gmail không được bắt đầu, kết thúc bằng dấu chấm hoặc chứa 2 dấu chấm liên tiếp." };
-    }
-    if (isGibberishUsername(username)) {
-      return { valid: false, reason: "Tên email có dạng gõ phím ngẫu nhiên / không có thật. Vui lòng nhập email thật." };
-    }
-  }
-
-  const apiResult = await verifyEmailWithAPI(trimmed);
-  if (apiResult !== null) {
-    return apiResult;
-  }
-
-  try {
-    const mxRecords = await dns.resolveMx(domain);
-    if (!mxRecords || mxRecords.length === 0) {
-      return { valid: false, reason: `Tên miền @${domain} không có máy chủ nhận email (MX record).` };
-    }
-    return {
-      valid: true,
-      domain,
-      isGmail: domain === "gmail.com" || domain === "googlemail.com",
-      mxHost: mxRecords[0].exchange
-    };
-  } catch (err) {
-    if (["gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "edu.vn"].includes(domain)) {
-      return { valid: true, domain, isGmail: domain.includes("gmail"), isFallback: true };
-    }
-    return { valid: false, reason: `Tên miền @${domain} không tồn tại trên hệ thống máy chủ thư (${err.code || "ENOTFOUND"}).` };
-  }
-}
-
-function escapeHTML(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-const emailOtpStore = new Map();
-const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
-
-async function sendEmailOTP(recipientEmail, fullName, otpCode) {
-  const brandName = "ENGO Learning Hub";
-  const htmlContent = `
-    <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06)">
-      <div style="background:linear-gradient(135deg,#4f46e5,#3b82f6);padding:32px 24px;text-align:center;color:#ffffff">
-        <h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-0.5px">ENGO Learning Hub</h1>
-        <p style="margin:8px 0 0;font-size:14px;color:#e0e7ff">Hệ thống học và kiểm tra tiếng Anh thông minh</p>
-      </div>
-      <div style="padding:32px 28px;color:#1e293b">
-        <h2 style="margin-top:0;font-size:20px;color:#0f172a">Xác thực tài khoản của bạn</h2>
-        <p style="font-size:15px;line-height:1.6;color:#475569">
-          Xin chào <strong>${escapeHTML(fullName || "bạn")}</strong>,<br>
-          Bạn vừa yêu cầu đăng ký tài khoản tại <strong>ENGO Learning Hub</strong>. Vui lòng sử dụng mã xác nhận (OTP) 6 chữ số dưới đây để kích hoạt tài khoản:
-        </p>
-
-        <div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:12px;padding:20px;text-align:center;margin:24px 0">
-          <span style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:8px">Mã xác thực của bạn</span>
-          <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#4f46e5;font-family:monospace">${otpCode}</div>
-          <span style="font-size:12px;color:#94a3b8;display:block;margin-top:8px">⏱ Mã có hiệu lực trong vòng 5 phút</span>
-        </div>
-
-        <p style="font-size:13px;color:#64748b;line-height:1.5">
-          ⚠️ <em>Lưu ý: Không chia sẻ mã này cho bất kỳ ai. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</em>
-        </p>
-      </div>
-      <div style="background:#f1f5f9;padding:16px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0">
-        © 2026 ENGO Learning Hub · Hotline hỗ trợ học sinh: 1900 6868
-      </div>
-    </div>
-  `;
-
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: "ENGO Learning Hub <onboarding@resend.dev>",
-        to: [recipientEmail],
-        subject: `[ENGO] ${otpCode} là mã xác thực đăng ký tài khoản của bạn`,
-        html: htmlContent
-      })
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.warn("[Resend Notice]:", data.message || data);
-      console.log(`[ENGO OTP DEV] Mã OTP gửi tới ${recipientEmail}: ${otpCode}`);
-    }
-    return { success: true, resendId: data.id };
-  } catch (err) {
-    console.error("[Email OTP Send Error]:", err.message);
-    console.log(`[ENGO OTP DEV FALLBACK] Mã OTP gửi tới ${recipientEmail}: ${otpCode}`);
-    return { success: true, fallback: true };
-  }
-}
-
-app.post("/api/auth/send-otp", async (req, res) => {
-  try {
-    await assessmentReady;
-    const { email, fullName } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Vui lòng cung cấp địa chỉ email." });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-
-    const emailCheck = await verifyEmailAddress(normalizedEmail);
-    if (!emailCheck.valid) {
-      return res.status(400).json({ success: false, message: emailCheck.reason });
-    }
-
-    const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);
-    if (existing.length) {
-      return res.status(409).json({ success: false, message: "Email này đã được đăng ký tài khoản trên hệ thống." });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
-
-    emailOtpStore.set(normalizedEmail, { otp, expiresAt, attempts: 0 });
-
-    const sendResult = await sendEmailOTP(normalizedEmail, fullName, otp);
-
-    const isDirectRecipient = normalizedEmail === "khoa1029384756@gmail.com";
-    const devHint = isDirectRecipient
-      ? `Đã gửi mã xác nhận 6 số đến hộp thư ${normalizedEmail}. Vui lòng kiểm tra hộp thư đến (hoặc thư rác/spam).`
-      : `Đã gửi mã xác nhận! [Mã OTP của bạn: ${otp}]. (Mã cũng đã được ghi nhận an toàn trên hệ thống).`;
-
-    return res.json({
-      success: true,
-      message: devHint,
-      devOtp: otp,
-      expiresInSeconds: 300
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống khi gửi mã xác thực: " + err.message });
-  }
-});
-
-app.get("/api/auth/verify-email", async (req, res) => {
-  const email = req.query.email;
-  if (!email) {
-    return res.status(400).json({ success: false, valid: false, message: "Vui lòng cung cấp email cần kiểm tra." });
-  }
-  const checkResult = await verifyEmailAddress(email);
-  return res.json({
-    success: true,
-    valid: checkResult.valid,
-    message: checkResult.valid ? "Email hợp lệ và có máy chủ thư điện tử (MX) hoạt động thật." : checkResult.reason,
-    details: checkResult
-  });
-});
-
-app.post("/api/auth/register", async (req, res) => {
-  try {
-    await assessmentReady;
-    const { fullName, email, password, role = "student", className, otp } = req.body;
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập đầy đủ thông tin." });
-    }
-    if (String(password).length < 6) {
-      return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
-    }
-    if (role === "parent") {
-      return res.status(400).json({ success: false, message: "Tài khoản phụ huynh do nhà trường cấp hoặc liên kết qua mã học sinh, không thể tự đăng ký tự do." });
-    }
-    if (!["student", "teacher"].includes(role)) {
-      return res.status(400).json({ success: false, message: "Vai trò đăng ký không hợp lệ." });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    if (!normalizedEmail.includes("@") || !normalizedEmail.includes(".")) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập địa chỉ email hợp lệ." });
-    }
-
-    const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [normalizedEmail]);
-    if (existing.length) {
-      return res.status(409).json({ success: false, message: "Email này đã được đăng ký." });
-    }
-
-    const studentClass = role === "student" ? (String(className || "").trim() || null) : null;
-    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const status = role === "teacher" ? "pending" : "active";
-    let insertSql = "INSERT INTO users (full_name, email, password_hash, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?)";
-    let insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, role, studentClass, status];
-    try {
-      const [cols] = await pool.query("SHOW COLUMNS FROM users LIKE 'password'");
-      if (cols && cols.length > 0) {
-        insertSql = "INSERT INTO users (full_name, email, password_hash, password, role, class_name, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        insertParams = [String(fullName).trim(), normalizedEmail, passwordHash, passwordHash, role, studentClass, status];
-      }
-    } catch (e) {}
-    const [result] = await pool.execute(insertSql, insertParams);
-
-    return res.status(201).json({
-      success: true,
-      message: status === "active" ? "Đăng ký tài khoản thành công! Đang chuyển hướng..." : "Đăng ký thành công. Tài khoản giáo viên đang chờ duyệt.",
-      userId: result.insertId,
-      status,
-    });
-  } catch (error) {
-    console.error("Lỗi đăng ký:", error);
-    return res.status(500).json({ success: false, message: "Lỗi đăng ký: " + error.message });
-  }
 });
 
 app.post("/api/auth/login", async (req, res) => {
@@ -2606,7 +2293,7 @@ app.get("/api/teacher/speaking-submissions", requireLogin, requirePermission("sp
   }
 });
 
-app.get("/api/classes", async (req, res) => {
+app.get("/api/classes", requireLogin, async (req, res) => {
   let classes = [...DEFAULT_CLASSES];
   try {
     const [rows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> ''");
@@ -2789,20 +2476,26 @@ app.get("/api/teacher/students-overview", requireLogin, requirePermission("progr
     if (className) { query += " AND u.class_name = ?"; params.push(className); }
     query += " ORDER BY u.class_name, u.full_name LIMIT 300";
     const [students] = await pool.execute(query, params);
-    const overview = [];
-    for (const s of students) {
-      const p = await progressService.buildStudentProgress(s.id);
-      overview.push({
-        id: s.id, fullName: s.full_name, email: s.email, className: s.class_name || "Chưa phân lớp",
-        tests: { count: p.tests.count, avgScore: p.tests.avgScore, bestScore: p.tests.bestScore, improvement: p.tests.improvement, pending: p.tests.pending },
-        speaking: { attempts: p.speaking.totalAttempts, avgAccuracy: p.speaking.avgAccuracy, stage1: p.speaking.stages[1]?.avgAccuracy || 0, stage2: p.speaking.stages[2]?.avgAccuracy || 0 },
-        vocab: { sets: p.vocab.setsCompleted, avg: p.vocab.avgQuizPercent },
-        healing: p.healing.healed,
-        skills: p.skills, overall: p.overall, activeDays: p.activeDays,
-        titles: p.earnedTitles.map(t => t.name),
-        lastActive: p.events[0]?.createdAt || null
-      });
-    }
+    const overview = new Array(students.length);
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < students.length) {
+        const idx = cursor++;
+        const s = students[idx];
+        const p = await progressService.buildStudentProgress(s.id);
+        overview[idx] = {
+          id: s.id, fullName: s.full_name, email: s.email, className: s.class_name || "Chưa phân lớp",
+          tests: { count: p.tests.count, avgScore: p.tests.avgScore, bestScore: p.tests.bestScore, improvement: p.tests.improvement, pending: p.tests.pending },
+          speaking: { attempts: p.speaking.totalAttempts, avgAccuracy: p.speaking.avgAccuracy, stage1: p.speaking.stages[1]?.avgAccuracy || 0, stage2: p.speaking.stages[2]?.avgAccuracy || 0 },
+          vocab: { sets: p.vocab.setsCompleted, avg: p.vocab.avgQuizPercent },
+          healing: p.healing.healed,
+          skills: p.skills, overall: p.overall, activeDays: p.activeDays,
+          titles: p.earnedTitles.map(t => t.name),
+          lastActive: p.events[0]?.createdAt || null
+        };
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(10, Math.max(1, students.length)) }, worker));
     return res.json({ success: true, students: overview });
   } catch (error) {
     logSchemaError(error);
@@ -2877,9 +2570,14 @@ app.post("/api/ai/translate-and-ipa", requireLogin, requirePermission("ai.use"),
   }
 });
 
+function queryGrade(req) {
+  const g = Number(req.query.grade);
+  return g === 8 ? 8 : 9;
+}
+
 app.get("/api/units", requireLogin, (req, res) => {
   try {
-    return res.json({ success: true, ...unitsData.summary() });
+    return res.json({ success: true, ...unitsData.summary(queryGrade(req)) });
   } catch (error) {
     console.error("Lỗi đọc học liệu theo unit:", error);
     return res.status(500).json({ success: false, message: "Không đọc được học liệu theo unit." });
@@ -2891,13 +2589,13 @@ app.get("/api/units/:n", requireLogin, (req, res) => {
   if (!Number.isInteger(n) || n < 1 || n > 12) {
     return res.status(400).json({ success: false, message: "Unit phải là số từ 1 đến 12." });
   }
-  const data = unitsData.unit(n);
+  const data = unitsData.unit(n, queryGrade(req));
   if (!data) return res.status(404).json({ success: false, message: `Chưa có học liệu cho Unit ${n}.` });
   return res.json({ success: true, ...data });
 });
 
 app.get("/api/units/meta/error-codes", requireLogin, (req, res) => {
-  return res.json({ success: true, codes: unitsData.errorCodes() });
+  return res.json({ success: true, codes: unitsData.errorCodes(queryGrade(req)) });
 });
 
 app.get("/api/exams/specs", requireLogin, (req, res) => {
@@ -2950,6 +2648,10 @@ app.post("/api/exams/specs/:id/import", requireLogin, requirePermission("tests.m
     console.error("Lỗi nạp đề vào khung:", error);
     return res.status(400).json({ success: false, message: error.message || "Không nạp được đề. Kiểm tra lại tệp Word." });
   }
+});
+
+app.use("/api", (req, res) => {
+  res.status(404).json({ success: false, message: "Endpoint không tồn tại." });
 });
 
 app.use((req, res) => {

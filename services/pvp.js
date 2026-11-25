@@ -110,25 +110,40 @@ async function playerInfo(userId) {
   return info;
 }
 
-let vocabPool = null;
-function vocabCards() {
-  if (vocabPool) return vocabPool;
-  const units = unitsData.load().vocab || {};
-  vocabPool = [];
+const vocabPools = new Map();
+function gradeOfClass(cls) {
+  const m = String(cls || "").trim().match(/^([89])/);
+  return m ? Number(m[1]) : 9;
+}
+function loadVocabForGrade(grade) {
+  const units = unitsData.load(grade).vocab || {};
+  const list = [];
   for (const [key, u] of Object.entries(units)) {
     const unit = Number(String(key).replace(/\D/g, "")) || u.unit;
     for (const c of u.cards || []) {
       const w = String(c.w || "").replace(/\s*\([^)]*\)\s*/g, " ").trim();
       const vi = String(c.vi || "").trim();
-      if (w && vi && w.length <= 28) vocabPool.push({ unit, w, vi, pos: c.pos || "" });
+      if (w && vi && w.length <= 28) list.push({ grade, unit, w, vi, pos: c.pos || "" });
     }
   }
-  return vocabPool;
+  return list;
+}
+function vocabCards(grade = 9) {
+  const key = grade === "all" ? "all" : (Number(grade) === 8 ? 8 : 9);
+  if (vocabPools.has(key)) return vocabPools.get(key);
+  const list = key === "all" ? [...loadVocabForGrade(8), ...loadVocabForGrade(9)] : loadVocabForGrade(key);
+  vocabPools.set(key, list);
+  return list;
 }
 
-async function wordFamilyItems(unit) {
+async function wordFamilyItems(unit, grade = 9) {
   try {
-    const [rows] = await pool.execute(unit ? "SELECT members_json, items_json FROM word_families WHERE unit = ?" : "SELECT members_json, items_json FROM word_families", unit ? [unit] : []);
+    const where = [];
+    const params = [];
+    if (grade === 8 || grade === 9) { where.push("grade = ?"); params.push(grade); }
+    if (unit) { where.push("unit = ?"); params.push(Number(unit)); }
+    const sql = "SELECT members_json, items_json FROM word_families" + (where.length ? " WHERE " + where.join(" AND ") : "");
+    const [rows] = await pool.execute(sql, params);
     const out = [];
     for (const r of rows) {
       const members = (typeof r.members_json === "string" ? JSON.parse(r.members_json) : r.members_json) || [];
@@ -139,11 +154,11 @@ async function wordFamilyItems(unit) {
   } catch (e) { return []; }
 }
 
-async function buildQuestions(unit) {
-  const cards = vocabCards();
+async function buildQuestions(unit, grade = 9) {
+  const cards = vocabCards(grade);
   const scoped = unit ? cards.filter(c => c.unit === Number(unit)) : cards;
   const pool1 = scoped.length >= 8 ? scoped : cards;
-  const wf = shuffle(await wordFamilyItems(unit ? Number(unit) : null));
+  const wf = shuffle(await wordFamilyItems(unit ? Number(unit) : null, grade));
   const qs = [];
   const used = new Set();
   const pickCard = () => { for (let t = 0; t < 50; t++) { const c = pool1[Math.floor(Math.random() * pool1.length)]; if (!used.has(c.w)) { used.add(c.w); return c; } } return pool1[0]; };
@@ -182,12 +197,18 @@ function broadcast(m, event, dataFor) {
 function clearTimers(m) { (m.timers || []).forEach(t => clearTimeout(t)); m.timers = []; }
 function later(m, ms, fn) { const t = setTimeout(fn, ms); m.timers.push(t); return t; }
 
-async function createMatch({ mode, difficulty = null, unit = null, players }) {
+function sharedGrade(players) {
+  const gs = players.filter(p => !p.bot).map(p => gradeOfClass(p.className));
+  return gs.length && gs.every(g => g === gs[0]) ? gs[0] : "all";
+}
+
+async function createMatch({ mode, difficulty = null, unit = null, grade = null, players }) {
   const cfg = mode === "bot" ? BOT[difficulty] : HUMAN;
+  const matchGrade = (grade === 8 || grade === 9) ? grade : sharedGrade(players);
   const m = {
-    id: newId(8), mode, difficulty, unit, seconds: cfg.seconds,
+    id: newId(8), mode, difficulty, unit, grade: matchGrade, seconds: cfg.seconds,
     players: players.map(p => ({ ...p, score: 0, answers: [], correct: 0, connected: true })),
-    questions: await buildQuestions(unit), qi: -1, phase: "countdown", qStart: 0, timers: [], createdAt: Date.now(),
+    questions: await buildQuestions(unit, matchGrade), qi: -1, phase: "countdown", qStart: 0, timers: [], createdAt: Date.now(),
   };
   matches.set(m.id, m);
   for (const id of humanIds(m)) { userMatch.set(id, m.id); queue.delete(id); }
@@ -435,14 +456,15 @@ function busy(userId) {
   if (currentMatch(userId)) throw Object.assign(new Error("Bạn đang ở trong một trận đấu."), { status: 409 });
 }
 
-async function startBot(userId, difficulty, unit) {
+async function startBot(userId, difficulty, unit, grade) {
   if (!BOT[difficulty]) throw Object.assign(new Error("Chế độ bot không hợp lệ."), { status: 400 });
   busy(userId);
   queue.delete(Number(userId));
   const me = await playerInfo(userId);
   const cfg = BOT[difficulty];
+  const g = (Number(grade) === 8 || Number(grade) === 9) ? Number(grade) : gradeOfClass(me.className);
   const bot = { id: -1, bot: true, name: cfg.name, className: `Mức ${cfg.label}`, rating: { easy: 800, normal: 1100, hard: 1400 }[difficulty], title: `${cfg.seconds} giây/câu` };
-  const m = await createMatch({ mode: "bot", difficulty, unit: unit ? Number(unit) : null, players: [me, bot] });
+  const m = await createMatch({ mode: "bot", difficulty, unit: unit ? Number(unit) : null, grade: g, players: [me, bot] });
   return { matchId: m.id };
 }
 
@@ -596,7 +618,7 @@ function attach(app, { requireLogin, requirePermission, lockUser }) {
   app.get("/api/pvp/me", ...guard, wrap(req => stats(req.user.userId)));
   app.get("/api/pvp/online", ...guard, wrap(async req => { const me = await playerInfo(req.user.userId); return { players: await onlinePlayers(req.user.userId, me.className) }; }));
   app.get("/api/pvp/leaderboard", requireLogin, wrap(async req => { const me = await playerInfo(req.user.userId); return { players: await leaderboard({ className: req.query.scope === "class" ? me.className : null }) }; }));
-  app.post("/api/pvp/bot", ...guard, wrap(req => startBot(req.user.userId, String((req.body || {}).difficulty || ""), (req.body || {}).unit)));
+  app.post("/api/pvp/bot", ...guard, wrap(req => startBot(req.user.userId, String((req.body || {}).difficulty || ""), (req.body || {}).unit, (req.body || {}).grade)));
   app.post("/api/pvp/queue", ...guard, wrap(req => joinQueue(req.user.userId)));
   app.delete("/api/pvp/queue", ...guard, wrap(async req => leaveQueue(req.user.userId)));
   app.post("/api/pvp/invite", ...guard, wrap(req => invite(req.user.userId, (req.body || {}).userId)));

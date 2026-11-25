@@ -3,7 +3,10 @@ const path = require("path");
 const vm = require("vm");
 const pool = require("../database/db");
 
-const DATA_FILE = path.join(__dirname, "../public/data/word-families.js");
+const DATA_FILES = [
+  { grade: 9, file: path.join(__dirname, "../public/data/word-families.js"), key: "ENGO_WORD_FAMILIES" },
+  { grade: 8, file: path.join(__dirname, "../public/data/grade8/word-families.js"), key: "ENGO_G8_WORD_FAMILIES" }
+];
 const POS = ["n", "v", "adj", "adv"];
 
 let ready = null;
@@ -29,11 +32,11 @@ function ensureTable() {
   return ready;
 }
 
-function readSeed() {
-  if (!fs.existsSync(DATA_FILE)) return {};
+function readSeed(file, key) {
+  if (!fs.existsSync(file)) return {};
   const ctx = { window: {} };
-  vm.runInNewContext(fs.readFileSync(DATA_FILE, "utf8"), ctx);
-  return ctx.window.ENGO_WORD_FAMILIES || {};
+  vm.runInNewContext(fs.readFileSync(file, "utf8"), ctx);
+  return ctx.window[key] || {};
 }
 
 function clean(fam) {
@@ -51,15 +54,17 @@ function clean(fam) {
 }
 
 async function seed() {
-  const data = readSeed();
-  for (const [key, list] of Object.entries(data)) {
-    const unit = Number(String(key).replace(/\D/g, ""));
-    if (!unit) continue;
-    for (const fam of list || []) {
-      try {
-        const c = clean(fam);
-        await pool.execute("INSERT IGNORE INTO word_families (grade, unit, root, members_json, items_json, source) VALUES (9, ?, ?, ?, ?, 'seed')", [unit, c.root, JSON.stringify(c.members), JSON.stringify(c.items)]);
-      } catch (e) {}
+  for (const { grade, file, key } of DATA_FILES) {
+    const data = readSeed(file, key);
+    for (const [ukey, list] of Object.entries(data)) {
+      const unit = Number(String(ukey).replace(/\D/g, ""));
+      if (!unit) continue;
+      for (const fam of list || []) {
+        try {
+          const c = clean(fam);
+          await pool.execute("INSERT IGNORE INTO word_families (grade, unit, root, members_json, items_json, source) VALUES (?, ?, ?, ?, ?, 'seed')", [grade, unit, c.root, JSON.stringify(c.members), JSON.stringify(c.items)]);
+        } catch (e) {}
+      }
     }
   }
 }
