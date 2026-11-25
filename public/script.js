@@ -2162,6 +2162,68 @@ async function loadTeacherSpeakingSubmissions() {
   } catch (e) { tbody.innerHTML = `<tr><td colspan="8" class="small muted" style="color:#ef4444;text-align:center;padding:20px">${escapeHTML(e.message)}</td></tr>`; }
 }
 
+const capybaraChatWindow = document.getElementById("capybaraChatWindow");
+const capybaraChatInput = document.getElementById("capybaraChatInput");
+const capybaraChatMessages = document.getElementById("capybaraChatMessages");
+let chatHistory = [];
+function toggleCapybaraChat() {
+  if (!capybaraChatWindow) return;
+  const hidden = capybaraChatWindow.classList.contains("hidden");
+  capybaraChatWindow.classList.toggle("hidden", !hidden);
+  if (hidden) setTimeout(() => capybaraChatInput?.focus(), 150);
+}
+document.getElementById("capybaraChatTrigger")?.addEventListener("click", toggleCapybaraChat);
+document.getElementById("btnMinimizeChat")?.addEventListener("click", toggleCapybaraChat);
+let katexLoading = null;
+function ensureKatex() {
+  if (window.renderMathInElement) return Promise.resolve(true);
+  if (katexLoading) return katexLoading;
+  katexLoading = new Promise(res => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
+    document.head.appendChild(css);
+    const s1 = document.createElement("script");
+    s1.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js";
+    s1.onload = () => {
+      const s2 = document.createElement("script");
+      s2.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js";
+      s2.onload = () => res(true); s2.onerror = () => res(false);
+      document.head.appendChild(s2);
+    };
+    s1.onerror = () => res(false);
+    document.head.appendChild(s1);
+  });
+  return katexLoading;
+}
+function appendChatMessage(sender, text) {
+  if (!capybaraChatMessages) return;
+  const el = document.createElement("div"); el.className = sender === "user" ? "chat-msg user-msg" : "chat-msg capybara-msg";
+  const formatted = escapeHTML(text).replace(/### (.*)/g, '<strong style="display:block;font-size:14px;color:#047857;margin-bottom:6px">$1</strong>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\n\* (.*)/g, '<div style="margin-left:8px">• $1</div>').replace(/\n/g, "<br/>");
+  el.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="${sender}" /><div class="chat-bubble"><div>${formatted}</div></div>`;
+  capybaraChatMessages.appendChild(el); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
+  if (/\$|\\\[|\\\(/.test(String(text || ""))) {
+    ensureKatex().then(ok => {
+      try {
+        if (ok && window.renderMathInElement) renderMathInElement(el.querySelector(".chat-bubble"), { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }, { left: "$", right: "$", display: false }], throwOnError: false });
+      } catch (_) {}
+    });
+  }
+}
+async function sendCapybaraMessage(textToSend) {
+  if (!capybaraChatInput || !capybaraChatMessages) return;
+  const text = (textToSend || capybaraChatInput.value).trim(); if (!text) return;
+  appendChatMessage("user", text); capybaraChatInput.value = ""; chatHistory.push({ role: "user", content: text });
+  const typing = document.createElement("div"); typing.className = "chat-msg capybara-msg"; typing.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="Capybara" /><div class="chat-bubble"><em class="small muted">Capybara đang suy nghĩ...<i class=mi>chat_bubble</i></em></div>`;
+  capybaraChatMessages.appendChild(typing); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
+  try {
+    const res = await apiRequest("/api/ai/chat", { method: "POST", body: JSON.stringify({ message: text, history: chatHistory }) });
+    typing.remove(); appendChatMessage("capybara", res.reply || "Capybara đã nhận được câu hỏi!"); chatHistory.push({ role: "assistant", content: res.reply || "" });
+  } catch (err) { typing.remove(); appendChatMessage("capybara", "Chào bạn! " + err.message); }
+}
+document.getElementById("capybaraChatSendBtn")?.addEventListener("click", () => sendCapybaraMessage());
+capybaraChatInput?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendCapybaraMessage(); } });
+document.querySelectorAll(".chat-chip").forEach(chip => chip.addEventListener("click", () => sendCapybaraMessage(chip.dataset.prompt)));
+
 document.getElementById("globalSearch")?.addEventListener("keydown", e => {
   if (e.key !== "Enter" || !currentUser) return;
   const q = e.target.value.trim().toLowerCase(); if (!q) return;
