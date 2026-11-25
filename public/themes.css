@@ -235,7 +235,7 @@ body.dark-mode .stat-violet{color:#c4b5fd}body.dark-mode .stat-red{color:#fca5a5
 
 .vocab-modes{display:flex;gap:8px;flex-wrap:wrap}
 .vocab-modes .btn{font-size:13.5px;padding:9px 13px}
-.vq-image{display:block;width:min(100%,340px);max-height:210px;object-fit:cover;border-radius:16px;margin:0 auto 14px;box-shadow:var(--shadow)}
+.vq-image{display:block;width:auto;max-width:min(100%,360px);height:auto;max-height:220px;object-fit:contain;border-radius:16px;margin:0 auto 14px;background:#fff;box-shadow:var(--shadow)}
 .vq-hint{font-family:var(--font-mono);letter-spacing:.18em;background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:2px 8px}
 .vq-spell{font-size:22px!important;font-weight:700;text-align:center;letter-spacing:.02em;min-height:58px}
 .vq-spell.ok{border-color:#22c55e;background:rgba(34,197,94,.10)}

@@ -2102,10 +2102,10 @@
 .unit-word-lg .unit-ex em { font-size: 14px; }
 .unit-word-lg .unit-say { width: 38px; height: 38px; font-size: 18px; border-radius: 10px; }
 .unit-word-lg .unit-say.mini { width: 28px; height: 28px; font-size: 14px; }
-.unit-word-img { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; background: var(--surface-3); order: -1; }
+.unit-word-img { width: 100%; height: 150px; object-fit: contain; border-radius: 10px; background: #fff; border: 1px solid var(--line-2); padding: 4px; order: -1; }
 .unit-word-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-.flash-img { width: min(100%, 280px); height: 145px; object-fit: cover; border-radius: 14px; margin-bottom: 12px; flex-shrink: 0; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
-.flash-face.back .flash-img { height: 110px; }
+.flash-img { display: block; width: auto; max-width: min(100%, 320px); height: auto; max-height: 175px; object-fit: contain; border-radius: 14px; margin: 0 auto 12px; flex-shrink: 0; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
+.flash-face.back .flash-img { max-width: min(100%, 260px); max-height: 130px; }
 body.dark-mode .unit-word-lg .unit-vi { color: var(--ink); }
 .unit-lv { display: inline-block; border-radius: 5px; padding: 1px 7px; font-size: 12px; font-weight: 700; margin-right: 6px; }
 .unit-lv.lv1 { background: #ecfdf5; color: #047857; }
@@ -2205,6 +2205,7 @@ body.dark-mode .unit-word-lg .unit-vi { color: var(--ink); }
       .speaking-actions{flex-wrap:wrap;gap:8px}.speaking-actions>div{width:100%;display:flex;gap:8px}.speaking-actions .btn{flex:1}
       .speaking-practice-head{flex-direction:column}
       .flash-word{font-size:34px}.flash-face{padding:18px}.flash-examples li{font-size:13px}
+      .flash-img{max-height:145px}.flash-face.back .flash-img{max-height:110px}
       .flash-controls .btn{flex:1 1 30%;padding:9px 6px;font-size:12px}
       .flash-finish{flex-direction:column;align-items:stretch}
       .healing-tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;padding-bottom:4px}.healing-tab{white-space:nowrap;padding:8px 12px;font-size:12px}
