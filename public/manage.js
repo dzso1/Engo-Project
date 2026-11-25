@@ -3,10 +3,30 @@
   const me = () => (typeof currentUser !== "undefined" ? currentUser : null);
   const ROLE_VI = { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị" };
   const STATUS_VI = { active: "Hoạt động", pending: "Chờ duyệt", locked: "Đã khoá" };
-  const state = { tab: "users", users: [], scope: null, parents: [], classes: [], available: [], filter: { q: "", role: "", cls: "", status: "" }, importRows: [], importResult: null, rbac: null };
+  const state = { tab: "users", users: [], scope: null, parents: [], classes: [], available: [], classList: [], filter: { q: "", grade: "", role: "", cls: "", status: "" }, importRows: [], importResult: null, rbac: null };
   const root = () => document.getElementById("peopleRoot");
   const sortCls = list => [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
   const isFull = () => window.can("users.manage");
+  const gradeOf = cls => { const m = String(cls || "").trim().match(/^([89])/); return m ? Number(m[1]) : null; };
+  function normCls(v, gradeHint) {
+    let s = String(v || "").trim().replace(/\s+/g, "").toUpperCase();
+    if (!s) return "";
+    const g = [8, 9].includes(Number(gradeHint)) ? String(Number(gradeHint)) : "";
+    if (g && /^[A-Z]/.test(s)) s = g + s;
+    return s;
+  }
+  const CLASS_NOTE = `<div class="pp-note"><i class=mi>info</i> Lưu ý: Tên lớp tự động in hoa chữ <b>A</b> (VD: <code>8a1</code> → <code>8A1</code>, <code>9a6</code> → <code>9A6</code>).</div>`;
+  function bindUpperInput(el) {
+    if (!el) return;
+    el.addEventListener("input", () => {
+      const pos = el.selectionStart;
+      const next = el.value.toUpperCase().replace(/\s+/g, "");
+      if (el.value !== next) {
+        el.value = next;
+        try { el.setSelectionRange(pos, pos); } catch (_) {}
+      }
+    });
+  }
 
   function dialog(title, bodyHtml, { wide = false } = {}) {
     const m = document.createElement("div");
@@ -20,6 +40,9 @@
 
   async function loadAll() {
     const tasks = [apiRequest("/api/admin/users").then(d => { state.users = d.users || []; state.scope = d.scope || null; })];
+    if (window.canAny("users.manage", "students.manage", "classes.settings")) {
+      tasks.push(apiRequest("/api/admin/classes").then(d => { state.classList = d.classes || []; }).catch(() => { state.classList = []; }));
+    }
     if (window.can("parents.manage")) tasks.push(apiRequest("/api/parents").then(d => { state.parents = d.parents || []; }).catch(() => { state.parents = []; }));
     if (window.canAny("classes.assign_self", "students.manage")) tasks.push(apiRequest("/api/teacher/my-classes").then(d => { state.classes = d.classes || []; state.available = d.available || []; }).catch(() => {}));
     await Promise.all(tasks);
@@ -33,9 +56,10 @@
 
   function tabsHtml() {
     const tabs = [["users", "Tài khoản"]];
+    if (window.canAny("users.manage", "classes.settings")) tabs.push(["classes", "Lớp học (8 & 9)"]);
     if (window.can("parents.manage")) tabs.push(["parents", "Phụ huynh"]);
     if (window.can("users.import")) tabs.push(["import", "Nhập Excel/CSV"]);
-    if (window.can("system.manage")) tabs.push(["rbac", "Phân quyền"]);
+    if (window.can("system.manage")) tabs.push(["rbac", "Phân quyền"], ["system", "Hệ thống"]);
     if (!tabs.some(t => t[0] === state.tab)) state.tab = "users";
     return `<div class="data-tabs pp-tabs">${tabs.map(([k, l]) => `<button type="button" class="data-tab ${state.tab === k ? "active" : ""}" data-pp-tab="${k}">${l}</button>`).join("")}</div>`;
   }
@@ -45,12 +69,12 @@
     if (!host) return;
     const teacherNoClass = !isFull() && me()?.role === "teacher" && !(state.classes || []).length;
     host.innerHTML = `
-      <div class="page-heading"><div><h2>Tài khoản &amp; lớp</h2><p>${isFull() ? "Quản lý tài khoản học sinh, giáo viên, phụ huynh và phân quyền toàn hệ thống." : "Quản lý học sinh và phụ huynh của các lớp bạn phụ trách."}</p></div></div>
+      <div class="page-heading"><div><h2>Tài khoản &amp; lớp</h2><p>${isFull() ? "Quản lý tài khoản, tạo lớp khối 8 &amp; 9 và phân quyền." : "Quản lý học sinh và phụ huynh các lớp phụ trách."}</p></div></div>
       <div class="card panel section pp-scope">
-        <div><strong>Phạm vi quản lý:</strong> ${scopeLine()}</div>
+        <div><strong>Phạm vi:</strong> ${scopeLine()}</div>
         ${window.can("classes.assign_self") ? `<button type="button" class="btn btn-soft btn-sm" id="ppPickClasses"><i class=mi>edit</i> Chọn lớp phụ trách</button>` : ""}
       </div>
-      ${teacherNoClass ? `<div class="notice pp-warn"><strong>Bạn chưa chọn lớp phụ trách.</strong><p>Hãy chọn các lớp mình dạy để xem và quản lý học sinh, phụ huynh, kết quả của các lớp đó.</p></div>` : ""}
+      ${teacherNoClass ? `<div class="notice pp-warn"><strong>Bạn chưa chọn lớp phụ trách.</strong><p>Chọn các lớp mình dạy để quản lý học sinh và xem kết quả.</p></div>` : ""}
       <div class="card panel section">
         <div class="section-head">${tabsHtml()}</div>
         <div id="ppBody"></div>
@@ -59,54 +83,113 @@
     host.querySelector("#ppPickClasses")?.addEventListener("click", openClassPicker);
     const body = host.querySelector("#ppBody");
     if (state.tab === "users") renderUsers(body);
+    else if (state.tab === "classes") renderClasses(body);
     else if (state.tab === "parents") renderParents(body);
     else if (state.tab === "import") renderImport(body);
     else if (state.tab === "rbac") renderRbac(body);
+    else if (state.tab === "system") renderSystem(body);
   }
 
-  function classOptions(selected, { allowEmpty = true } = {}) {
-    const list = isFull() ? sortCls([...(state.available || []), ...state.users.map(u => u.className)]) : sortCls((state.scope && state.scope.classes) || state.classes || []);
+  function knownClassList(gradeFilter) {
+    const fromApi = (state.classList || []).map(c => c.className);
+    const base = isFull()
+      ? sortCls([...fromApi, ...(state.available || []), ...state.users.map(u => u.className)])
+      : sortCls((state.scope && state.scope.classes) || state.classes || []);
+    if (gradeFilter === "8" || gradeFilter === "9" || gradeFilter === 8 || gradeFilter === 9) {
+      return base.filter(c => gradeOf(c) === Number(gradeFilter));
+    }
+    return base;
+  }
+
+  function classOptions(selected, { allowEmpty = true, grade = "" } = {}) {
+    if (!grade && !allowEmpty) {
+      const list = knownClassList("");
+      const g8 = list.filter(c => gradeOf(c) === 8);
+      const g9 = list.filter(c => gradeOf(c) === 9);
+      const other = list.filter(c => !gradeOf(c));
+      const opt = c => `<option value="${esc(c)}" ${c === selected ? "selected" : ""}>${esc(c)}</option>`;
+      return (g8.length ? `<optgroup label="Khối 8">${g8.map(opt).join("")}</optgroup>` : "") +
+        (g9.length ? `<optgroup label="Khối 9">${g9.map(opt).join("")}</optgroup>` : "") +
+        other.map(opt).join("");
+    }
+    const list = knownClassList(grade);
     return (allowEmpty ? `<option value="">— Lớp —</option>` : "") + list.map(c => `<option value="${esc(c)}" ${c === selected ? "selected" : ""}>${esc(c)}</option>`).join("");
   }
 
   function filteredUsers() {
     const f = state.filter;
     const q = f.q.trim().toLowerCase();
-    return state.users.filter(u => (!f.status || u.status === f.status) && (!f.role || u.role === f.role) && (!f.cls || u.className === f.cls || (u.children || []).some(c => c.className === f.cls)) && (!q || [u.fullName, u.email, u.phone, u.className].some(v => String(v || "").toLowerCase().includes(q))));
+    return state.users.filter(u => {
+      if (f.grade === "8" && !(u.role === "student" && gradeOf(u.className) === 8)) return false;
+      if (f.grade === "9" && !(u.role === "student" && gradeOf(u.className) === 9)) return false;
+      if (f.grade === "staff" && u.role === "student") return false;
+      if (f.status && u.status !== f.status) return false;
+      if (f.role && u.role !== f.role) return false;
+      if (f.cls && !(u.className === f.cls || (u.children || []).some(c => c.className === f.cls))) return false;
+      if (q && ![u.fullName, u.email, u.phone, u.className].some(v => String(v || "").toLowerCase().includes(q))) return false;
+      return true;
+    });
   }
 
   function renderUsers(body) {
     const f = state.filter;
     const list = filteredUsers();
+    const g8Count = state.users.filter(u => u.role === "student" && gradeOf(u.className) === 8).length;
+    const g9Count = state.users.filter(u => u.role === "student" && gradeOf(u.className) === 9).length;
+    const staffCount = state.users.filter(u => u.role !== "student").length;
     const counts = state.users.reduce((m, u) => { m[u.role] = (m[u.role] || 0) + 1; return m; }, {});
+    const gradeTabs = [
+      ["", `Tất cả (${state.users.length})`],
+      ["8", `Khối 8 (${g8Count})`],
+      ["9", `Khối 9 (${g9Count})`],
+      ...(isFull() ? [["staff", `GV / PH / QT (${staffCount})`]] : [])
+    ];
     body.innerHTML = `
+      <div class="pp-grade-bar">
+        <div class="seg">${gradeTabs.map(([k, lbl]) => `<button type="button" class="${f.grade === k ? "active" : ""}" data-pp-grade="${k}">${lbl}</button>`).join("")}</div>
+      </div>
       <div class="pp-toolbar">
-        <input type="search" id="ppQ" placeholder="Tìm tên, email, SĐT..." value="${esc(f.q)}">
+        <input type="search" id="ppQ" placeholder="Tìm tên, email, SĐT, lớp..." value="${esc(f.q)}">
         ${isFull() ? `<select id="ppRole"><option value="">Mọi vai trò</option>${Object.keys(ROLE_VI).map(r => `<option value="${r}" ${f.role === r ? "selected" : ""}>${ROLE_VI[r]} (${counts[r] || 0})</option>`).join("")}</select>` : ""}
-        <select id="ppCls"><option value="">Mọi lớp</option>${classOptions(f.cls, { allowEmpty: false })}</select>
+        <select id="ppCls"><option value="">Mọi lớp</option>${classOptions(f.cls, { allowEmpty: false, grade: f.grade === "8" || f.grade === "9" ? f.grade : "" })}</select>
         <select id="ppStatus"><option value="">Mọi trạng thái</option><option value="locked" ${f.status === "locked" ? "selected" : ""}>Đang bị khoá (${state.users.filter(u => u.status === "locked").length})</option><option value="pending" ${f.status === "pending" ? "selected" : ""}>Chờ duyệt</option></select>
         <span class="small muted">${list.length} tài khoản</span>
+        <button type="button" class="btn btn-soft btn-sm" id="ppCreateClassAcc"><i class=mi>group_add</i> Tạo TK lớp</button>
         <button type="button" class="btn btn-primary btn-sm" id="ppAdd"><i class=mi>person_add</i> Thêm tài khoản</button>
       </div>
-      <div class="table-wrap"><table class="pp-table"><thead><tr><th>Họ tên</th><th>Đăng nhập</th><th>Vai trò</th><th>Lớp / Con</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>${list.slice(0, 400).map(u => `<tr>
+      <div class="table-wrap"><table class="pp-table"><thead><tr><th>Họ tên</th><th>Đăng nhập</th><th>Vai trò</th><th>Khối · Lớp / Con</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>${list.slice(0, 400).map(u => {
+        const g = gradeOf(u.className);
+        const clsCell = u.role === "parent"
+          ? ((u.children || []).map(c => `${esc(c.fullName)} (${esc(c.className || "?")})`).join(", ") || "—")
+          : u.className
+            ? `<span class="badge ${g === 8 ? "blue" : g === 9 ? "green" : ""}">${g ? `K${g} · ` : ""}${esc(u.className)}</span>`
+            : "—";
+        return `<tr>
         <td><strong>${esc(u.fullName)}</strong>${u.mustChangePassword ? ` <span class="badge orange" title="Chưa đổi mật khẩu mặc định">MK mặc định</span>` : ""}</td>
         <td class="small">${esc(u.role === "parent" ? u.phone || u.email : u.email)}</td>
         <td><span class="badge">${ROLE_VI[u.role] || u.role}</span></td>
-        <td class="small">${u.role === "parent" ? (u.children || []).map(c => `${esc(c.fullName)} (${esc(c.className || "?")})`).join(", ") || "—" : esc(u.className || "—")}</td>
+        <td class="small">${clsCell}</td>
         <td><span class="badge ${u.status === "active" ? "green" : u.status === "locked" ? "red" : "orange"}">${STATUS_VI[u.status] || u.status}</span>${u.status === "locked" && u.lockReason ? `<small class="pp-lock">${esc(u.lockReason)}</small>` : ""}</td>
         <td><div class="pp-actions">
           <button type="button" class="btn btn-light btn-sm" data-edit="${u.id}" title="Sửa"><i class=mi>edit</i></button>
           ${u.role === "student" && window.can("rewards.manage") ? `<button type="button" class="btn btn-light btn-sm" data-rw="${u.id}" title="Level & cà rốt"><i class=ico-carrot></i></button>` : ""}
           ${Number(u.id) !== Number(me()?.id) ? `<button type="button" class="btn btn-light btn-sm" data-lock="${u.id}" title="${u.status === "locked" ? "Mở khoá" : "Khoá"}"><i class=mi>${u.status === "locked" ? "lock_open" : "lock"}</i></button>
           <button type="button" class="btn btn-light btn-sm pp-danger" data-del="${u.id}" title="Xoá"><i class=mi>delete</i></button>` : ""}
-        </div></td></tr>`).join("") || `<tr><td colspan="6" class="small muted" style="text-align:center;padding:20px">Không có tài khoản nào.</td></tr>`}</tbody></table></div>
+        </div></td></tr>`;
+      }).join("") || `<tr><td colspan="6" class="small muted" style="text-align:center;padding:20px">Không có tài khoản nào.</td></tr>`}</tbody></table></div>
       ${list.length > 400 ? `<p class="small muted">Đang hiển thị 400/${list.length} tài khoản — hãy lọc thêm.</p>` : ""}`;
     const rerender = () => renderUsers(body);
+    body.querySelectorAll("[data-pp-grade]").forEach(b => b.addEventListener("click", () => {
+      state.filter.grade = b.dataset.ppGrade;
+      if (state.filter.cls && (state.filter.grade === "8" || state.filter.grade === "9") && gradeOf(state.filter.cls) !== Number(state.filter.grade)) state.filter.cls = "";
+      rerender();
+    }));
     body.querySelector("#ppQ").addEventListener("input", e => { state.filter.q = e.target.value; clearTimeout(renderUsers.t); renderUsers.t = setTimeout(() => { rerender(); const i = body.querySelector("#ppQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 200); });
     body.querySelector("#ppRole")?.addEventListener("change", e => { state.filter.role = e.target.value; rerender(); });
     body.querySelector("#ppCls").addEventListener("change", e => { state.filter.cls = e.target.value; rerender(); });
     body.querySelector("#ppStatus").addEventListener("change", e => { state.filter.status = e.target.value; rerender(); });
+    body.querySelector("#ppCreateClassAcc")?.addEventListener("click", () => openClassAccountsModal(f.cls || "", f.grade === "8" || f.grade === "9" ? Number(f.grade) : 8));
     body.querySelector("#ppAdd").addEventListener("click", () => openUserForm(null));
     body.querySelectorAll("[data-rw]").forEach(b => b.addEventListener("click", () => openRewards(b.dataset.rw)));
     body.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openUserForm(state.users.find(u => String(u.id) === b.dataset.edit))));
@@ -121,29 +204,234 @@
     }));
   }
 
+  function renderClasses(body) {
+    const g8 = (state.classList || []).filter(c => Number(c.grade) === 8);
+    const g9 = (state.classList || []).filter(c => Number(c.grade) === 9);
+    const colHtml = (grade, list) => `
+      <div class="pp-class-col">
+        <div class="pp-class-head">
+          <h4>Khối ${grade} <span class="badge ${grade === 8 ? "blue" : "green"}">${list.length} lớp</span></h4>
+          <button type="button" class="btn btn-soft btn-sm" data-new-cls-acc="${grade}"><i class=mi>group_add</i> Tạo TK lớp K${grade}</button>
+        </div>
+        <div class="pp-class-list">${list.map(c => `
+          <div class="pp-class-item">
+            <strong>${esc(c.className)}</strong>
+            <span class="badge">${c.studentCount} HS</span>
+            <select data-cls-tier="${esc(c.className)}" data-cls-grade="${grade}">
+              <option value="regular" ${c.tier === "regular" ? "selected" : ""}>Thường</option>
+              <option value="advanced" ${c.tier === "advanced" ? "selected" : ""}>Tăng cường</option>
+            </select>
+            <div class="pp-class-acts">
+              <button type="button" class="btn btn-light btn-sm" data-cls-view="${esc(c.className)}" data-cls-grade="${grade}" title="Xem danh sách"><i class=mi>visibility</i></button>
+              <button type="button" class="btn btn-soft btn-sm" data-cls-acc="${esc(c.className)}" data-cls-grade="${grade}" title="Tạo tài khoản lớp"><i class=mi>person_add</i></button>
+              ${isFull() && c.studentCount === 0 ? `<button type="button" class="btn btn-light btn-sm pp-danger" data-cls-del="${esc(c.className)}" title="Xoá lớp"><i class=mi>delete</i></button>` : ""}
+            </div>
+          </div>`).join("") || `<p class="small muted">Chưa có lớp khối ${grade}.</p>`}</div>
+      </div>`;
+
+    body.innerHTML = `
+      <form class="pp-toolbar" id="ppClassCreateForm">
+        <select name="grade" id="ppClsGrade">
+          <option value="8">Khối 8</option>
+          <option value="9">Khối 9</option>
+        </select>
+        <input name="className" id="ppClsInput" placeholder="Tên lớp (VD: 8A1)" required style="max-width:170px">
+        <select name="tier">
+          <option value="regular">Lớp thường</option>
+          <option value="advanced">Lớp tăng cường</option>
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm"><i class=mi>add</i> Lưu lớp</button>
+        <button type="button" class="btn btn-soft btn-sm" id="ppOpenClsAccBtn"><i class=mi>group_add</i> Tạo tài khoản lớp</button>
+      </form>
+      ${CLASS_NOTE}
+      <div class="pp-class-grid">
+        ${colHtml(8, g8)}
+        ${colHtml(9, g9)}
+      </div>`;
+
+    const clsInput = body.querySelector("#ppClsInput");
+    const gradeSel = body.querySelector("#ppClsGrade");
+    bindUpperInput(clsInput);
+    gradeSel.addEventListener("change", () => { clsInput.placeholder = gradeSel.value === "8" ? "Tên lớp (VD: 8A1)" : "Tên lớp (VD: 9A1)"; });
+
+    body.querySelector("#ppClassCreateForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const f = e.target;
+      const grade = Number(f.grade.value);
+      const className = normCls(f.className.value, grade);
+      try {
+        const d = await apiRequest("/api/admin/classes", { method: "POST", body: JSON.stringify({ grade, className, tier: f.tier.value }) });
+        showToast(d.message);
+        await reload();
+        if (typeof loadClassNames === "function") loadClassNames();
+      } catch (ex) { showToast(ex.message); }
+    });
+
+    body.querySelector("#ppOpenClsAccBtn").addEventListener("click", () => {
+      const g = Number(gradeSel.value) || 8;
+      openClassAccountsModal(normCls(clsInput.value, g), g);
+    });
+    body.querySelectorAll("[data-new-cls-acc]").forEach(b => b.addEventListener("click", () => openClassAccountsModal("", Number(b.dataset.newClsAcc))));
+    body.querySelectorAll("[data-cls-acc]").forEach(b => b.addEventListener("click", () => openClassAccountsModal(b.dataset.clsAcc, Number(b.dataset.clsGrade))));
+    body.querySelectorAll("[data-cls-view]").forEach(b => b.addEventListener("click", () => {
+      state.tab = "users";
+      state.filter.grade = String(b.dataset.clsGrade || "");
+      state.filter.cls = b.dataset.clsView;
+      render();
+    }));
+    body.querySelectorAll("[data-cls-tier]").forEach(s => s.addEventListener("change", async () => {
+      try {
+        const d = await apiRequest("/api/admin/classes", { method: "POST", body: JSON.stringify({ grade: Number(s.dataset.clsGrade), className: s.dataset.clsTier, tier: s.value }) });
+        showToast(d.message);
+      } catch (ex) { showToast(ex.message); }
+    }));
+    body.querySelectorAll("[data-cls-del]").forEach(b => b.addEventListener("click", async () => {
+      const cls = b.dataset.clsDel;
+      if (!confirm(`Xoá lớp ${cls}?`)) return;
+      try {
+        const d = await apiRequest(`/api/admin/classes/${encodeURIComponent(cls)}`, { method: "DELETE" });
+        showToast(d.message);
+        await reload();
+        if (typeof loadClassNames === "function") loadClassNames();
+      } catch (ex) { showToast(ex.message); }
+    }));
+  }
+
+  function openClassAccountsModal(presetCls, presetGrade) {
+    const initGrade = [8, 9].includes(Number(presetGrade)) ? Number(presetGrade) : (gradeOf(presetCls) || 8);
+    const listId = "ppClassAccDl_" + Date.now();
+    const dlg = dialog("Tạo tài khoản lớp", `
+      <form class="auth-form" id="ppClassAccForm">
+        <div class="auth-error" id="ppClassAccErr"></div>
+        <div class="form-grid">
+          <div class="field"><label>Khối</label>
+            <select name="grade" id="ppCaGrade">
+              <option value="8" ${initGrade === 8 ? "selected" : ""}>Khối 8</option>
+              <option value="9" ${initGrade === 9 ? "selected" : ""}>Khối 9</option>
+            </select>
+          </div>
+          <div class="field"><label>Tên lớp</label>
+            <input name="className" id="ppCaCls" list="${listId}" required value="${esc(presetCls || "")}" placeholder="VD: ${initGrade}A1">
+            <datalist id="${listId}"></datalist>
+          </div>
+          ${isFull() ? `<div class="field"><label>Phân loại lớp</label><select name="tier"><option value="regular">Lớp thường</option><option value="advanced">Lớp tăng cường</option></select></div>` : ""}
+          <div class="field"><label>Mật khẩu mặc định</label><input name="defaultPassword" value="123456" minlength="6" required></div>
+        </div>
+        ${CLASS_NOTE}
+        <div class="field">
+          <label>Kiểu tạo tài khoản</label>
+          <div class="seg" id="ppCaModeSeg">
+            <button type="button" class="active" data-ca-mode="shared">TK chung của lớp</button>
+            <button type="button" data-ca-mode="list">Danh sách học sinh</button>
+            <button type="button" data-ca-mode="batch">Tạo theo số lượng</button>
+          </div>
+        </div>
+        <div class="field" data-ca-box="shared">
+          <label>Tên hiển thị (tuỳ chọn)</label>
+          <input name="fullName" placeholder="Mặc định: Lớp 8A1 (email: lop8a1@engo.web)">
+        </div>
+        <div class="field hidden" data-ca-box="list">
+          <label>Danh sách họ tên (mỗi học sinh 1 dòng)</label>
+          <textarea name="namesText" rows="5" placeholder="Nguyễn Văn An&#10;Trần Thị Bình&#10;Lê Minh Khôi"></textarea>
+        </div>
+        <div class="field hidden" data-ca-box="batch">
+          <label>Số lượng tài khoản (1–60)</label>
+          <input name="count" type="number" min="1" max="60" value="35">
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Tạo tài khoản</button>
+      </form>
+      <div id="ppCaResult" style="margin-top:12px"></div>`, { wide: true });
+
+    const el = dlg.el;
+    const form = el.querySelector("#ppClassAccForm");
+    const gradeSel = el.querySelector("#ppCaGrade");
+    const clsInput = el.querySelector("#ppCaCls");
+    const dl = el.querySelector(`#${listId}`);
+    let mode = "shared";
+
+    bindUpperInput(clsInput);
+    const refreshDl = () => {
+      const g = Number(gradeSel.value);
+      clsInput.placeholder = `VD: ${g}A1`;
+      dl.innerHTML = knownClassList(g).map(c => `<option value="${esc(c)}"></option>`).join("");
+    };
+    gradeSel.addEventListener("change", refreshDl);
+    refreshDl();
+
+    const syncMode = () => {
+      el.querySelectorAll("[data-ca-mode]").forEach(b => b.classList.toggle("active", b.dataset.caMode === mode));
+      el.querySelectorAll("[data-ca-box]").forEach(b => b.classList.toggle("hidden", b.dataset.caBox !== mode));
+    };
+    el.querySelectorAll("[data-ca-mode]").forEach(b => b.addEventListener("click", () => { mode = b.dataset.caMode; syncMode(); }));
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const err = el.querySelector("#ppClassAccErr");
+      setAuthError(err, "");
+      const grade = Number(gradeSel.value);
+      const className = normCls(clsInput.value, grade);
+      clsInput.value = className;
+      const fd = Object.fromEntries(new FormData(form).entries());
+      const payload = {
+        grade,
+        className,
+        tier: fd.tier || undefined,
+        mode,
+        fullName: fd.fullName || "",
+        names: String(fd.namesText || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean),
+        count: Number(fd.count || 1),
+        defaultPassword: fd.defaultPassword || "123456"
+      };
+      const btn = form.querySelector("button[type=submit]");
+      btn.disabled = true; btn.textContent = "Đang tạo...";
+      try {
+        const res = await apiRequest("/api/admin/classes/accounts", { method: "POST", body: JSON.stringify(payload) });
+        showToast(res.message);
+        await reload();
+        if (typeof loadClassNames === "function") loadClassNames();
+        const box = el.querySelector("#ppCaResult");
+        box.innerHTML = `
+          <div class="notice"><strong>${esc(res.message)}</strong></div>
+          ${res.results?.length ? `
+            <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button type="button" class="btn btn-light btn-sm" id="ppCaExport"><i class=mi>download</i> Tải danh sách (CSV)</button></div>
+            <div class="table-wrap" style="max-height:240px;overflow:auto"><table class="pp-table"><thead><tr><th>#</th><th>Họ tên</th><th>Email đăng nhập</th><th>Mật khẩu</th><th>Trạng thái</th></tr></thead>
+            <tbody>${res.results.map(r => `<tr><td>${r.row}</td><td>${esc(r.fullName)}</td><td class="small">${esc(r.login)}</td><td class="small">${esc(r.password || "")}</td><td><span class="badge ${r.status === "created" ? "green" : ""}">${r.status === "created" ? "Đã tạo" : "Đã có"}</span></td></tr>`).join("")}</tbody></table></div>` : ""}`;
+        box.querySelector("#ppCaExport")?.addEventListener("click", () => {
+          const lines = ["STT,Họ tên,Lớp,Email đăng nhập,Mật khẩu,Trạng thái"];
+          res.results.forEach(r => lines.push([r.row, r.fullName, res.className, r.login, r.password || "", r.status].map(csvCell).join(",")));
+          downloadText(`tai-khoan-lop-${res.className}.csv`, lines.join("\r\n"));
+        });
+      } catch (ex) {
+        setAuthError(err, ex.message);
+      } finally {
+        btn.disabled = false; btn.textContent = "Tạo tài khoản";
+      }
+    });
+  }
+
   async function openRewards(id) {
     let d;
     try { d = await apiRequest(`/api/admin/users/${id}/rewards`); } catch (e) { showToast(e.message); return; }
     const r = d.rewards;
     const ACT = { level: "Đặt level", set_carrots: "Đặt số cà rốt", add_carrots: "Cộng/trừ cà rốt" };
     const dlg = dialog(`Level & cà rốt · ${esc(d.user.fullName)}`, `
-      <div class="rw-now"><div><span>Level</span><b>${r.level}</b><small>${r.xp} XP</small></div><div><span>Cà rốt</span><b>${r.carrots} <i class=ico-carrot></i></b><small>Hôm nay nhận ${r.dailyCarrots}/${r.dailyCap}</small></div></div>
+      <div class="rw-now"><div><span>Level</span><b>${r.level}</b><small>${r.xp} XP</small></div><div><span>Cà rốt</span><b>${r.carrots} <i class=ico-carrot></i></b><small>Hôm nay ${r.dailyCarrots}/${r.dailyCap}</small></div></div>
       <form class="auth-form" id="rwForm">
         <div class="auth-error" id="rwErr"></div>
-        <div class="field"><label>Đặt lại level (để trống nếu không đổi)</label><div class="rw-row"><input name="level" type="number" min="1" max="200" placeholder="Hiện tại: ${r.level}"><button type="button" class="btn btn-light btn-sm" data-lv="1">Về Lv 1</button></div><small class="muted">Level N tương ứng (N−1)×100 XP.</small></div>
-        <div class="field"><label>Tặng hoặc trừ cà rốt</label><div class="rw-row"><input name="addCarrots" type="number" min="-10000" max="10000" placeholder="VD: 10 hoặc -5">${[5, 10, 20, 50].map(n => `<button type="button" class="btn btn-soft btn-sm" data-add="${n}">+${n}</button>`).join("")}</div></div>
+        <div class="field"><label>Đặt lại level</label><div class="rw-row"><input name="level" type="number" min="1" max="200" placeholder="Hiện tại: ${r.level}"><button type="button" class="btn btn-light btn-sm" data-lv="1">Về Lv 1</button></div></div>
+        <div class="field"><label>Cộng hoặc trừ cà rốt</label><div class="rw-row"><input name="addCarrots" type="number" min="-10000" max="10000" placeholder="VD: 10 hoặc -5">${[5, 10, 20, 50].map(n => `<button type="button" class="btn btn-soft btn-sm" data-add="${n}">+${n}</button>`).join("")}</div></div>
         <div class="field"><label>Hoặc đặt đúng số cà rốt</label><input name="setCarrots" type="number" min="0" max="100000" placeholder="Hiện tại: ${r.carrots}"></div>
-        <div class="field"><label>Ghi chú (tuỳ chọn)</label><input name="note" maxlength="200" placeholder="VD: Thưởng thi đua tuần, xử lý gian lận..."></div>
+        <div class="field"><label>Ghi chú</label><input name="note" maxlength="200" placeholder="Tuỳ chọn"></div>
         <button class="btn btn-primary" type="submit" style="width:100%">Lưu thay đổi</button>
       </form>
-      ${d.history.length ? `<h4 class="rw-h">Lịch sử chỉnh sửa</h4><div class="rw-hist">${d.history.map(h => `<div><b>${esc(h.action.split(",").map(a => ACT[a] || a).join(", "))}</b> · Lv ${h.before.level} → ${h.after.level}, 🥕 ${h.before.carrots} → ${h.after.carrots}<small>${esc(h.by || "")} · ${new Date(h.at).toLocaleString("vi-VN")}${h.note ? ` · ${esc(h.note)}` : ""}</small></div>`).join("")}</div>` : ""}`);
+      ${d.history.length ? `<h4 class="rw-h">Lịch sử</h4><div class="rw-hist">${d.history.map(h => `<div><b>${esc(h.action.split(",").map(a => ACT[a] || a).join(", "))}</b> · Lv ${h.before.level} → ${h.after.level}, 🥕 ${h.before.carrots} → ${h.after.carrots}<small>${esc(h.by || "")} · ${new Date(h.at).toLocaleString("vi-VN")}${h.note ? ` · ${esc(h.note)}` : ""}</small></div>`).join("")}</div>` : ""}`);
     const form = dlg.el.querySelector("#rwForm");
     dlg.el.querySelector("[data-lv]").addEventListener("click", () => { form.level.value = 1; });
     dlg.el.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => { form.addCarrots.value = Number(form.addCarrots.value || 0) + Number(b.dataset.add); }));
     form.addEventListener("submit", async e => {
       e.preventDefault();
       const payload = { level: form.level.value, addCarrots: form.addCarrots.value, setCarrots: form.setCarrots.value, note: form.note.value };
-      if (payload.setCarrots !== "" && payload.addCarrots !== "") { setAuthError(dlg.el.querySelector("#rwErr"), "Chỉ chọn một: cộng/trừ hoặc đặt đúng số cà rốt."); return; }
+      if (payload.setCarrots !== "" && payload.addCarrots !== "") { setAuthError(dlg.el.querySelector("#rwErr"), "Chỉ chọn cộng/trừ hoặc đặt đúng số cà rốt."); return; }
       try {
         const res = await apiRequest(`/api/admin/users/${id}/rewards`, { method: "PATCH", body: JSON.stringify(payload) });
         showToast(res.message);
@@ -157,6 +445,9 @@
     const editing = Boolean(user);
     const full = isFull();
     const role = editing ? user.role : "student";
+    const initCls = user?.className || state.filter.cls || "";
+    const initGrade = gradeOf(initCls) || (state.filter.grade === "9" ? 9 : 8);
+    const listId = "ppUserClsDl_" + Date.now();
     const dlg = dialog(editing ? `Sửa tài khoản` : "Thêm tài khoản", `
       <form class="auth-form" id="ppUserForm">
         <div class="auth-error" id="ppUserErr"></div>
@@ -164,16 +455,29 @@
           <div class="field full"><label>Họ và tên</label><input name="fullName" required value="${esc(user?.fullName || "")}"></div>
           ${full && !editing ? `<div class="field"><label>Vai trò</label><select name="role">${["student", "teacher", "parent", "admin"].map(r => `<option value="${r}">${ROLE_VI[r]}</option>`).join("")}</select></div>` : ""}
           ${full && editing && user.role !== "parent" ? `<div class="field"><label>Vai trò</label><select name="role">${["student", "teacher", "admin"].map(r => `<option value="${r}" ${r === role ? "selected" : ""}>${ROLE_VI[r]}</option>`).join("")}</select></div>` : ""}
-          <div class="field" data-for="student"><label>Lớp</label><select name="className">${classOptions(user?.className || state.filter.cls || "")}</select></div>
-          <div class="field full" data-for="login"><label>Email đăng nhập ${editing ? "" : "(để trống để tự tạo theo tên + lớp)"}</label><input name="email" type="email" value="${esc(user?.email || "")}"></div>
-          <div class="field full" data-for="parent"><label>Số điện thoại (tên đăng nhập)</label><input name="phone" inputmode="tel" value="${esc(user?.phone || "")}" placeholder="0912345678"></div>
-          <div class="field full" data-for="pw"><label>${editing ? "Đặt lại mật khẩu (để trống nếu không đổi)" : "Mật khẩu (mặc định 123456)"}</label><input name="password" type="text" autocomplete="new-password" placeholder="${editing ? "" : "123456"}"></div>
+          <div class="field" data-for="student"><label>Khối</label><select name="grade" id="ppUGrade"><option value="8" ${initGrade === 8 ? "selected" : ""}>Khối 8</option><option value="9" ${initGrade === 9 ? "selected" : ""}>Khối 9</option></select></div>
+          <div class="field" data-for="student"><label>Lớp</label><input name="className" id="ppUCls" list="${listId}" value="${esc(initCls)}" placeholder="VD: ${initGrade}A1"><datalist id="${listId}"></datalist></div>
+          <div class="field full" data-for="student">${CLASS_NOTE}</div>
+          <div class="field full" data-for="login"><label>Email đăng nhập ${editing ? "" : "(để trống sẽ tự tạo)"}</label><input name="email" type="email" value="${esc(user?.email || "")}"></div>
+          <div class="field full" data-for="parent"><label>Số điện thoại</label><input name="phone" inputmode="tel" value="${esc(user?.phone || "")}" placeholder="0912345678"></div>
+          <div class="field full" data-for="pw"><label>${editing ? "Mật khẩu mới (bỏ trống nếu giữ nguyên)" : "Mật khẩu (mặc định 123456)"}</label><input name="password" type="text" autocomplete="new-password" placeholder="${editing ? "" : "123456"}"></div>
           ${full && editing ? `<div class="field"><label>Trạng thái</label><select name="status">${Object.keys(STATUS_VI).map(s => `<option value="${s}" ${s === user.status ? "selected" : ""}>${STATUS_VI[s]}</option>`).join("")}</select></div>` : ""}
         </div>
-        <p class="small muted" data-for="parent">Tài khoản phụ huynh dùng mật khẩu mặc định <b>123</b> và bắt buộc đổi ở lần đăng nhập đầu. Liên kết con ở tab <b>Phụ huynh</b>.</p>
+        <p class="small muted" data-for="parent">Mật khẩu mặc định phụ huynh là <b>123</b>.</p>
         <button class="btn btn-primary" type="submit" style="width:100%">${editing ? "Lưu thay đổi" : "Tạo tài khoản"}</button>
       </form>`);
     const form = dlg.el.querySelector("#ppUserForm");
+    const uGrade = form.querySelector("#ppUGrade");
+    const uCls = form.querySelector("#ppUCls");
+    const dl = form.querySelector(`#${listId}`);
+    bindUpperInput(uCls);
+    const refreshDl = () => {
+      const g = Number(uGrade.value);
+      uCls.placeholder = `VD: ${g}A1`;
+      dl.innerHTML = knownClassList(g).map(c => `<option value="${esc(c)}"></option>`).join("");
+    };
+    uGrade?.addEventListener("change", refreshDl);
+    refreshDl();
     const sync = () => {
       const r = form.role ? form.role.value : role;
       form.querySelectorAll("[data-for=student]").forEach(x => x.classList.toggle("hidden", r !== "student"));
@@ -185,6 +489,7 @@
     sync();
     form.addEventListener("submit", async e => {
       e.preventDefault();
+      if (uCls && uCls.value) uCls.value = normCls(uCls.value, uGrade?.value);
       const fd = Object.fromEntries(new FormData(form).entries());
       const payload = {};
       Object.entries(fd).forEach(([k, v]) => { if (v !== "" || k === "fullName") payload[k] = v; });
@@ -196,6 +501,7 @@
         showToast(d.message || "Đã lưu.");
         dlg.close();
         await reload();
+        if (typeof loadClassNames === "function") loadClassNames();
       } catch (ex) { setAuthError(dlg.el.querySelector("#ppUserErr"), ex.message); }
     });
   }
@@ -207,13 +513,13 @@
         <form class="card panel pp-parent-form" id="ppParentForm">
           <h4><i class=mi>family_restroom</i> Tạo / liên kết phụ huynh</h4>
           <div class="auth-error" id="ppParentErr"></div>
-          <div class="field"><label>Số điện thoại phụ huynh (tên đăng nhập)</label><input name="phone" inputmode="tel" placeholder="0912345678" required></div>
+          <div class="field"><label>Số điện thoại phụ huynh</label><input name="phone" inputmode="tel" placeholder="0912345678" required></div>
           <div class="field"><label>Họ tên phụ huynh</label><input name="fullName" placeholder="VD: Nguyễn Văn Bình"></div>
-          <div class="field"><label>Con (chọn 1 hoặc nhiều học sinh)</label>
+          <div class="field"><label>Con</label>
             <input type="search" id="ppStuSearch" placeholder="Tìm học sinh theo tên hoặc lớp...">
             <div class="pp-stu-list" id="ppStuList"></div>
           </div>
-          <p class="small muted">Mật khẩu mặc định là <b>123</b>. Phụ huynh bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên. Nếu SĐT đã có tài khoản, học sinh được chọn sẽ được liên kết thêm.</p>
+          <p class="small muted">Mật khẩu mặc định: <b>123</b>.</p>
           <button type="submit" class="btn btn-primary" style="width:100%">Lưu</button>
         </form>
         <div>
@@ -241,12 +547,12 @@
           <div class="pp-kids">${p.children.map(c => `<span class="pp-kid">${esc(c.fullName)} <small>${esc(c.className || "")}</small><button type="button" data-unlink="${p.id}:${c.id}" title="Bỏ liên kết">×</button></span>`).join("")}</div>
         </div>`).join("") || `<p class="small muted">Chưa có phụ huynh nào.</p>`;
       body.querySelectorAll("[data-reset]").forEach(b => b.addEventListener("click", async () => {
-        if (!confirm("Đặt lại mật khẩu phụ huynh về 123? Phụ huynh sẽ phải đổi lại khi đăng nhập.")) return;
+        if (!confirm("Đặt lại mật khẩu phụ huynh về 123?")) return;
         try { const d = await apiRequest(`/api/parents/${b.dataset.reset}/reset-password`, { method: "POST", body: "{}" }); showToast(d.message); await reload(); } catch (e) { showToast(e.message); }
       }));
       body.querySelectorAll("[data-unlink]").forEach(b => b.addEventListener("click", async () => {
         const [pid, sid] = b.dataset.unlink.split(":");
-        if (!confirm("Bỏ liên kết học sinh này khỏi phụ huynh?")) return;
+        if (!confirm("Bỏ liên kết học sinh này?")) return;
         try { await apiRequest(`/api/parents/${pid}/students/${sid}`, { method: "DELETE" }); await reload(); } catch (e) { showToast(e.message); }
       }));
     };
@@ -320,7 +626,7 @@
       const s = document.createElement("script");
       s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
       s.onload = () => resolve(window.XLSX);
-      s.onerror = () => reject(new Error("Không tải được thư viện đọc Excel. Hãy lưu file dưới dạng CSV rồi thử lại."));
+      s.onerror = () => reject(new Error("Không tải được thư viện đọc Excel. Hãy lưu dưới dạng CSV rồi thử lại."));
       document.head.appendChild(s);
     });
   }
@@ -334,12 +640,12 @@
     }
     const buf = await file.arrayBuffer();
     let text = new TextDecoder("utf-8").decode(buf);
-    if (text.includes("�")) text = new TextDecoder("windows-1258").decode(buf);
-    return parseCsv(text.replace(/^﻿/, ""));
+    if (text.includes("\uFFFD")) text = new TextDecoder("windows-1258").decode(buf);
+    return parseCsv(text.replace(/^\uFEFF/, ""));
   }
 
   function downloadText(name, text, mime = "text/csv;charset=utf-8") {
-    const blob = new Blob(["﻿" + text], { type: mime });
+    const blob = new Blob(["\uFEFF" + text], { type: mime });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   const csvCell = v => /[",;\n]/.test(String(v ?? "")) ? `"${String(v).replace(/"/g, '""')}"` : String(v ?? "");
@@ -349,8 +655,8 @@
     const res = state.importResult;
     body.innerHTML = `
       <div class="pp-import">
-        <div class="notice"><strong>Nhập danh sách từ Excel (.xlsx) hoặc CSV</strong>
-          <p>Dòng đầu là tiêu đề cột: <b>Họ và tên</b> (bắt buộc), <b>Lớp</b>, <b>Email</b>, <b>Mật khẩu</b>, <b>Vai trò</b>, <b>SĐT phụ huynh</b>, <b>Tên phụ huynh</b>. Có thể chỉ có một cột họ tên. Email để trống sẽ tự tạo theo công thức <code>chữ cái đầu họ đệm + tên + lớp@engo.web</code> (VD: Trịnh Minh Khôi, 9A6 → tmkhoi9a6@engo.web). Có SĐT phụ huynh thì tài khoản phụ huynh (mật khẩu 123) được tạo và liên kết tự động.</p></div>
+        ${CLASS_NOTE}
+        <p class="small muted" style="margin-bottom:10px">Cột: <b>Họ và tên</b> (bắt buộc), <b>Lớp</b>, Email, Mật khẩu, Vai trò, SĐT phụ huynh, Tên phụ huynh. Email trống sẽ tự tạo.</p>
         <div class="pp-toolbar">
           <button type="button" class="btn btn-light btn-sm" id="ppTemplate"><i class=mi>download</i> Tải file mẫu</button>
           <label class="btn btn-primary btn-sm"><i class=mi>upload_file</i> Chọn file Excel/CSV<input type="file" id="ppFile" accept=".xlsx,.xls,.ods,.csv,.txt" hidden></label>
@@ -358,7 +664,7 @@
           <label class="small">Mật khẩu mặc định <input id="ppDefPw" value="123456" style="width:100px"></label>
         </div>
         ${rows.length ? `
-          <p><strong>${rows.length}</strong> dòng đọc được. Xem trước:</p>
+          <p><strong>${rows.length}</strong> dòng. Xem trước:</p>
           <div class="table-wrap"><table class="pp-table"><thead><tr><th>#</th><th>Họ tên</th><th>Lớp</th><th>Email</th><th>Vai trò</th><th>SĐT PH</th></tr></thead>
           <tbody>${rows.slice(0, 50).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.fullName)}</td><td>${esc(r.className || "")}</td><td class="small">${esc(r.email || "(tự tạo)")}</td><td>${esc(ROLE_VI[r.role] || r.role || "Học sinh")}</td><td>${esc(r.parentPhone || "")}</td></tr>`).join("")}</tbody></table></div>
           ${rows.length > 50 ? `<p class="small muted">… và ${rows.length - 50} dòng nữa.</p>` : ""}
@@ -369,7 +675,7 @@
           <div class="table-wrap"><table class="pp-table"><thead><tr><th>#</th><th>Họ tên</th><th>Kết quả</th><th>Tên đăng nhập</th><th>Ghi chú</th></tr></thead>
           <tbody>${res.results.map(r => `<tr><td>${r.row}</td><td>${esc(r.fullName)}</td><td><span class="badge ${r.status === "created" ? "green" : r.status === "skipped" ? "" : "red"}">${r.status === "created" ? "Đã tạo" : r.status === "skipped" ? "Bỏ qua" : "Lỗi"}</span></td><td class="small">${esc(r.login || "")}${r.parent ? `<br><span class="muted">PH: ${esc(r.parent)}</span>` : ""}</td><td class="small">${esc(r.message || "")}</td></tr>`).join("")}</tbody></table></div>` : ""}
       </div>`;
-    body.querySelector("#ppTemplate").addEventListener("click", () => downloadText("mau-nhap-tai-khoan-engo.csv", ["Họ và tên,Lớp,Email,Mật khẩu,Vai trò,SĐT phụ huynh,Tên phụ huynh", "Trịnh Minh Khôi,9A6,,,Học sinh,0912345678,Trịnh Văn Nam", "Nguyễn Gia An,9A1,,,Học sinh,,"].join("\r\n")));
+    body.querySelector("#ppTemplate").addEventListener("click", () => downloadText("mau-nhap-tai-khoan-engo.csv", ["Họ và tên,Lớp,Email,Mật khẩu,Vai trò,SĐT phụ huynh,Tên phụ huynh", "Trịnh Minh Khôi,9A6,,,Học sinh,0912345678,Trịnh Văn Nam", "Nguyễn Gia An,8A1,,,Học sinh,,"].join("\r\n")));
     body.querySelector("#ppFile").addEventListener("change", async e => {
       const file = e.target.files[0]; e.target.value = "";
       if (!file) return;
@@ -408,14 +714,46 @@
     const { roles, permissions, grants, locked } = state.rbac;
     const groups = [...new Set(permissions.map(p => p.group))];
     body.innerHTML = `
-      <p class="small muted">Mỗi vai trò có một tập quyền. Mọi API kiểm tra quyền (không kiểm tra tên vai trò), nên đổi ở đây có hiệu lực ngay cho toàn hệ thống. Phạm vi dữ liệu vẫn giới hạn: giáo viên chỉ thấy lớp phụ trách, phụ huynh chỉ thấy con mình.</p>
       <div class="table-wrap"><table class="pp-table pp-rbac"><thead><tr><th>Quyền</th>${roles.map(r => `<th>${esc(r.label)}</th>`).join("")}</tr></thead>
       <tbody>${groups.map(g => `<tr class="pp-group"><td colspan="${roles.length + 1}">${esc(g)}</td></tr>` + permissions.filter(p => p.group === g).map(p => `<tr><td><strong>${esc(p.label)}</strong><br><code class="small">${esc(p.key)}</code></td>${roles.map(r => { const lk = locked.includes(`${r.key}:${p.key}`); return `<td class="pp-cell"><input type="checkbox" data-role="${r.key}" data-perm="${p.key}" ${(grants[r.key] || []).includes(p.key) ? "checked" : ""} ${lk ? "disabled title=\"Quyền bắt buộc\"" : ""}></td>`; }).join("")}</tr>`).join("")).join("")}</tbody></table></div>
-      <button type="button" class="btn btn-primary" id="ppSaveRbac"><i class=mi>save</i> Lưu phân quyền</button>`;
+      <button type="button" class="btn btn-primary" id="ppSaveRbac" style="margin-top:12px"><i class=mi>save</i> Lưu phân quyền</button>`;
     body.querySelector("#ppSaveRbac").addEventListener("click", async () => {
       const next = {};
       roles.forEach(r => { next[r.key] = [...body.querySelectorAll(`input[data-role="${r.key}"]:checked`)].map(i => i.dataset.perm); });
       try { const d = await apiRequest("/api/admin/rbac", { method: "PUT", body: JSON.stringify({ grants: next }) }); showToast(d.message); } catch (e) { showToast(e.message); }
+    });
+  }
+
+  async function renderSystem(body) {
+    body.innerHTML = `
+      <div class="grid two-col">
+        <div class="card panel">
+          <div class="section-head"><h3>Tình trạng hệ thống</h3><span class="badge green" id="ppSysBadge">Đang kiểm tra</span></div>
+          <div id="ppSysHealth" class="small muted">Đang kiểm tra kết nối MySQL...</div>
+        </div>
+        <div class="card panel">
+          <div class="section-head"><h3>Sao lưu dữ liệu</h3></div>
+          <p class="small muted" style="margin-bottom:12px">Tải file JSON gồm toàn bộ tài khoản và đề kiểm tra.</p>
+          <button type="button" class="btn btn-primary" id="ppSysBackup"><i class=mi>download</i> Xuất sao lưu JSON</button>
+        </div>
+      </div>`;
+    try {
+      const h = await apiRequest("/api/health");
+      const badge = body.querySelector("#ppSysBadge");
+      const box = body.querySelector("#ppSysHealth");
+      if (badge) badge.textContent = "Hoạt động tốt";
+      if (box) box.innerHTML = `<div class="health-row"><strong>Ứng dụng</strong><div class="health-meter"><span style="width:100%"></span></div><b>OK</b></div><div class="health-row"><strong>MySQL</strong><div class="health-meter"><span style="width:100%"></span></div><b>OK</b></div><p class="small muted" style="margin:6px 0 0">Giờ CSDL: ${new Date(h.databaseTime).toLocaleString("vi-VN")}</p>`;
+    } catch (e) {
+      const badge = body.querySelector("#ppSysBadge");
+      if (badge) badge.textContent = "Lỗi CSDL";
+    }
+    body.querySelector("#ppSysBackup")?.addEventListener("click", async e => {
+      const btn = e.currentTarget; btn.disabled = true;
+      try {
+        const [u, t] = await Promise.all([apiRequest("/api/admin/users"), apiRequest("/api/tests/latest?full=1")]);
+        downloadText(`engo-data-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ users: u.users, tests: t.tests, exportedAt: new Date().toISOString() }, null, 2), "application/json;charset=utf-8");
+        showToast("Đã xuất sao lưu JSON.");
+      } catch (ex) { showToast(ex.message); } finally { btn.disabled = false; }
     });
   }
 
@@ -425,16 +763,17 @@
     const byGrade = {};
     state.available.forEach(c => { const g = (c.match(/^\d+/) || ["Khác"])[0]; (byGrade[g] = byGrade[g] || []).push(c); });
     const dlg = dialog("Chọn lớp phụ trách", `
-      <p class="small muted">Chọn các lớp bạn dạy. Bạn sẽ quản lý học sinh, phụ huynh và xem kết quả của các lớp này.</p>
       ${Object.keys(byGrade).sort((a, b) => a.localeCompare(b, "vi", { numeric: true })).map(g => `<div class="pp-grade"><strong>Khối ${esc(g)}</strong><div class="pp-chips">${byGrade[g].map(c => `<button type="button" class="pp-chip ${chosen.has(c) ? "on" : ""}" data-cls="${esc(c)}">${esc(c)}</button>`).join("")}</div></div>`).join("")}
-      <div class="pp-toolbar" style="margin-top:12px"><input id="ppNewCls" placeholder="Lớp khác, VD: 9A14" style="width:160px"><button type="button" class="btn btn-light btn-sm" id="ppAddCls">Thêm</button></div>
-      <button type="button" class="btn btn-primary" id="ppSaveCls" style="width:100%;margin-top:10px">Lưu lớp phụ trách</button>`, { wide: true });
+      <div class="pp-toolbar" style="margin-top:12px"><input id="ppNewCls" placeholder="Lớp khác, VD: 8A14" style="width:170px"><button type="button" class="btn btn-light btn-sm" id="ppAddCls">Thêm</button></div>
+      ${CLASS_NOTE}
+      <button type="button" class="btn btn-primary" id="ppSaveCls" style="width:100%;margin-top:6px">Lưu lớp phụ trách</button>`, { wide: true });
     const el = dlg.el;
+    bindUpperInput(el.querySelector("#ppNewCls"));
     const bindChip = b => b.addEventListener("click", () => { const c = b.dataset.cls; chosen.has(c) ? chosen.delete(c) : chosen.add(c); b.classList.toggle("on", chosen.has(c)); });
     el.querySelectorAll(".pp-chip").forEach(bindChip);
     el.querySelector("#ppAddCls").addEventListener("click", () => {
-      const v = el.querySelector("#ppNewCls").value.trim().toUpperCase().replace(/\s+/g, "");
-      if (!/^[0-9A-Z]{2,10}$/.test(v)) { showToast("Tên lớp không hợp lệ."); return; }
+      const v = normCls(el.querySelector("#ppNewCls").value);
+      if (!/^[89][A-Z][0-9A-Z]{0,6}$/.test(v)) { showToast("Tên lớp phải thuộc khối 8 hoặc 9 (VD: 8A1, 9A6)."); return; }
       chosen.add(v);
       const b = document.createElement("button"); b.type = "button"; b.className = "pp-chip on"; b.dataset.cls = v; b.textContent = v; bindChip(b);
       (el.querySelector(".pp-chips") || el.querySelector(".pp-dialog-body")).appendChild(b);
@@ -480,14 +819,4 @@
     const activeView = document.querySelector(".view.active");
     if (activeView && activeView.id === "people") show();
   });
-
-  const bindImportBtn = () => {
-    const btn = document.getElementById("importDataBtn");
-    if (!btn) return;
-    btn.textContent = "Nhập Excel/CSV";
-    const clone = btn.cloneNode(true);
-    btn.replaceWith(clone);
-    clone.addEventListener("click", () => window.ENGO_PEOPLE.openImport());
-  };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindImportBtn); else bindImportBtn();
 })();

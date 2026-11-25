@@ -42,7 +42,7 @@
     const rest = list.slice(3);
     const meInList = list.some(p => p.isMe);
     host.querySelector("#lbBody").innerHTML = !list.length ? `<p class="small muted" style="padding:18px 4px">Chưa có học sinh nào trong ${esc(scopeLabel)}.</p>` : `
-      <p class="small muted lb-sub">${data.total} học sinh ${esc(scopeLabel)} · ${state.by === "carrots" ? "xếp theo tổng cà rốt đã kiếm (tính cả cà rốt đã cho Capybara ăn)" : "xếp theo cấp độ (XP)"}</p>
+      <p class="small muted lb-sub">${data.total} học sinh ${esc(scopeLabel)} · ${state.by === "carrots" ? "theo cà rốt" : "theo cấp độ (XP)"}</p>
       <div class="lb-podium">${[podium[1], podium[0], podium[2]].filter(Boolean).map(p => `
         <div class="lb-pod ${medal(p.rank)}${p.isMe ? " me" : ""}">
           <div class="lb-crown">${p.rank === 1 ? "<i class=mi>workspace_premium</i>" : `#${p.rank}`}</div>

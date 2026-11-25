@@ -1,6 +1,5 @@
 const views = [...document.querySelectorAll(".view")];
 const sidebar = document.getElementById("sidebar");
-const roleSelect = document.getElementById("roleSelect");
 const avatar = document.getElementById("avatar");
 const toast = document.getElementById("toast");
 
@@ -98,16 +97,16 @@ document.querySelectorAll(".modal").forEach(modal => modal.addEventListener("cli
 const ROUTE_MAP = {
   "student-home": "/dashboard", "settings": "/settings", "leaderboard": "/leaderboard", "quiz": "/contest", "achievements": "/rewards", "tests": "/tests",
   "vocabulary": "/vocabulary", "errorHealing": "/healing", "listening-lab": "/listening", "speaking-lab": "/speaking",
-  "teacher-home": "/teacher", "parent-home": "/parent", "data-admin": "/admin", "people": "/people", "pvp": "/arena", "friends": "/friends"
+  "teacher-home": "/teacher", "parent-home": "/parent", "people": "/people", "pvp": "/arena", "friends": "/friends"
 };
 const REVERSE_ROUTE_MAP = {
   "/": "student-home", "/overview": "student-home", "/dashboard": "student-home", "/results": "student-home", "/settings": "settings", "/leaderboard": "leaderboard", "/contest": "quiz", "/quiz": "quiz", "/rewards": "achievements",
   "/achievements": "achievements", "/tests": "tests", "/assignments": "tests", "/vocabulary": "vocabulary", "/flashcards": "vocabulary",
   "/healing": "errorHealing", "/healing-room": "errorHealing", "/listening": "listening-lab", "/speaking": "speaking-lab",
-  "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "data-admin", "/people": "people", "/arena": "pvp", "/pvp": "pvp", "/friends": "friends", "/chat": "friends"
+  "/speaking-lab": "speaking-lab", "/teacher": "teacher-home", "/parent": "parent-home", "/admin": "people", "/people": "people", "/arena": "pvp", "/pvp": "pvp", "/friends": "friends", "/chat": "friends"
 };
 const STUDENT_VIEWS = new Set(["student-home", "pvp", "friends", "quiz", "achievements", "leaderboard", "tests", "vocabulary", "errorHealing", "listening-lab", "speaking-lab"]);
-const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "data-admin" };
+const ROLE_HOME = { student: "student-home", teacher: "teacher-home", parent: "parent-home", admin: "people" };
 
 function switchView(id, pushHistory = true) {
   const scrollToResults = id === "results";
@@ -138,8 +137,7 @@ function switchView(id, pushHistory = true) {
   if (id === "teacher-home") renderTeacherHome();
   if (id === "settings") renderSettings();
   if (id === "leaderboard") renderLeaderboard();
-  if (id === "parent-home") (window.ENGO_PARENT ? window.ENGO_PARENT.render() : renderParentDashboard());
-  if (id === "data-admin") renderDataAdmin();
+  if (id === "parent-home" && window.ENGO_PARENT) window.ENGO_PARENT.render();
   window.dispatchEvent(new CustomEvent("engo:view", { detail: id }));
 }
 window.addEventListener("popstate", e => {
@@ -157,7 +155,6 @@ function applyRole(role, switchPage = true) {
   document.querySelectorAll(".student-nav-group").forEach(el => el.classList.toggle("hidden", !isStudent));
   document.querySelectorAll(".role-nav-group").forEach(el => el.classList.toggle("hidden", isStudent));
   document.querySelectorAll(".student-only-top").forEach(el => el.classList.toggle("hidden", !isStudent));
-  roleSelect.value = role;
   if (!switchPage) return;
   const currentPath = (window.location.pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
   const fromUrl = REVERSE_ROUTE_MAP[currentPath];
@@ -165,7 +162,6 @@ function applyRole(role, switchPage = true) {
   if (fromUrl && (isStudent ? STUDENT_VIEWS.has(fromUrl) : !STUDENT_VIEWS.has(fromUrl))) { switchView(fromUrl, false); return; }
   switchView(ROLE_HOME[role] || "student-home");
 }
-roleSelect.disabled = true;
 document.getElementById("dashboardBtn").addEventListener("click", () => switchView(ROLE_HOME[currentUser?.role] || "student-home"));
 
 const authScreen = document.getElementById("authScreen");
@@ -191,7 +187,7 @@ async function loadClassNames() {
   try {
     const data = await apiRequest("/api/class-settings");
     knownClasses = sortClasses([...(data.knownClasses || []), ...(data.settings || []).map(s => s.className)]);
-  } catch (e) { knownClasses = knownClasses.length ? knownClasses : Array.from({ length: 13 }, (_, i) => `9A${i + 1}`); }
+  } catch (e) { knownClasses = knownClasses.length ? knownClasses : [8, 9].flatMap(g => Array.from({ length: 13 }, (_, i) => `${g}A${i + 1}`)); }
   const dl = document.getElementById("classNameList");
   if (dl) dl.innerHTML = knownClasses.map(c => `<option value="${escapeHTML(c)}"></option>`).join("");
   document.querySelectorAll("#teacherClassFilter, #teacherStudentsClassFilter").forEach(sel => {
@@ -212,7 +208,6 @@ function paintAvatar(el, av, name, role) {
 }
 function updateUserUI(user) {
   currentUser = user;
-  roleSelect.value = user.role;
   paintAvatar(avatar, user.avatar, user.fullName, user.role);
   if (user.role === "student") syncRewardsFromServer();
   const welcome = document.getElementById("welcomeHeading");
@@ -234,7 +229,7 @@ function updateUserUI(user) {
   });
 }
 const LOCAL_DATA_VERSION = 4;
-const USER_KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoNotificationsReadV3", "engoProfileV1"];
+const USER_KEYS = ["engoLearningStatsV3", "engoStreakCheckinV2", "engoHealingProfileV3", "engoVocabV1", "engoSpeakingLocalV1", "engoUnitsProgressV1", "engoProfileV1"];
 function migrateLocalData() {
   if (!currentUser || !currentUser.id) return;
   const vKey = getUserStorageKey("engoDataVersion");
@@ -1988,20 +1983,29 @@ async function openClassSettings() {
   try {
     const data = await apiRequest("/api/class-settings");
     const map = Object.fromEntries((data.settings || []).map(s => [s.className, s.tier]));
-    const all = [...new Set([...(data.knownClasses || []), ...Object.keys(map)])].sort();
+    const all = sortClasses([...(data.knownClasses || []), ...Object.keys(map)]);
     classSettingsDraft = all.map(c => ({ className: c, tier: map[c] || "" }));
     renderClassSettingsRows();
   } catch (err) { body.innerHTML = `<p class="small" style="color:red">${escapeHTML(err.message)}</p>`; }
 }
 function renderClassSettingsRows() {
   const body = document.getElementById("classSettingsBody");
-  body.innerHTML = classSettingsDraft.length ? `<div class="class-settings-grid">${classSettingsDraft.map((c, i) => `<div class="class-row"><strong>${escapeHTML(c.className)}</strong><select data-idx="${i}"><option value="" ${c.tier === "" ? "selected" : ""}>Chưa phân loại (đề đầy đủ)</option><option value="advanced" ${c.tier === "advanced" ? "selected" : ""}>Lớp tăng cường (đề nâng cao)</option><option value="regular" ${c.tier === "regular" ? "selected" : ""}>Lớp thường (đề cơ bản)</option></select></div>`).join("")}</div>` : '<p class="small muted">Chưa có lớp nào. Thêm lớp bên dưới.</p>';
+  if (!classSettingsDraft.length) { body.innerHTML = '<p class="small muted">Chưa có lớp nào.</p>'; return; }
+  const rowHtml = (c, i) => `<div class="class-row"><strong>${escapeHTML(c.className)}</strong><select data-idx="${i}"><option value="" ${c.tier === "" ? "selected" : ""}>Chưa phân loại</option><option value="advanced" ${c.tier === "advanced" ? "selected" : ""}>Lớp tăng cường</option><option value="regular" ${c.tier === "regular" ? "selected" : ""}>Lớp thường</option></select></div>`;
+  const g8 = classSettingsDraft.map((c, i) => ({ c, i })).filter(x => /^8/.test(x.c.className));
+  const g9 = classSettingsDraft.map((c, i) => ({ c, i })).filter(x => /^9/.test(x.c.className));
+  const other = classSettingsDraft.map((c, i) => ({ c, i })).filter(x => !/^[89]/.test(x.c.className));
+  body.innerHTML =
+    (g8.length ? `<h4 style="margin:4px 0 8px">Khối 8</h4><div class="class-settings-grid">${g8.map(x => rowHtml(x.c, x.i)).join("")}</div>` : "") +
+    (g9.length ? `<h4 style="margin:12px 0 8px">Khối 9</h4><div class="class-settings-grid">${g9.map(x => rowHtml(x.c, x.i)).join("")}</div>` : "") +
+    (other.length ? `<h4 style="margin:12px 0 8px">Khác</h4><div class="class-settings-grid">${other.map(x => rowHtml(x.c, x.i)).join("")}</div>` : "");
   body.querySelectorAll("select[data-idx]").forEach(s => s.addEventListener("change", () => { classSettingsDraft[Number(s.dataset.idx)].tier = s.value; }));
 }
 document.getElementById("openClassSettingsBtn")?.addEventListener("click", openClassSettings);
-document.getElementById("adminClassSettingsBtn")?.addEventListener("click", openClassSettings);
+document.getElementById("newClassNameInput")?.addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/\s+/g, ""); });
 document.getElementById("addClassRowBtn")?.addEventListener("click", () => {
-  const input = document.getElementById("newClassNameInput"); const name = input.value.trim().toUpperCase(); if (!name) return;
+  const input = document.getElementById("newClassNameInput"); const name = input.value.trim().toUpperCase().replace(/\s+/g, ""); if (!name) return;
+  if (!/^[89][A-Z][0-9A-Z]{0,6}$/.test(name)) { showToast("Tên lớp phải thuộc khối 8 hoặc 9 (VD: 8A1, 9A6)."); return; }
   if (!classSettingsDraft.some(c => c.className === name)) classSettingsDraft.push({ className: name, tier: "regular" });
   input.value = ""; renderClassSettingsRows();
 });
@@ -2158,160 +2162,6 @@ async function loadTeacherSpeakingSubmissions() {
   } catch (e) { tbody.innerHTML = `<tr><td colspan="8" class="small muted" style="color:#ef4444;text-align:center;padding:20px">${escapeHTML(e.message)}</td></tr>`; }
 }
 
-async function renderParentDashboard() {
-  if (!currentUser || currentUser.role !== "parent") return;
-  const tableBody = document.getElementById("parentSubmissionsTableBody");
-  try {
-    const res = await apiRequest("/api/parent/student-data");
-    const student = res.student, stats = res.stats || {}, submissions = res.submissions || [], p = res.progress;
-    document.getElementById("parentStudentBadge").textContent = student ? `Học sinh: ${student.fullName} · Lớp ${student.className}` : "Học sinh: Chưa liên kết";
-    const avg = Number(stats.avgScore || 0);
-    document.getElementById("parentAvgScoreHero").textContent = avg > 0 ? avg.toFixed(1) : "--";
-    document.getElementById("parentAvgScoreRing").style.background = `conic-gradient(#10b981 0 ${Math.min(100, Math.round(avg * 10))}%, rgba(255,255,255,.16) ${Math.min(100, Math.round(avg * 10))}%)`;
-    document.getElementById("parentTotalDone").textContent = stats.totalTests || 0;
-    document.getElementById("parentSpeakingAvg").textContent = p && p.speaking.totalAttempts ? `${p.speaking.avgAccuracy}%` : "--%";
-    const rate = stats.integrityRate ?? 100; const integ = document.getElementById("parentIntegrityRate"); integ.textContent = `${rate}%`; integ.style.color = rate >= 90 ? "#16a34a" : rate >= 70 ? "#d97706" : "#dc2626";
-    document.getElementById("parentTotalViolations").textContent = stats.totalViolations || 0;
-    document.getElementById("parentTitleChips").innerHTML = p ? p.earnedTitles.map(titleChip).join("") : "";
-    tableBody.innerHTML = submissions.length ? submissions.map(item => { const cls = item.scoreOnTen >= 8 ? "high" : item.scoreOnTen >= 5 ? "mid" : "low"; const v = item.isForcedSubmit || item.tabViolations >= 3 ? '<span class="badge red"><i class=mi>block</i> Rời tab 3 lần</span>' : item.tabViolations ? `<span class="badge orange"><i class=mi>warning</i> Rời tab ${item.tabViolations} lần</span>` : '<span class="badge green"><i class=mi>check</i> Nghiêm túc</span>'; return `<tr><td><strong>${escapeHTML(item.testTitle)}</strong></td><td><strong class="total-score-badge ${cls}">${item.scoreOnTen}/10</strong></td><td>${v}</td><td class="small">${escapeHTML(item.teacherFeedback || "Chưa có nhận xét")}</td><td class="small muted">${fmtDate(item.submittedAt)}</td></tr>`; }).join("") : '<tr><td colspan="5" class="small muted" style="text-align:center;padding:24px">Con em chưa có bài kiểm tra nào được nộp.</td></tr>';
-    barChart(document.getElementById("parentSkillChart"), p ? Object.keys(SKILL_LABELS).map(k => ({ label: k, value: p.skills[k] })) : [], { suffix: "%" });
-  } catch (err) { console.error("renderParentDashboard error:", err); }
-}
-document.getElementById("refreshParentDataBtn")?.addEventListener("click", () => { renderParentDashboard(); showToast("Đã làm mới dữ liệu."); });
-
-const roleLabels = { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị viên" };
-const statusLabels = { active: "Đang hoạt động", pending: "Chờ duyệt", locked: "Đã khóa" };
-let adminUsers = [];
-function getAdminLogs() { try { return JSON.parse(localStorage.getItem("engoAdminLogs") || "[]"); } catch { return []; } }
-function addAdminLog(title, detail) { const logs = getAdminLogs(); logs.unshift({ title, detail, time: new Date().toISOString() }); localStorage.setItem("engoAdminLogs", JSON.stringify(logs.slice(0, 50))); }
-async function renderDataAdmin() {
-  if (!currentUser || currentUser.role !== "admin") return;
-  const term = (document.getElementById("dataSearch")?.value || "").trim().toLowerCase();
-  try { adminUsers = (await apiRequest("/api/admin/users")).users || []; } catch (err) { showToast(err.message); return; }
-  document.getElementById("dbUserCount").textContent = adminUsers.length;
-  document.getElementById("dbStudentCount").textContent = adminUsers.filter(u => u.role === "student").length;
-  document.getElementById("dbTeacherCount").textContent = adminUsers.filter(u => u.role === "teacher").length;
-  const users = adminUsers.filter(u => `${u.fullName} ${u.email} ${u.role} ${u.className || ""}`.toLowerCase().includes(term));
-  document.getElementById("userTableBody").innerHTML = users.map(u => `<tr><td><strong>${escapeHTML(u.fullName)}</strong></td><td>${escapeHTML(u.email)}</td><td>${u.role === "student" && u.className ? `Học sinh (${escapeHTML(u.className)})` : roleLabels[u.role] || u.role}</td><td><span class="badge ${u.status === "active" ? "green" : u.status === "locked" ? "red" : "orange"}">${statusLabels[u.status] || u.status}</span></td><td><button class="btn btn-light btn-sm user-toggle" data-user-id="${u.id}" data-user-status="${u.status}">${u.status === "locked" ? "Mở khóa" : u.status === "pending" ? "Duyệt" : "Khóa"}</button> <button class="btn btn-danger btn-sm user-delete" data-user-id="${u.id}">Xóa</button></td></tr>`).join("") || '<tr><td colspan="5" class="empty-state">Không tìm thấy tài khoản.</td></tr>';
-  try {
-    const tests = (await apiRequest("/api/tests/latest")).tests || [];
-    document.getElementById("dbTestCount").textContent = tests.length;
-    document.getElementById("testTableBody").innerHTML = tests.filter(t => `${t.title} ${t.className || ""}`.toLowerCase().includes(term)).map(t => `<tr><td><strong>${escapeHTML(t.title)}</strong></td><td>${escapeHTML(t.className || "Tất cả")}</td><td>${t.summary?.questionCount || 0}</td><td>${t.durationMinutes}'</td><td class="small muted">${fmtDate(t.createdAt)}</td></tr>`).join("") || '<tr><td colspan="5" class="empty-state">Chưa có bài kiểm tra.</td></tr>';
-  } catch (e) {}
-  document.getElementById("activityLog").innerHTML = getAdminLogs().filter(l => `${l.title} ${l.detail}`.toLowerCase().includes(term)).map(l => `<div class="log-item"><div class="log-icon">▤</div><div><strong>${escapeHTML(l.title)}</strong><p>${escapeHTML(l.detail)}</p></div><span class="small muted">${fmtDate(l.time, true)}</span></div>`).join("") || '<div class="empty-state">Chưa có nhật ký.</div>';
-  try {
-    const h = await apiRequest("/api/health");
-    document.getElementById("systemHealthBadge").textContent = "Hoạt động tốt";
-    document.getElementById("systemHealthList").innerHTML = `<div class="health-row"><strong>Ứng dụng</strong><div class="health-meter"><span style="width:100%"></span></div><b>OK</b></div><div class="health-row"><strong>MySQL</strong><div class="health-meter"><span style="width:100%"></span></div><b>OK</b></div><p class="small muted" style="margin:6px 0 0">Giờ máy chủ CSDL: ${fmtDate(h.databaseTime, true)}</p>`;
-  } catch (e) { document.getElementById("systemHealthBadge").textContent = "Lỗi CSDL"; }
-  document.querySelectorAll(".user-toggle").forEach(btn => btn.addEventListener("click", async () => {
-    const next = btn.dataset.userStatus === "active" ? "locked" : "active";
-    try { await apiRequest(`/api/admin/users/${btn.dataset.userId}/status`, { method: "PATCH", body: JSON.stringify({ status: next }) }); addAdminLog("Cập nhật tài khoản", `Đổi trạng thái tài khoản #${btn.dataset.userId} -> ${next}`); showToast(next === "active" ? "Đã kích hoạt tài khoản" : "Đã khóa tài khoản"); renderDataAdmin(); } catch (err) { showToast(err.message); }
-  }));
-  document.querySelectorAll(".user-delete").forEach(btn => btn.addEventListener("click", async () => {
-    if (!confirm("Xóa tài khoản này khỏi MySQL?")) return;
-    try { await apiRequest(`/api/admin/users/${btn.dataset.userId}`, { method: "DELETE", body: "{}" }); addAdminLog("Xóa tài khoản", `Đã xóa tài khoản #${btn.dataset.userId}`); showToast("Đã xóa tài khoản"); renderDataAdmin(); } catch (err) { showToast(err.message); }
-  }));
-}
-document.querySelectorAll("[data-data-tab]").forEach(btn => btn.addEventListener("click", () => { document.querySelectorAll("[data-data-tab]").forEach(x => x.classList.toggle("active", x === btn)); document.querySelectorAll(".data-panel").forEach(p => p.classList.toggle("active", p.id === `data-${btn.dataset.dataTab}`)); }));
-document.getElementById("dataSearch")?.addEventListener("input", () => renderDataAdmin());
-document.getElementById("openAddUser")?.addEventListener("click", () => openModal("addUserModal"));
-document.querySelectorAll(".add-user-close").forEach(btn => btn.addEventListener("click", () => closeModal("addUserModal")));
-function syncNewUserRole() {
-  const role = document.getElementById("newUserRole")?.value;
-  if (!role) return;
-  const isParent = role === "parent";
-  document.getElementById("newUserClassGroup").style.display = role === "student" ? "grid" : "none";
-  document.getElementById("newUserPhoneGroup").style.display = isParent ? "grid" : "none";
-  document.getElementById("newUserEmail").required = !isParent;
-  document.getElementById("newUserEmailLabel").textContent = isParent ? "Email (không bắt buộc nếu có SĐT)" : "Email hoặc mã tài khoản";
-}
-document.getElementById("newUserRole")?.addEventListener("change", syncNewUserRole);
-document.getElementById("addUserForm")?.addEventListener("submit", async e => {
-  e.preventDefault();
-  try {
-    await apiRequest("/api/admin/users", { method: "POST", body: JSON.stringify({ fullName: document.getElementById("newUserName").value.trim(), email: document.getElementById("newUserEmail").value.trim(), password: document.getElementById("newUserPassword").value, role: document.getElementById("newUserRole").value, className: document.getElementById("newUserClass").value.trim().toUpperCase(), status: document.getElementById("newUserStatus").value, phone: document.getElementById("newUserPhone").value.trim() }) });
-    closeModal("addUserModal"); e.target.reset(); syncNewUserRole(); addAdminLog("Thêm tài khoản", "Đã thêm tài khoản mới"); showToast("Đã thêm tài khoản"); renderDataAdmin(); loadClassNames();
-  } catch (err) { showToast(err.message); }
-});
-function downloadJSON(data, filename) { const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
-document.getElementById("exportDataBtn")?.addEventListener("click", async () => { try { const users = (await apiRequest("/api/admin/users")).users; const tests = (await apiRequest("/api/tests/latest?full=1")).tests; downloadJSON({ users, tests, exportedAt: new Date().toISOString() }, `engo-data-${dateKey()}.json`); showToast("Đã xuất dữ liệu JSON"); } catch (err) { showToast(err.message); } });
-document.getElementById("backupNow")?.addEventListener("click", () => { document.getElementById("exportDataBtn").click(); document.getElementById("lastBackupText").textContent = `Đã sao lưu lúc ${new Date().toLocaleString("vi-VN")}.`; });
-document.getElementById("importDataBtn")?.addEventListener("click", () => document.getElementById("jsonImportInput").click());
-document.getElementById("jsonImportInput")?.addEventListener("change", e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const imported = JSON.parse(reader.result); addAdminLog("Nhập JSON", `Đã đọc file ${file.name} (${(imported.users || []).length} tài khoản)`); showToast("Đã đọc file JSON (chỉ ghi nhật ký; tài khoản MySQL không bị thay đổi)."); renderDataAdmin(); } catch { showToast("File JSON không đúng cấu trúc"); } }; reader.readAsText(file); });
-
-const notificationItems = [
- { id:"speaking2", icon:"", title:"Luyện nói 2 giai đoạn", detail:"Câu đơn → hội thoại. AI chấm thân thiện với mọi giọng đọc.", time:"Mới"},
- { id:"tests", icon:"", title:"Bài kiểm tra theo ma trận", detail:"Đề được AI phân tích độ khó và thời gian phù hợp từng lớp.", time:"Mới"},
- { id:"vocab", icon:"", title:"Vocabulary có kiểm tra", detail:"Hoàn thành bộ thẻ rồi làm trắc nghiệm / nối từ để nhận điểm.", time:"Mới"},
- { id:"titles", icon:"", title:"Danh hiệu mới", detail:"Vua Phát Âm, Vua Ngữ Pháp, Vua Từ Vựng... đang chờ bạn.", time:"Mới"}
-];
-function getReadNotifications() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoNotificationsReadV3")) || "[]"); } catch { return []; } }
-function renderNotifications() {
-  const read = getReadNotifications();
-  document.getElementById("notificationDot").classList.toggle("hidden", notificationItems.every(n => read.includes(n.id)));
-  document.getElementById("notificationList").innerHTML = notificationItems.map(n => `<div class="notification-item ${read.includes(n.id) ? "" : "unread"}"><div class="notification-icon">${n.icon}</div><div><strong>${n.title}</strong><p>${n.detail}</p><time>${n.time}</time></div></div>`).join("");
-}
-const notifBtn = document.getElementById("notificationBtn");
-notifBtn?.addEventListener("click", e => { e.stopPropagation(); document.getElementById("notificationPanel").classList.toggle("open"); });
-document.getElementById("markNotificationsRead")?.addEventListener("click", () => { localStorage.setItem(getUserStorageKey("engoNotificationsReadV3"), JSON.stringify(notificationItems.map(n => n.id))); renderNotifications(); });
-document.addEventListener("click", e => { const panel = document.getElementById("notificationPanel"); if (panel.classList.contains("open") && !panel.contains(e.target) && e.target !== notifBtn) panel.classList.remove("open"); });
-
-const capybaraChatWindow = document.getElementById("capybaraChatWindow");
-const capybaraChatInput = document.getElementById("capybaraChatInput");
-const capybaraChatMessages = document.getElementById("capybaraChatMessages");
-let chatHistory = [];
-function toggleCapybaraChat() { const hidden = capybaraChatWindow.classList.contains("hidden"); capybaraChatWindow.classList.toggle("hidden", !hidden); if (hidden) setTimeout(() => capybaraChatInput.focus(), 150); }
-document.getElementById("capybaraChatTrigger")?.addEventListener("click", toggleCapybaraChat);
-document.getElementById("btnMinimizeChat")?.addEventListener("click", toggleCapybaraChat);
-let katexLoading = null;
-function ensureKatex() {
-  if (window.renderMathInElement) return Promise.resolve(true);
-  if (katexLoading) return katexLoading;
-  katexLoading = new Promise(res => {
-    const css = document.createElement("link");
-    css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-    document.head.appendChild(css);
-    const s1 = document.createElement("script");
-    s1.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js";
-    s1.onload = () => {
-      const s2 = document.createElement("script");
-      s2.src = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js";
-      s2.onload = () => res(true); s2.onerror = () => res(false);
-      document.head.appendChild(s2);
-    };
-    s1.onerror = () => res(false);
-    document.head.appendChild(s1);
-  });
-  return katexLoading;
-}
-function appendChatMessage(sender, text) {
-  const el = document.createElement("div"); el.className = sender === "user" ? "chat-msg user-msg" : "chat-msg capybara-msg";
-  const formatted = escapeHTML(text).replace(/### (.*)/g, '<strong style="display:block;font-size:14px;color:#047857;margin-bottom:6px">$1</strong>').replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\n\* (.*)/g, '<div style="margin-left:8px">• $1</div>').replace(/\n/g, "<br/>");
-  el.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="${sender}" /><div class="chat-bubble"><div>${formatted}</div></div>`;
-  capybaraChatMessages.appendChild(el); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
-  if (/\$|\\\[|\\\(/.test(String(text || ""))) {
-    ensureKatex().then(ok => {
-      try {
-        if (ok && window.renderMathInElement) renderMathInElement(el.querySelector(".chat-bubble"), { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }, { left: "$", right: "$", display: false }], throwOnError: false });
-      } catch (_) {}
-    });
-  }
-}
-async function sendCapybaraMessage(textToSend) {
-  const text = (textToSend || capybaraChatInput.value).trim(); if (!text) return;
-  appendChatMessage("user", text); capybaraChatInput.value = ""; chatHistory.push({ role: "user", content: text });
-  const typing = document.createElement("div"); typing.className = "chat-msg capybara-msg"; typing.innerHTML = `<img src="./images/engocircle.png" class="chat-avatar" alt="Capybara" /><div class="chat-bubble"><em class="small muted">Capybara đang suy nghĩ...<i class=mi>chat_bubble</i></em></div>`;
-  capybaraChatMessages.appendChild(typing); capybaraChatMessages.scrollTop = capybaraChatMessages.scrollHeight;
-  try {
-    const res = await apiRequest("/api/ai/chat", { method: "POST", body: JSON.stringify({ message: text, history: chatHistory }) });
-    typing.remove(); appendChatMessage("capybara", res.reply || "Capybara đã nhận được câu hỏi!"); chatHistory.push({ role: "assistant", content: res.reply || "" });
-  } catch (err) { typing.remove(); appendChatMessage("capybara", "Chào bạn! " + err.message); }
-}
-document.getElementById("capybaraChatSendBtn")?.addEventListener("click", () => sendCapybaraMessage());
-capybaraChatInput?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendCapybaraMessage(); } });
-document.querySelectorAll(".chat-chip").forEach(chip => chip.addEventListener("click", () => sendCapybaraMessage(chip.dataset.prompt)));
-
 document.getElementById("globalSearch")?.addEventListener("keydown", e => {
   if (e.key !== "Enter" || !currentUser) return;
   const q = e.target.value.trim().toLowerCase(); if (!q) return;
@@ -2325,5 +2175,4 @@ window.addEventListener("engo:grade-change", () => {
   if (active === "speaking-lab") renderSpeakingLab();
 });
 
-renderNotifications();
 restoreSession();

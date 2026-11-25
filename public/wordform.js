@@ -44,7 +44,7 @@
   function header() {
     const modes = [["study", "menu_book", "Xem họ từ"], ["gap", "edit_note", "Điền dạng đúng"], ["mc", "checklist", "Trắc nghiệm"], ["drag", "drag_indicator", "Kéo – thả ghép từ"]];
     return `<div class="wf-head">
-      <div><h3><i class=mi>account_tree</i> Word Form · Họ từ</h3><p class="small muted">Nhóm các từ cùng gốc (decide – decision – decisive – decisively) và luyện chọn đúng dạng từ.</p></div>
+      <div><h3><i class=mi>account_tree</i> Word Form · Họ từ</h3></div>
       <select id="wfUnit" aria-label="Chọn Unit">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${state.unit === i + 1 ? "selected" : ""}>${esc(unitName(i + 1))}</option>`).join("")}</select>
     </div>
     <div class="wf-modes">${modes.map(([k, ic, l]) => `<button type="button" class="wf-mode ${state.mode === k ? "on" : ""}" data-wf-mode="${k}"><i class=mi>${ic}</i> ${l}</button>`).join("")}</div>

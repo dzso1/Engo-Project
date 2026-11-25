@@ -147,7 +147,7 @@
     const initials = window.getInitials ? window.getInitials(cu.fullName, cu.role) : "";
     return `
       <div class="card panel section">
-        <div class="section-head"><div><h3><i class=mi>account_circle</i> Ảnh đại diện</h3><p class="small muted">Hiện trên thanh trên cùng và trong bảng xếp hạng.</p></div></div>
+        <div class="section-head"><div><h3><i class=mi>account_circle</i> Ảnh đại diện</h3></div></div>
         <div class="av-picker">
           <div class="av-preview">
             <span class="lb-avatar${hasImg ? " has-img" : ""}">${window.avatarHTML ? window.avatarHTML(cur, cu.fullName, cu.role) : esc(initials)}</span>
@@ -156,7 +156,7 @@
                 <label class="btn btn-primary btn-sm" style="cursor:pointer"><i class=mi>add_photo_alternate</i> ${hasImg ? "Đổi ảnh khác" : "Chọn ảnh từ máy"}<input type="file" id="avUpload" accept="image/png,image/jpeg,image/webp" hidden></label>
                 ${hasImg ? `<button type="button" class="btn btn-light btn-sm" data-av-remove><i class=mi>delete</i> Xoá ảnh</button>` : ""}
               </div>
-              <span class="small muted">Ảnh JPG, PNG hoặc WEBP, tối đa 8MB. Ảnh sẽ tự cắt thành hình vuông.</span>
+              <span class="small muted">JPG, PNG, WEBP · tối đa 8MB</span>
             </div>
           </div>
         </div>
@@ -170,7 +170,7 @@
     const voices = voicesEn();
     host.innerHTML = avatarSection(cu) + `
       <div class="card panel section">
-        <div class="section-head"><div><h3><i class=mi>palette</i> Giao diện</h3><p class="small muted">Chọn bộ màu phù hợp mắt bạn. Lưu trên thiết bị này.</p></div></div>
+        <div class="section-head"><div><h3><i class=mi>palette</i> Giao diện</h3></div></div>
         <h4 style="margin:6px 0 10px">Sáng</h4>
         <div class="settings-grid">${THEMES.filter(t => t.group === "light").map(tile).join("")}</div>
         <h4 style="margin:18px 0 10px">Tối</h4>
@@ -178,9 +178,9 @@
       </div>
 
       <div class="card panel section">
-        <div class="section-head"><div><h3><i class=mi>format_paint</i> Màu nền</h3><p class="small muted">Đổi riêng màu nền trang; các thẻ và chữ vẫn theo giao diện đã chọn.</p></div></div>
+        <div class="section-head"><div><h3><i class=mi>format_paint</i> Màu nền</h3></div></div>
         <div class="bg-swatches">
-          <button type="button" class="btn btn-light btn-sm" id="bgReset">${s.bgColor ? "Về mặc định" : "Đang dùng mặc định"}</button>
+          <button type="button" class="btn btn-light btn-sm" id="bgReset">${s.bgColor ? "Về mặc định" : "Mặc định"}</button>
           ${BG_PRESETS.map(c => `<button type="button" class="bg-swatch${s.bgColor === c ? " active" : ""}" data-bg="${c}" style="background:${c}" title="${c}"></button>`).join("")}
           <label class="bg-swatch custom${s.bgColor && !BG_PRESETS.includes(s.bgColor) ? " active" : ""}" title="Chọn màu khác"><i class=mi>colorize</i><input type="color" id="bgCustom" value="${s.bgColor || "#f3f8f5"}"></label>
           <span class="small muted" id="bgValue">${s.bgColor ? esc(s.bgColor) : ""}</span>
@@ -189,26 +189,26 @@
 
       <div class="card panel section">
         <div class="section-head"><div><h3><i class=mi>tune</i> Hiển thị</h3></div></div>
-        <div class="settings-row"><div class="sr-text"><strong>Cỡ chữ</strong><span>Phóng to toàn bộ giao diện cho dễ đọc</span></div>${seg("fontScale", [{ v: 0.9, l: "Nhỏ" }, { v: 1, l: "Vừa" }, { v: 1.12, l: "Lớn" }, { v: 1.25, l: "Rất lớn" }], s.fontScale)}</div>
-        <div class="settings-row"><div class="sr-text"><strong>Giảm chuyển động</strong><span>Tắt hiệu ứng lật thẻ, trượt, mờ dần</span></div><button type="button" class="switch${s.reduceMotion ? " on" : ""}" data-switch="reduceMotion" aria-label="Giảm chuyển động"></button></div>
+        <div class="settings-row"><div class="sr-text"><strong>Cỡ chữ</strong></div>${seg("fontScale", [{ v: 0.9, l: "Nhỏ" }, { v: 1, l: "Vừa" }, { v: 1.12, l: "Lớn" }, { v: 1.25, l: "Rất lớn" }], s.fontScale)}</div>
+        <div class="settings-row"><div class="sr-text"><strong>Giảm chuyển động</strong></div><button type="button" class="switch${s.reduceMotion ? " on" : ""}" data-switch="reduceMotion" aria-label="Giảm chuyển động"></button></div>
       </div>
 
       <div class="card panel section">
         <div class="section-head"><div><h3><i class=mi>volume_up</i> Âm thanh & phát âm</h3></div></div>
-        <div class="settings-row"><div class="sr-text"><strong>Tiếng bấm nút</strong><span>Âm "tách" khi bấm nút, chọn đáp án</span></div><button type="button" class="switch${s.sound ? " on" : ""}" data-switch="sound" aria-label="Tiếng bấm nút"></button></div>
-        <div class="settings-row"><div class="sr-text"><strong>Âm thanh khi hoàn thành</strong><span>Tiếng reo mừng + pháo giấy khi xong bài nghe, bài nói, bộ từ vựng</span></div>${seg("sfxVolume", [{ v: 0, l: "Tắt" }, { v: 0.5, l: "Nhỏ" }, { v: 0.8, l: "Vừa" }, { v: 1, l: "To" }], s.sfxVolume)}</div>
-        <div class="settings-row"><div class="sr-text"><strong>Nghe thử</strong><span>Bấm để nghe âm thanh khi hoàn thành nhiệm vụ</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-light btn-sm" id="sfxTest1"><i class=mi>check_circle</i> Làm đúng</button><button type="button" class="btn btn-light btn-sm" id="sfxTest2"><i class=mi>celebration</i> Xong nhiệm vụ</button><button type="button" class="btn btn-light btn-sm" id="sfxTest3"><i class=mi>emoji_events</i> Xuất sắc</button></div></div>
-        <div class="settings-row"><div class="sr-text"><strong>Tốc độ đọc tiếng Anh</strong><span>Áp dụng cho từ vựng, bài nghe, vai B khi luyện nói</span></div>${seg("ttsSpeed", [{ v: 0.8, l: "Chậm" }, { v: 1, l: "Vừa" }, { v: 1.2, l: "Nhanh" }], s.ttsSpeed)}</div>
-        <div class="settings-row"><div class="sr-text"><strong>Giọng đọc</strong><span>Giọng tiếng Anh có sẵn trên thiết bị</span></div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select class="role-select" id="ttsVoiceSel" style="max-width:260px"><option value="">Tự động (ưu tiên giọng Mỹ tự nhiên)</option>${voices.map(v => `<option value="${esc(v.name)}" ${s.ttsVoice === v.name ? "selected" : ""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("")}</select><button type="button" class="btn btn-light btn-sm" id="ttsTest"><i class=mi>play_arrow</i> Nghe thử</button></div></div>
+        <div class="settings-row"><div class="sr-text"><strong>Tiếng bấm nút</strong></div><button type="button" class="switch${s.sound ? " on" : ""}" data-switch="sound" aria-label="Tiếng bấm nút"></button></div>
+        <div class="settings-row"><div class="sr-text"><strong>Âm thanh hoàn thành</strong></div>${seg("sfxVolume", [{ v: 0, l: "Tắt" }, { v: 0.5, l: "Nhỏ" }, { v: 0.8, l: "Vừa" }, { v: 1, l: "To" }], s.sfxVolume)}</div>
+        <div class="settings-row"><div class="sr-text"><strong>Nghe thử</strong></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-light btn-sm" id="sfxTest1"><i class=mi>check_circle</i> Làm đúng</button><button type="button" class="btn btn-light btn-sm" id="sfxTest2"><i class=mi>celebration</i> Xong nhiệm vụ</button><button type="button" class="btn btn-light btn-sm" id="sfxTest3"><i class=mi>emoji_events</i> Xuất sắc</button></div></div>
+        <div class="settings-row"><div class="sr-text"><strong>Tốc độ đọc tiếng Anh</strong></div>${seg("ttsSpeed", [{ v: 0.8, l: "Chậm" }, { v: 1, l: "Vừa" }, { v: 1.2, l: "Nhanh" }], s.ttsSpeed)}</div>
+        <div class="settings-row"><div class="sr-text"><strong>Giọng đọc</strong></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select class="role-select" id="ttsVoiceSel" style="max-width:260px"><option value="">Tự động</option>${voices.map(v => `<option value="${esc(v.name)}" ${s.ttsVoice === v.name ? "selected" : ""}>${esc(v.name)} (${esc(v.lang)})</option>`).join("")}</select><button type="button" class="btn btn-light btn-sm" id="ttsTest"><i class=mi>play_arrow</i> Nghe thử</button></div></div>
       </div>
 
       <div class="card panel section">
         <div class="section-head"><div><h3><i class=mi>manage_accounts</i> Tài khoản & dữ liệu</h3></div></div>
         <div class="settings-row"><div class="sr-text"><strong>${esc(cu?.fullName || "Chưa đăng nhập")}</strong><span>${esc(cu ? [cu.email, cu.className ? "Lớp " + cu.className : "", { student: "Học sinh", teacher: "Giáo viên", parent: "Phụ huynh", admin: "Quản trị" }[cu.role] || cu.role].filter(Boolean).join(" · ") : "")}</span></div></div>
-        ${cu?.role === "admin" ? `<div class="settings-row"><div class="sr-text"><strong>Sao lưu dữ liệu học tập</strong><span>Tải file .json (XP, cà rốt, lỗi đang chữa, tiến độ unit) để không mất khi đổi máy / cập nhật</span></div><div style="display:flex;gap:8px"><button type="button" class="btn btn-light btn-sm" id="setExport"><i class=mi>download</i> Sao lưu</button><button type="button" class="btn btn-light btn-sm" id="setImport"><i class=mi>upload</i> Khôi phục</button></div></div>` : ""}
-        ${cu ? `<div class="settings-row"><div class="sr-text"><strong>Đổi mật khẩu</strong><span>Nên đổi mật khẩu mặc định để bảo vệ tài khoản</span></div><button type="button" class="btn btn-light btn-sm" id="setChangePw"><i class=mi>lock_reset</i> Đổi mật khẩu</button></div>` : ""}
-        <div class="settings-row"><div class="sr-text"><strong>Đặt lại cài đặt</strong><span>Về giao diện sáng, cỡ chữ vừa, bật âm thanh</span></div><button type="button" class="btn btn-light btn-sm" id="setReset"><i class=mi>restart_alt</i> Đặt lại</button></div>
+        ${cu?.role === "admin" ? `<div class="settings-row"><div class="sr-text"><strong>Sao lưu dữ liệu học tập</strong></div><div style="display:flex;gap:8px"><button type="button" class="btn btn-light btn-sm" id="setExport"><i class=mi>download</i> Sao lưu</button><button type="button" class="btn btn-light btn-sm" id="setImport"><i class=mi>upload</i> Khôi phục</button></div></div>` : ""}
+        ${cu ? `<div class="settings-row"><div class="sr-text"><strong>Đổi mật khẩu</strong></div><button type="button" class="btn btn-light btn-sm" id="setChangePw"><i class=mi>lock_reset</i> Đổi mật khẩu</button></div>` : ""}
+        <div class="settings-row"><div class="sr-text"><strong>Đặt lại cài đặt</strong></div><button type="button" class="btn btn-light btn-sm" id="setReset"><i class=mi>restart_alt</i> Đặt lại</button></div>
       </div>`;
 
     host.querySelectorAll(".theme-tile").forEach(b => b.addEventListener("click", () => { localStorage.setItem("engoTheme", b.dataset.theme); window.applyTheme(b.dataset.theme); }));

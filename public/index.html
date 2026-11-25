@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./fonts.css?v=3" />
   <link rel="stylesheet" href="./styles.css?v=18" />
-  <link rel="stylesheet" href="./themes.css?v=33" />
+  <link rel="stylesheet" href="./themes.css?v=34" />
 </head>
 <body>
 
@@ -41,8 +41,7 @@
     <div class="auth-form-panel">
       <div class="auth-card">
         <div id="loginPane">
-          <h2>Chào mừng trở lại</h2>
-          <p>Đăng nhập để tiếp tục bài học và xem tiến độ cá nhân.</p>
+          <h2>Đăng nhập</h2>
           <form class="auth-form" id="loginForm">
             <div class="auth-error" id="loginError"></div>
             <div class="field"><label id="loginEmailLabel">Email hoặc mã tài khoản</label><input id="loginEmail" type="text" placeholder="email@example.com" autocomplete="username" required /></div>
@@ -50,7 +49,6 @@
             <div class="field"><label>Vai trò</label><select id="loginRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option><option value="admin">Quản trị viên</option></select></div>
             <button class="btn btn-primary" type="submit" style="width:100%;margin-top:3px">Đăng nhập</button>
           </form>
-          <div class="demo-accounts"><strong>Tài khoản cấp phát:</strong><br>Tài khoản do nhà trường / giáo viên cấp và quản lý.</div>
         </div>
       </div>
     </div>
@@ -60,10 +58,10 @@
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <img src="./images/engohorizontal.png" alt="Logo ENGO" class="brand-logo" />
-        <div><h1>ENGO Learning Hub</h1><span>Học tiếng Anh thông minh</span></div>
+        <div><h1>ENGO</h1><span>Khối 8 &amp; 9</span></div>
       </div>
 
-      <div class="nav-label student-nav-group">Không gian học tập</div>
+      <div class="nav-label student-nav-group">Học tập</div>
       <nav class="nav-list student-nav-group" id="mainNav">
         <button class="nav-btn active" data-view="student-home">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Dashboard
@@ -114,9 +112,6 @@
         <button class="nav-btn role-nav perm-people hidden" data-view="people">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg></span> Tài khoản &amp; lớp
         </button>
-        <button class="nav-btn role-nav admin-only hidden" data-view="data-admin">
-          <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span> Quản lý dữ liệu
-        </button>
         <button class="nav-btn role-nav admin-only hidden" data-view="teacher-home">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg></span> Bài kiểm tra & Speaking
         </button>
@@ -128,16 +123,9 @@
         <button class="icon-btn mobile-menu" id="menuBtn" aria-label="Mở menu"><i class=mi>menu</i></button>
         <div class="search"><input type="search" id="globalSearch" placeholder="Tìm bài kiểm tra, bài nói hoặc từ vựng..." /></div>
         <div class="top-actions">
-          <select class="role-select" id="roleSelect" aria-label="Vai trò hiện tại" disabled>
-            <option value="student">Học sinh</option>
-            <option value="teacher">Giáo viên</option>
-            <option value="parent">Phụ huynh</option>
-            <option value="admin">Quản trị viên</option>
-          </select>
           <button class="btn btn-light streak-top-btn student-only-top" id="streakTopBtn" type="button" title="Chuỗi điểm danh hằng ngày"><i class=mi>local_fire_department</i> <strong id="topStreakCount">1</strong> <span class="streak-top-label">ngày</span></button>
           <button class="btn btn-light dashboard-btn" id="dashboardBtn" type="button" title="Mở Dashboard"><b>⌂</b><span>Dashboard</span></button>
           <button class="icon-btn theme-toggle" type="button" aria-label="Chuyển giao diện" title="Chuyển sang giao diện tối"><span class="theme-icon"><i class=mi>dark_mode</i></span></button>
-          <button class="icon-btn" id="notificationBtn" aria-label="Thông báo" title="Thông báo"><i class=mi>notifications</i><span class="dot" id="notificationDot"></span></button>
           <div class="avatar" id="avatar">MA</div>
           <button class="icon-btn logout-btn" id="logoutBtn" aria-label="Đăng xuất" title="Đăng xuất"><i class=mi>logout</i></button>
         </div>
@@ -149,7 +137,6 @@
 <div class="page-heading">
             <div>
               <h2 id="welcomeHeading">Dashboard & kết quả</h2>
-              <p>Toàn cảnh năng lực qua số liệu, biểu đồ, cùng lịch sử kết quả từng bài kiểm tra và bài luyện.</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-light" id="refreshDashboardBtn">Làm mới</button>
@@ -266,7 +253,7 @@
 
           <div class="section" id="resultsAnchor">
             <div class="page-heading" style="margin-bottom:12px">
-              <div><h2 style="font-size:1.35rem">Kết quả học tập</h2><p>Ghi nhận từng lần kiểm tra, từng bài luyện nói và bộ từ vựng bạn đã hoàn thành.</p></div>
+              <div><h2 style="font-size:1.35rem">Kết quả học tập</h2></div>
             </div>
           </div>
           <div class="section card panel">
@@ -292,7 +279,7 @@
 
         <section class="view" id="tests">
           <div class="page-heading">
-            <div><h2>Bài kiểm tra</h2><p>Đề do giáo viên giao, được AI phân tích độ khó và thời gian làm bài phù hợp với lớp của bạn.</p></div>
+            <div><h2>Bài kiểm tra</h2></div>
             <button class="btn btn-light" id="refreshTestsBtn">Làm mới</button>
           </div>
           <div class="card panel">
@@ -315,7 +302,7 @@
 
         <section class="view" id="vocabulary">
           <div class="page-heading">
-            <div><h2>Vocabulary</h2><p>Lật thẻ để học từ, nghe phát âm, xem từ loại và câu ví dụ. Hoàn thành bộ thẻ để làm bài kiểm tra nhanh và nhận điểm.</p></div>
+            <div><h2>Vocabulary</h2></div>
             <div class="data-toolbar"><button class="btn btn-light" id="shuffleCards">⤨ Trộn thẻ</button><button class="btn btn-primary" id="restartCards">Học lại bộ thẻ</button></div>
           </div>
 
@@ -323,7 +310,6 @@
             <div class="card flashcard-stage" id="flashcardStage">
               <div class="section-head">
                 <div><span class="badge" id="flashDeckName">Unit 1</span><h3 style="margin-top:9px" id="flashProgressText">Thẻ 1 / 8</h3></div>
-                <span class="small muted">Bấm vào thẻ để lật</span>
               </div>
               <div class="progress"><span id="flashProgressBar" style="width:12.5%"></span></div>
 
@@ -351,7 +337,7 @@
                 <button class="btn btn-light" id="flashNext">Thẻ tiếp →</button>
               </div>
               <div class="flash-finish" id="flashFinishBox">
-                <div><strong id="flashViewedText">Đã xem 0/8 thẻ</strong><p class="small muted">Xem hết bộ thẻ rồi chọn dạng bài kiểm tra để nhận điểm.</p></div>
+                <div><strong id="flashViewedText">Đã xem 0/8 thẻ</strong></div>
                 <div class="vocab-modes">
                   <button class="btn btn-primary" id="startVocabQuizMc" disabled title="Chọn nghĩa đúng của từ"><i class=mi>quiz</i> Trắc nghiệm</button>
                   <button class="btn btn-soft" id="startVocabQuizMatch" disabled title="Nối từ với nghĩa"><i class=mi>link</i> Nối từ</button>
@@ -375,14 +361,13 @@
             <aside class="card flash-sidebar">
               <div class="section-head"><h3>Chọn bộ thẻ</h3></div>
               <div class="deck-list" id="deckList"></div>
-              <div class="notice" style="margin-top:15px"><strong>Cách tính điểm</strong><p>Không cộng điểm khi lật từng thẻ. Hoàn thành bài kiểm tra cuối bộ: ≥ 80% nhận +30 XP & +3 <i class=ico-carrot></i>, dưới 80% nhận +10 XP.</p></div>
             </aside>
           </div>
         </section>
 
         <section class="view" id="speaking-lab">
           <div class="page-heading">
-            <div><h2>Luyện nói AI</h2><p>Đi từ câu đơn (giai đoạn 1) đến hội thoại (giai đoạn 2). AI chấm phát âm thân thiện với mọi giọng đọc, lỗi ngữ pháp tự động chuyển sang Phòng chữa lỗi.</p></div>
+            <div><h2>Luyện nói AI</h2></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span class="badge" style="background:#fef3c7;color:#b45309;font-weight:700" id="speakingCarrotBadge"><i class=ico-carrot></i> 15 Cà rốt</span>
               <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700" id="speakingScoreBadge">Điểm cao nhất: 0%</span>
@@ -394,7 +379,7 @@
 
           <div class="card panel" id="speakingListPanel">
             <div class="section-head">
-              <div><h3>Danh sách bài luyện nói</h3><p class="small muted">Mỗi bài giáo viên giao là một dòng riêng. Chọn "Luyện" để bắt đầu.</p></div>
+              <div><h3>Danh sách bài luyện nói</h3></div>
               <div class="results-controls">
                 <select class="role-select" id="speakingUnitFilter"><option value="">Tất cả Unit</option></select>
                 <select class="role-select" id="speakingStageFilter"><option value="">Tất cả giai đoạn</option><option value="1">Giai đoạn 1 · Câu đơn</option><option value="2">Giai đoạn 2 · Hội thoại</option></select>
@@ -474,19 +459,11 @@
             </div>
             <div class="speaking-summary hidden" id="speakingSummary"></div>
           </div>
-
-          <div class="card panel" style="margin-top:20px">
-            <div class="capybara-coach-card" style="margin:0">
-              <div class="capybara-coach-avatar"><img src="./images/engocircle.png" alt="Capybara AI Coach" /><div class="capybara-coach-status">● Gia sư AI</div></div>
-              <h4 style="margin:8px 0 4px">Gia sư Capybara</h4>
-              <div class="capybara-coach-bubble" id="capybaraCoachBubble">"Chọn một bài trong danh sách, nghe mẫu rồi đọc theo. Đừng lo giọng chưa chuẩn, mình nghe được cả nè! "</div>
-            </div>
-          </div>
         </section>
 
         <section class="view" id="errorHealing">
           <div class="page-heading">
-            <div><h2>Phòng Chữa Lỗi Thông Minh</h2><p>Lỗi được phân loại theo nguồn: phát âm, ngữ pháp và bài kiểm tra. Chữa xong sẽ được ghi nhận vào tiến độ.</p></div>
+            <div><h2>Phòng Chữa Lỗi Thông Minh</h2></div>
           </div>
           <div class="healing-stats healing-stats-4">
             <div class="healing-stat-card"><strong class="stat-violet" style="font-size:24px" id="healingStatPron">0</strong><br><span class="small muted">Lỗi phát âm</span></div>
@@ -510,26 +487,26 @@
 
         <section class="view" id="settings">
           <div class="page-heading">
-            <div><h2>Cài đặt</h2><p>Giao diện, màu nền, cỡ chữ, âm thanh và dữ liệu cá nhân. Mọi tuỳ chọn lưu ngay trên thiết bị này.</p></div>
+            <div><h2>Cài đặt</h2></div>
           </div>
           <div id="settingsMount"></div>
         </section>
 
         <section class="view" id="leaderboard">
           <div class="page-heading">
-            <div><h2>Bảng xếp hạng</h2><p>Leo top theo cấp độ hoặc theo cà rốt cùng các bạn trong lớp, trong khối và toàn trường. Mỗi ngày kiếm được tối đa một số cà rốt nhất định, chăm học đều mỗi ngày là cách lên top nhanh nhất.</p></div>
+            <div><h2>Bảng xếp hạng</h2></div>
           </div>
           <div id="leaderboardMount"></div>
         </section>
 
         <section class="view" id="achievements">
-          <div class="page-heading"><div><h2>Thành tích & Danh hiệu</h2><p>Tích lũy XP để lên cấp, chinh phục danh hiệu để trở thành Vua Phát Âm, Vua Ngữ Pháp...</p></div></div>
+          <div class="page-heading"><div><h2>Thành tích & Danh hiệu</h2></div></div>
           <div class="card achievement-summary">
             <div class="level-badge"><div><strong id="achievementLevel">1</strong><span>Cấp độ ENGO</span></div></div>
             <div>
               <span class="badge orange">Tổng điểm: <b id="achievementPoints">0 XP</b></span>
               <h3 style="font-size:25px;margin:13px 0 7px" id="achievementLevelName">Người học khởi động</h3>
-              <p class="muted" style="line-height:1.65;margin:0" id="achievementTitleLine">Chưa có danh hiệu. Hãy luyện nói, làm bài kiểm tra và học từ vựng để mở khóa!</p>
+              <p class="muted" style="line-height:1.65;margin:0" id="achievementTitleLine">Chưa có danh hiệu.</p>
               <div class="progress" style="margin-top:15px"><span id="achievementProgress" style="width:0%"></span></div>
               <div class="small muted" id="achievementProgressText" style="margin-top:7px">0/100 XP đến cấp tiếp theo</div>
             </div>
@@ -546,7 +523,7 @@
 
         <section class="view" id="teacher-home">
           <div class="page-heading">
-            <div><h2>Không gian giáo viên</h2><p>Tạo đề theo ma trận, giao bài luyện nói từ SGK và theo dõi kết quả của từng học sinh.</p></div>
+            <div><h2>Không gian giáo viên</h2></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-soft" id="openMatrixModalBtn" style="font-weight:700"><i class=mi>straighten</i> Ma trận đề</button>
               <button class="btn btn-soft" id="openClassSettingsBtn" style="font-weight:700"><i class=mi>school</i> Phân loại lớp</button>
@@ -573,7 +550,7 @@
           <section class="healing-panel active" id="teacherPanel-students">
             <div class="card panel">
               <div class="section-head">
-                <div><h3>Tổng quan kết quả từng học sinh</h3><p class="small muted">Điểm kiểm tra, phát âm theo giai đoạn, từ vựng và danh hiệu.</p></div>
+                <div><h3>Tổng quan kết quả học sinh</h3></div>
                 <div class="results-controls">
                   <select id="teacherStudentsClassFilter" class="role-select" style="min-width:140px"><option value="">Tất cả các lớp</option></select>
                   <button class="btn btn-light btn-sm" id="refreshStudentsOverview">Làm mới</button>
@@ -590,7 +567,7 @@
 
           <section class="healing-panel" id="teacherPanel-tests">
             <div class="card panel">
-              <div class="section-head"><div><h3>Bài kiểm tra đã tạo</h3><div class="results-controls" style="margin-top:6px"><select class="role-select" id="teacherTestsGradeFilter"><option value="">Tất cả khối</option><option value="6">Khối 6</option><option value="7">Khối 7</option><option value="8">Khối 8</option><option value="9">Khối 9</option></select><select class="role-select" id="teacherTestsSemesterFilter"><option value="">Cả 2 học kỳ</option><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select><select class="role-select" id="teacherTestsTypeFilter"><option value="">Tất cả loại</option><option value="kttx">KTTX</option><option value="ktgk">KTGK</option><option value="ktck">KTCK</option></select></div><p class="small muted">AI phân tích độ khó từng câu và đề xuất thời gian; lớp tăng cường nhận bản đầy đủ, lớp thường nhận bản rút gọn theo ma trận.</p></div><button class="btn btn-light btn-sm" id="refreshTeacherTestsBtn">Làm mới</button></div>
+              <div class="section-head"><div><h3>Bài kiểm tra đã tạo</h3><div class="results-controls" style="margin-top:6px"><select class="role-select" id="teacherTestsGradeFilter"><option value="">Tất cả khối</option><option value="8">Khối 8</option><option value="9">Khối 9</option></select><select class="role-select" id="teacherTestsSemesterFilter"><option value="">Cả 2 học kỳ</option><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select><select class="role-select" id="teacherTestsTypeFilter"><option value="">Tất cả loại</option><option value="kttx">KTTX</option><option value="ktgk">KTGK</option><option value="ktck">KTCK</option></select></div></div><button class="btn btn-light btn-sm" id="refreshTeacherTestsBtn">Làm mới</button></div>
               <div class="table-wrap">
                 <table id="teacherRecentTestsTable">
                   <thead><tr><th>Tên bài</th><th>Loại · HK</th><th>Giao cho</th><th>Cấu trúc</th><th>Độ khó (AI)</th><th>Thời gian</th><th>Ma trận</th><th>Ngày tạo</th><th></th></tr></thead>
@@ -599,7 +576,7 @@
               </div>
             </div>
             <div class="card panel" style="margin-top:18px">
-              <div class="section-head"><div><h3>Ma trận đề đã upload</h3><p class="small muted">Dùng khi tạo đề để chia biến thể theo lớp.</p></div><button class="btn btn-light btn-sm" id="refreshMatricesBtn">Làm mới</button></div>
+              <div class="section-head"><div><h3>Ma trận đề đã upload</h3></div><button class="btn btn-light btn-sm" id="refreshMatricesBtn">Làm mới</button></div>
               <div id="matricesList" class="small muted">Đang tải...</div>
             </div>
           </section>
@@ -607,7 +584,7 @@
           <section class="healing-panel" id="teacherPanel-results">
             <div class="card panel teacher-results-panel" id="teacherResultsSection" style="margin-top:0">
               <div class="section-head">
-                <div><h3>Bảng điểm bài kiểm tra</h3><p class="small muted">Toàn bộ kết quả trắc nghiệm, speaking và tự luận của học sinh.</p></div>
+                <div><h3>Bảng điểm bài kiểm tra</h3></div>
                 <div class="results-controls">
                   <select id="teacherClassFilter" class="role-select" style="min-width:140px"><option value="">Tất cả các lớp</option></select>
                   <select id="teacherTestFilter" class="role-select" style="min-width:180px"><option value="">Tất cả bài kiểm tra</option></select>
@@ -633,7 +610,7 @@
           <section class="healing-panel" id="teacherPanel-speaking">
             <div class="card panel" id="teacherSpeakingSection">
               <div class="section-head">
-                <div><h3>Bài luyện nói đã giao & kết quả</h3><p class="small muted">Giai đoạn 1: câu đơn theo chủ đề · Giai đoạn 2: hội thoại theo SGK.</p></div>
+                <div><h3>Bài luyện nói đã giao & kết quả</h3></div>
                 <div style="display:flex;gap:10px"><button class="btn btn-primary btn-sm" id="btnOpenSpeakingModalAgain">+ Giao bài</button><button class="btn btn-light btn-sm" id="refreshTeacherSpeakingBtn">Làm mới</button></div>
               </div>
               <div class="healing-tabs" style="margin:12px 0 18px">
@@ -676,57 +653,9 @@
           <div id="peopleRoot"><p class="small muted">Đang tải...</p></div>
         </section>
 
-        <section class="view" id="data-admin">
-          <div class="page-heading">
-            <div><h2>Hệ quản lý dữ liệu web</h2><p>Quản lý tài khoản, phân loại lớp, sao lưu và nhật ký hoạt động.</p></div>
-            <div class="data-toolbar">
-              <input id="jsonImportInput" type="file" accept="application/json,.json" hidden />
-              <button class="btn btn-light" id="importDataBtn">Nhập JSON</button>
-              <button class="btn btn-light" id="exportDataBtn">Xuất dữ liệu</button>
-              <button class="btn btn-soft" id="adminClassSettingsBtn"><i class=mi>school</i> Phân loại lớp</button>
-              <button class="btn btn-primary" id="openAddUser">+ Thêm tài khoản</button>
-            </div>
-          </div>
-          <div class="grid stats-grid">
-            <div class="card stat-card"><div class="stat-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><strong id="dbUserCount">0</strong><span>Tài khoản</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#ecfdf5"><svg viewBox="0 0 24 24" style="stroke:#059669"><circle cx="12" cy="12" r="10"/></svg></div><div><strong id="dbStudentCount">0</strong><span>Học sinh</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" style="stroke:#d97706"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div><div><strong id="dbTestCount">0</strong><span>Bài kiểm tra</span></div></div>
-            <div class="card stat-card"><div class="stat-icon" style="background:#f0f9ff"><svg viewBox="0 0 24 24" style="stroke:#0284c7"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div><strong id="dbTeacherCount">0</strong><span>Giáo viên</span></div></div>
-          </div>
-          <div class="section card panel">
-            <div class="section-head">
-              <div class="data-tabs" id="dataTabs">
-                <button class="data-tab active" data-data-tab="users">Tài khoản</button>
-                <button class="data-tab" data-data-tab="tests">Bài kiểm tra</button>
-                <button class="data-tab" data-data-tab="logs">Nhật ký</button>
-              </div>
-              <div class="data-toolbar"><input id="dataSearch" type="search" placeholder="Tìm trong dữ liệu..." style="border:1px solid var(--line);border-radius:12px;padding:9px 11px"></div>
-            </div>
-            <div class="data-panel active" id="data-users">
-              <div class="table-wrap"><table><thead><tr><th>Họ tên</th><th>Tài khoản</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="userTableBody"></tbody></table></div>
-            </div>
-            <div class="data-panel" id="data-tests">
-              <div class="table-wrap"><table><thead><tr><th>Tên bài</th><th>Lớp</th><th>Số câu</th><th>Thời gian</th><th>Ngày tạo</th></tr></thead><tbody id="testTableBody"></tbody></table></div>
-            </div>
-            <div class="data-panel" id="data-logs"><div class="activity-log" id="activityLog"></div></div>
-          </div>
-          <div class="section grid two-col">
-            <div class="card panel">
-              <div class="section-head"><h3>Tình trạng hệ thống</h3><span class="badge green" id="systemHealthBadge">Đang kiểm tra</span></div>
-              <div class="system-health" id="systemHealthList"></div>
-            </div>
-            <div class="card panel">
-              <div class="section-head"><h3>Sao lưu dữ liệu</h3></div>
-              <p class="muted" style="font-size:13px;line-height:1.6">Tạo bản sao dữ liệu tài khoản và bài kiểm tra dưới dạng JSON.</p>
-              <div class="notice"><strong>Lần sao lưu gần nhất</strong><p id="lastBackupText">Chưa có bản sao lưu trong phiên này.</p></div>
-              <button class="btn btn-primary" id="backupNow" style="width:100%;margin-top:13px">Sao lưu ngay</button>
-            </div>
-          </div>
-        </section>
-
         <section class="view" id="listening-lab">
           <div class="page-heading">
-            <div><h2>Luyện nghe theo Unit</h2><p>Mỗi Unit có 3 cấp độ nghe từ dễ đến khó. Nghe xong làm ngay bài tập áp dụng để biết mình nắm được bao nhiêu.</p></div>
+            <div><h2>Luyện nghe theo Unit</h2></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span class="badge" style="background:#eef2ff;color:#4338ca;font-weight:700" id="listenProgressBadge">0 / 36 đoạn</span>
               <button class="btn btn-light btn-sm" id="refreshListeningBtn">Làm mới</button>
@@ -795,11 +724,6 @@
     </main>
   </div>
 
-  <aside class="notification-panel" id="notificationPanel" aria-label="Trung tâm thông báo">
-    <div class="notification-head"><h3>Thông báo</h3><button class="btn btn-soft btn-sm" id="markNotificationsRead">Đánh dấu đã đọc</button></div>
-    <div class="notification-list" id="notificationList"></div>
-  </aside>
-
   <div class="modal hidden" id="resultModal">
     <div class="modal-card modal-lg">
       <div class="modal-head"><h3>Kết quả bài làm</h3><button class="close-btn modal-close">×</button></div>
@@ -821,24 +745,23 @@
 
   <div class="modal hidden" id="importNotesModal">
     <div class="modal-card" style="max-width:640px">
-      <div class="modal-head"><div><h3>Ghi chú sau khi nạp đề</h3><p class="small muted">AI đối chiếu đáp án gốc với ngữ pháp; giáo viên nên xem lại các câu dưới đây.</p></div><button class="close-btn" onclick="closeModal('importNotesModal')">×</button></div>
+      <div class="modal-head"><div><h3>Ghi chú sau khi nạp đề</h3></div><button class="close-btn" onclick="closeModal('importNotesModal')">×</button></div>
       <div id="importNotesBody" style="line-height:1.5"></div>
       <div style="margin-top:14px;text-align:right"><button class="btn btn-primary" onclick="closeModal('importNotesModal')">Đã hiểu</button></div>
     </div>
   </div>
   <div class="modal hidden" id="createTestModal">
     <div class="modal-card">
-      <div class="modal-head"><div><h3>Tạo & giao bài kiểm tra từ tệp đề</h3><p class="small muted">AI đọc đề Word/PDF: giữ phần gạch chân, yêu cầu từng phần, đáp án + biến thể đúng; kiểm tra lại đáp án gốc và báo chỗ nghi sai.</p></div><button class="close-btn create-close">×</button></div>
+      <div class="modal-head"><div><h3>Tạo & giao bài kiểm tra</h3></div><button class="close-btn create-close">×</button></div>
       <form id="uploadDocxForm" class="form-grid">
         <div class="field full"><label>Chọn file đề thi (Word .docx hoặc PDF)</label><input type="file" id="docxModalFileInput" accept=".docx,.pdf" required /></div>
-        <div class="field full"><label>Tên bài kiểm tra</label><input id="docxModalTitle" placeholder="Ví dụ: Đề kiểm tra học kỳ 2 - Tiếng Anh 9" /></div>
+        <div class="field full"><label>Tên bài kiểm tra</label><input id="docxModalTitle" placeholder="Ví dụ: Đề kiểm tra học kỳ 2 - Tiếng Anh 8" /></div>
         <div class="field"><label>Loại kiểm tra</label><select id="docxModalType"><option value="kttx">Kiểm tra thường xuyên (KTTX)</option><option value="ktgk">Kiểm tra giữa kỳ (KTGK)</option><option value="ktck">Kiểm tra cuối kỳ (KTCK)</option></select></div>
         <div class="field"><label>Học kỳ</label><select id="docxModalSemester"><option value="1">Học kỳ 1</option><option value="2">Học kỳ 2</option></select></div>
         <div class="field"><label>Unit (tuỳ chọn, cho KTTX)</label><select id="docxModalUnit"><option value="">— Không gắn Unit —</option></select></div>
-        <div class="field"><label>Khối</label><select id="docxModalGrade"><option value="">Theo lớp / mọi khối</option><option value="6">Khối 6</option><option value="7">Khối 7</option><option value="8">Khối 8</option><option value="9">Khối 9</option></select></div>
+        <div class="field"><label>Khối</label><select id="docxModalGrade"><option value="">Theo lớp / mọi khối</option><option value="8">Khối 8</option><option value="9">Khối 9</option></select></div>
         <div class="field"><label>Giao cho lớp</label><input id="docxModalClass" list="classNameList" placeholder="Bỏ trống = toàn khối" /></div>
         <div class="field full"><label>Ma trận đề (tuỳ chọn)</label><select id="docxModalMatrix"><option value="">Mặc định (AI tự phân tầng)</option></select></div>
-        <div class="field full small muted" style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:10px 12px;line-height:1.5">Lớp được đánh dấu <strong>tăng cường</strong> nhận đề đầy đủ (nhiều câu vận dụng); lớp <strong>thường</strong> nhận bản rút gọn bớt câu khó theo tỉ lệ ma trận, thời gian được AI cân đối. Cấu hình ở nút "Phân loại lớp".</div>
         <div class="field full" style="display:flex;gap:10px;margin-top:6px"><button type="button" class="btn btn-light create-close" style="flex:1">Hủy</button><button type="submit" class="btn btn-primary" style="flex:1" id="submitDocxBtn">Tạo & Giao bài</button></div>
       </form>
     </div>
@@ -846,7 +769,7 @@
 
   <div class="modal hidden" id="matrixModal">
     <div class="modal-card">
-      <div class="modal-head"><div><h3>Upload ma trận đề (PDF/DOCX)</h3><p class="small muted">AI đọc tỉ lệ Nhận biết / Thông hiểu / Vận dụng và đề xuất phân tầng cho lớp tăng cường & lớp thường.</p></div><button class="close-btn" data-close-modal="matrixModal">×</button></div>
+      <div class="modal-head"><div><h3>Upload ma trận đề (PDF/DOCX)</h3></div><button class="close-btn" data-close-modal="matrixModal">×</button></div>
       <form id="matrixUploadForm" class="form-grid">
         <div class="field full"><label>File ma trận</label><input type="file" id="matrixFileInput" accept=".pdf,.docx,.txt" required /></div>
         <div class="field full"><label>Tên ma trận</label><input id="matrixTitleInput" placeholder="Ví dụ: Ma trận HK1 Tiếng Anh 9" /></div>
@@ -858,16 +781,17 @@
 
   <div class="modal hidden" id="classSettingsModal">
     <div class="modal-card">
-      <div class="modal-head"><div><h3>Phân loại lớp</h3><p class="small muted">Chọn lớp tăng cường (đề khó hơn) và lớp thường (đề cơ bản).</p></div><button class="close-btn" data-close-modal="classSettingsModal">×</button></div>
+      <div class="modal-head"><div><h3>Phân loại lớp</h3></div><button class="close-btn" data-close-modal="classSettingsModal">×</button></div>
       <div id="classSettingsBody"><p class="small muted">Đang tải danh sách lớp...</p></div>
-      <div style="display:flex;gap:8px;margin-top:12px"><input id="newClassNameInput" placeholder="Thêm lớp mới, vd: 9A12" style="flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 11px"><button class="btn btn-light" id="addClassRowBtn" type="button">Thêm</button></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><input id="newClassNameInput" placeholder="Thêm lớp mới, vd: 8A1" style="flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 11px"><button class="btn btn-light" id="addClassRowBtn" type="button">Thêm</button></div>
+      <p class="small muted" style="margin:6px 0 0">Lưu ý: Tên lớp tự động in hoa chữ <b>A</b> (VD: 8A1, 9A6).</p>
       <div style="display:flex;gap:10px;margin-top:14px"><button type="button" class="btn btn-light" data-close-modal="classSettingsModal" style="flex:1">Đóng</button><button type="button" class="btn btn-primary" id="saveClassSettingsBtn" style="flex:1">Lưu phân loại</button></div>
     </div>
   </div>
 
   <div class="modal hidden" id="speakingUnitModal">
     <div class="modal-card" style="max-width:620px">
-      <div class="modal-head"><div><h3>SGK → Bài luyện nói AI</h3><p class="small muted">Upload PDF/DOCX một Unit. AI viết câu đơn mới theo chủ đề (không chép SGK) và hội thoại theo phong cách SGK.</p></div><button class="close-btn" data-close-modal="speakingUnitModal">×</button></div>
+      <div class="modal-head"><div><h3>SGK → Bài luyện nói AI</h3></div><button class="close-btn" data-close-modal="speakingUnitModal">×</button></div>
       <form id="speakingUnitForm" class="form-grid" style="gap:12px">
         <div class="field full"><label>File SGK (PDF/DOCX)</label><input type="file" id="speakingUnitFile" accept=".pdf,.docx,.txt" required /></div>
         <div class="field"><label>Tên Unit / chủ đề</label><input id="speakingUnitTitle" placeholder="Unit 1: Local Community" /></div>
@@ -881,7 +805,7 @@
 
   <div class="modal hidden" id="createSpeakingTaskModal">
     <div class="modal-card" style="max-width:620px">
-      <div class="modal-head"><div><h3>Giao bài luyện nói</h3><p class="small muted">Nhập một hoặc nhiều câu (mỗi dòng một câu; hội thoại ghi "A: ..." / "B: ...").</p></div><button class="close-btn" id="closeSpeakingTaskModal">×</button></div>
+      <div class="modal-head"><div><h3>Giao bài luyện nói</h3></div><button class="close-btn" id="closeSpeakingTaskModal">×</button></div>
       <form id="createSpeakingTaskForm" class="form-grid" style="gap:12px">
         <div class="field full"><label>Tiêu đề bài tập <span style="color:#ef4444">*</span></label><input id="newSpeakingTitle" placeholder="Ví dụ: Unit 2 - Talking about city life" required /></div>
         <div class="field"><label>Giai đoạn</label><select id="newSpeakingStage"><option value="1">GĐ1 · Câu đơn</option><option value="2">GĐ2 · Hội thoại</option></select></div>
@@ -889,7 +813,6 @@
         <div class="field full">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label style="margin:0">Các câu tiếng Anh <span style="color:#ef4444">*</span></label><button type="button" class="btn btn-soft btn-sm" id="btnPreviewSpeakingTts"><i class=mi>volume_up</i> Nghe thử dòng đầu</button></div>
           <textarea id="newSpeakingSentence" rows="5" placeholder="She usually walks to school every morning.&#10;A: Where did you go last weekend?&#10;B: I visited Bat Trang village." required style="font-size:14px;line-height:1.5"></textarea>
-          <span class="small muted">IPA và bản dịch sẽ được AI tạo tự động cho từng câu.</span>
         </div>
         <div class="field full" style="display:flex;gap:10px;margin-top:4px"><button type="button" class="btn btn-light" id="cancelSpeakingTaskBtn" style="flex:1">Hủy</button><button type="submit" class="btn btn-primary" id="submitSpeakingTaskBtn" style="flex:2;font-weight:700">Giao bài cho học sinh</button></div>
       </form>
@@ -905,7 +828,7 @@
 
   <div class="modal hidden" id="changePwModal" data-locked="1">
     <div class="modal-card" style="max-width:440px">
-      <div class="modal-head"><div><h3><i class=mi>lock_reset</i> Đổi mật khẩu</h3><p class="small muted" id="changePwHint">Vì lý do bảo mật, bạn cần đổi mật khẩu mặc định trước khi sử dụng.</p></div><button class="close-btn hidden" id="changePwClose" data-close-modal="changePwModal">×</button></div>
+      <div class="modal-head"><div><h3><i class=mi>lock_reset</i> Đổi mật khẩu</h3><p class="small muted" id="changePwHint">Bạn cần đổi mật khẩu mặc định trước khi sử dụng.</p></div><button class="close-btn hidden" id="changePwClose" data-close-modal="changePwModal">×</button></div>
       <form class="auth-form" id="changePwForm">
         <div class="auth-error" id="changePwError"></div>
         <div class="field"><label>Mật khẩu hiện tại</label><input id="changePwCurrent" type="password" autocomplete="current-password" required></div>
@@ -945,7 +868,7 @@
 
   <div class="modal hidden" id="healingExerciseModal">
     <div class="modal-card healing-modal-content">
-      <div class="modal-head"><div><h3 id="healingModalTitle">Chữa Lỗi Ngữ Pháp</h3><p class="small muted">Phân tích và khắc phục lỗi sai</p></div><button class="close-btn" id="healingModalClose">×</button></div>
+      <div class="modal-head"><div><h3 id="healingModalTitle">Chữa Lỗi Ngữ Pháp</h3></div><button class="close-btn" id="healingModalClose">×</button></div>
       <div class="healing-progress-bar"><div class="healing-progress-fill" id="healingModalProgress" style="width:33%"></div></div>
       <div id="healingModalBody"><p class="small muted">Đang phân tích lỗi...</p></div>
     </div>
@@ -967,21 +890,7 @@
     </div>
   </div>
 
-  <div class="modal hidden" id="addUserModal">
-    <div class="modal-card">
-      <div class="modal-head"><h3>Thêm tài khoản</h3><button class="close-btn add-user-close">×</button></div>
-      <form id="addUserForm" class="form-grid">
-        <div class="field full"><label>Họ và tên</label><input id="newUserName" required placeholder="Nguyễn Văn A" /></div>
-        <div class="field full"><label id="newUserEmailLabel">Email hoặc mã tài khoản</label><input id="newUserEmail" required placeholder="student02@engo.edu.vn" /></div>
-        <div class="field full" id="newUserPhoneGroup" style="display:none"><label>Số điện thoại phụ huynh</label><input id="newUserPhone" type="tel" inputmode="tel" placeholder="0912345678" /></div>
-        <div class="field"><label>Vai trò</label><select id="newUserRole"><option value="student">Học sinh</option><option value="teacher">Giáo viên</option><option value="parent">Phụ huynh</option><option value="admin">Quản trị viên</option></select></div>
-        <div class="field" id="newUserClassGroup"><label>Lớp học</label><input id="newUserClass" list="classNameList" placeholder="9A1" /></div>
-        <div class="field"><label>Trạng thái</label><select id="newUserStatus"><option value="active">Đang hoạt động</option><option value="pending">Chờ duyệt</option><option value="locked">Đã khóa</option></select></div>
-        <div class="field full"><label>Mật khẩu tạm</label><input id="newUserPassword" value="123456" minlength="6" required /></div>
-        <div class="field full" style="display:flex;gap:10px"><button type="button" class="btn btn-light add-user-close" style="flex:1">Hủy</button><button type="submit" class="btn btn-primary" style="flex:1">Lưu tài khoản</button></div>
-      </form>
-    </div>
-  </div>
+  <datalist id="classNameList"></datalist>
 
   <div class="capybara-chat-widget" id="capybaraChatWidget">
     <button class="capybara-chat-trigger" id="capybaraChatTrigger" type="button" aria-label="Mở Trợ lý Capybara AI" title="Trò chuyện & Hỏi bài Capybara AI">
@@ -1011,17 +920,17 @@
   <div class="toast" id="toast">Đã lưu</div>
 
   <script src="./data-loader.js?v=1" defer></script>
-  <script src="./settings.js?v=7" defer></script>
+  <script src="./settings.js?v=8" defer></script>
   <script src="./sfx.js?v=1" defer></script>
-  <script src="./script.js?v=31" defer></script>
-  <script src="./units-ui.js?v=16" defer></script>
-  <script src="./leaderboard.js?v=2" defer></script>
+  <script src="./script.js?v=32" defer></script>
+  <script src="./units-ui.js?v=17" defer></script>
+  <script src="./leaderboard.js?v=3" defer></script>
   <script src="./access.js?v=3" defer></script>
-  <script src="./manage.js?v=3" defer></script>
+  <script src="./manage.js?v=4" defer></script>
   <script src="./report.js?v=2" defer></script>
-  <script src="./wordform.js?v=3" defer></script>
+  <script src="./wordform.js?v=4" defer></script>
   <script src="./results.js?v=2" defer></script>
-  <script src="./pvp.js?v=5" defer></script>
-  <script src="./social.js?v=4" defer></script>
+  <script src="./pvp.js?v=6" defer></script>
+  <script src="./social.js?v=5" defer></script>
 </body>
 </html>

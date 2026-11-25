@@ -344,8 +344,7 @@
     host.innerHTML = !set ? "" : `
       <div class="card panel unit-panel">
         <div class="section-head">
-          <div><h3>Luyện nói theo Unit · ${esc(set.name)}</h3>
-            <p class="small muted">Ba cấp độ tăng dần. Nghe câu mẫu, bấm micro ở bảng dưới để đọc theo; điểm phát âm chấm theo cách đọc nên giọng miền nào cũng công bằng.</p></div>
+          <div><h3>Luyện nói theo Unit · ${esc(set.name)}</h3></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             ${gradeSwitchHtml()}
             <span class="badge" style="background:#ecfdf5;color:#047857;font-weight:700">${totalItems} câu · ${totalUnits} unit</span>
@@ -399,8 +398,7 @@
     host.innerHTML = `
       <div class="card panel unit-panel">
         <div class="section-head">
-          <div><h3>${esc(set.name)}</h3>
-            <p class="small muted">Nghe tối đa 3 lần mỗi đoạn, sau đó làm bài tập. Xem lời thoại chỉ nên bấm sau khi đã trả lời.</p></div>
+          <div><h3>${esc(set.name)}</h3></div>
           ${gradeSwitchHtml()}
         </div>
         ${unitChips(u, "data-lunit")}
@@ -512,7 +510,7 @@
     const TYPEN = { KTTX: "Thường xuyên", KTGK: "Giữa kì", KTCK: "Cuối kì" };
     const cu = CU();
     const isTeacher = cu && (cu.role === "teacher" || cu.role === "admin");
-    const myGrade = cu && cu.className ? Number(String(cu.className).match(/^([6-9])/)?.[1]) : null;
+    const myGrade = cu && cu.className ? Number(String(cu.className).match(/^([89])/)?.[1]) : null;
     const grade = isTeacher ? state.examGrade : (myGrade || 9);
     const tests = TESTS().filter(t => !t.grade || Number(t.grade) === grade);
     const forSpec = s => tests.filter(t => String(t.testType || "kttx").toUpperCase() === s.type && Number(t.semester || 1) === s.term && (s.type !== "KTTX" || !t.unitNo || (s.units || []).includes(Number(t.unitNo))));
@@ -524,17 +522,16 @@
         return `<div class="unit-bank-row"><span>${esc(t.title)}${t.className ? ` <span class="small muted">(${esc(t.className)})</span>` : ""}</span>${btn}</div>`;
       }).join("");
       const upload = isTeacher ? `<button type="button" class="btn btn-soft btn-sm" data-upload-spec="${esc(s.id)}">＋ Nạp đề Word</button>` : "";
-      return (rows ? `<div class="unit-bank-list">${rows}</div><div class="small muted" style="margin-top:4px">${list.length} đề</div>` : '<span class="small muted">Chưa có đề — giáo viên nạp từ ngân hàng của tổ.</span>') + (upload ? `<div style="margin-top:6px">${upload}</div>` : "");
+      return (rows ? `<div class="unit-bank-list">${rows}</div><div class="small muted" style="margin-top:4px">${list.length} đề</div>` : '<span class="small muted">Chưa có đề</span>') + (upload ? `<div style="margin-top:6px">${upload}</div>` : "");
     };
 
     host.innerHTML = `
       <div class="card panel unit-panel">
         <div class="section-head">
-          <div><h3>Ba loại kiểm tra theo Thông tư 22</h3>
-            <p class="small muted">Mỗi học kì có 4 đầu điểm thường xuyên, 1 bài giữa kì và 1 bài cuối kì. Khung dưới đây là mặc định; ma trận thật của trường sẽ ghi đè khi giáo viên tải lên.</p></div>
+          <div><h3>Kiểm tra theo Thông tư 22</h3></div>
           <span class="badge" style="background:#fff7ed;color:#b45309;font-weight:700">Khối ${grade} · ${tests.length} đề</span>
         </div>
-        ${isTeacher ? `<div class="unit-chip-row" style="margin-bottom:8px">${[6, 7, 8, 9].map(g => `<button type="button" class="unit-chip${g === grade ? " active" : ""}" data-exam-grade="${g}">Khối ${g}</button>`).join("")}</div>` : ""}
+        ${isTeacher ? `<div class="unit-chip-row" style="margin-bottom:8px">${[8, 9].map(g => `<button type="button" class="unit-chip${g === grade ? " active" : ""}" data-exam-grade="${g}">Khối ${g}</button>`).join("")}</div>` : ""}
         <div class="healing-tabs">
           <button class="healing-tab${term === 1 ? " active" : ""}" data-term="1">Học kì I · Unit 1–6</button>
           <button class="healing-tab${term === 2 ? " active" : ""}" data-term="2">Học kì II · Unit 7–12</button>

@@ -87,7 +87,7 @@
     if (!allowed()) { host.innerHTML = `<div class="card panel"><p class="small muted">Tính năng bạn bè dành cho học sinh.</p></div>`; return; }
     const reqN = S.data.incoming.length;
     host.innerHTML = `
-      <div class="page-heading"><div><h2>Bạn bè</h2><p>Kết bạn với các bạn trong trường, trò chuyện và rủ nhau thi đấu.</p></div></div>
+      <div class="page-heading"><div><h2>Bạn bè</h2></div></div>
       <div class="fr-layout ${S.active ? "chatting" : ""}">
         <div class="card fr-side">
           <div class="data-tabs fr-tabs">${[["friends", `Bạn bè (${S.data.friends.length})`], ["requests", `Lời mời${reqN ? ` <b class="fr-dot">${reqN}</b>` : ""}`], ["find", "Tìm bạn"]].map(([k, l]) => `<button type="button" class="data-tab ${S.tab === k ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}</div>

@@ -72,13 +72,11 @@
       <div class="pv-modes">
         <div class="card panel pv-mode">
           <h3><i class=mi>smart_toy</i> Đấu với bot</h3>
-          <p class="small muted">Thời gian trả lời mỗi câu tuỳ mức độ. Thắng để nhận cà rốt.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap"><label class="pv-unit">Khối <select id="pvGrade"><option value="8" ${g === 8 ? "selected" : ""}>Khối 8</option><option value="9" ${g === 9 ? "selected" : ""}>Khối 9</option></select></label><label class="pv-unit">Chủ đề <select id="pvUnit"><option value="">Tất cả Unit</option>${units}</select></label></div>
           <div class="pv-diffs">${Object.entries(DIFF).map(([k, d]) => `<button type="button" class="pv-diff ${d.cls}" data-bot="${k}"><i class=mi>${d.icon}</i><b>${d.label}</b><span>${d.seconds} giây/câu</span><em>Thắng +${d.carrots} <i class=ico-carrot></i></em><small>Đã thắng ${(st.botWins || {})[k] || 0}</small></button>`).join("")}</div>
         </div>
         <div class="card panel pv-mode">
           <h3><i class=mi>group</i> Đấu với người</h3>
-          <p class="small muted">10 giây/câu. Thắng +10 <i class=ico-carrot></i> và điểm xếp hạng.</p>
           <button type="button" class="btn btn-primary pv-big" id="pvQueue"><i class=mi>travel_explore</i> Ghép trận ngẫu nhiên</button>
           <div class="pv-room">
             <button type="button" class="btn btn-light" id="pvRoom"><i class=mi>meeting_room</i> Tạo phòng</button>

@@ -414,8 +414,9 @@ function parseJsonField(value, fallback) {
   try { return JSON.parse(value); } catch (e) { return fallback; }
 }
 
-const DEFAULT_CLASSES = [6, 7, 8, 9].flatMap(g => Array.from({ length: 13 }, (_, i) => `${g}A${i + 1}`));
-function gradeOfClass(className) { const m = String(className || "").trim().match(/^([6-9])/); return m ? Number(m[1]) : null; }
+const DEFAULT_CLASSES = [8, 9].flatMap(g => Array.from({ length: 13 }, (_, i) => `${g}A${i + 1}`));
+function gradeOfClass(className) { const m = String(className || "").trim().match(/^([89])/); return m ? Number(m[1]) : null; }
+const isGrade89Class = c => gradeOfClass(c) !== null;
 const DEFAULT_TIERS = {
   advanced: { label: "Lớp tăng cường", easy: 25, medium: 35, hard: 40, timeFactor: 0.9 },
   regular: { label: "Lớp thường", easy: 45, medium: 35, hard: 20, timeFactor: 1.1 }
@@ -806,7 +807,25 @@ async function uniqueStudentEmail(fullName, className) {
   return `${base}${Date.now()}${suffix}@engo.web`;
 }
 function parentEmail(phone) { return `ph${phone}@phuhuynh.engo.web`; }
-const cleanClass = v => String(v || "").trim().toUpperCase().replace(/\s+/g, "");
+function normalizeClassName(v, gradeHint) {
+  let s = String(v || "").trim().replace(/\s+/g, "").toUpperCase();
+  if (!s) return "";
+  const g = [8, 9].includes(Number(gradeHint)) ? String(Number(gradeHint)) : "";
+  if (g && /^[A-Z]/.test(s)) s = g + s;
+  return s;
+}
+const cleanClass = (v, gradeHint) => normalizeClassName(v, gradeHint);
+const isValidGrade89Class = cls => /^[89][A-Z][0-9A-Z]{0,6}$/.test(String(cls || ""));
+async function ensureClassInSettings(className, userId, tier) {
+  if (!className) return;
+  try {
+    if (tier === "advanced" || tier === "regular") {
+      await pool.execute("INSERT INTO class_settings (class_name, tier, updated_by) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE tier = VALUES(tier), updated_by = VALUES(updated_by)", [className, tier, userId || null]);
+    } else {
+      await pool.execute("INSERT IGNORE INTO class_settings (class_name, tier, updated_by) VALUES (?, 'regular', ?)", [className, userId || null]);
+    }
+  } catch (e) {}
+}
 const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || ""));
 const PARENT_DEFAULT_PASSWORD = "123";
 
@@ -913,8 +932,9 @@ app.post("/api/admin/users", requireLogin, requirePermission("users.manage", "st
       const id = await insertUser({ fullName: String(fullName).trim().slice(0, 100), email: loginEmail, passwordHash: await bcrypt.hash(pw || PARENT_DEFAULT_PASSWORD, BCRYPT_ROUNDS), role: "parent", status, phone: p || null, mustChange: !pw });
       return res.status(201).json({ success: true, message: `Đã tạo tài khoản phụ huynh ${p || loginEmail}${pw ? "" : ` (mật khẩu ${PARENT_DEFAULT_PASSWORD}, bắt buộc đổi khi đăng nhập)`}.`, userId: id, email: loginEmail });
     }
-    const cls = role === "student" ? cleanClass(className) || null : null;
+    const cls = role === "student" ? cleanClass(className, req.body && req.body.grade) || null : null;
     if (role === "student" && !cls) return res.status(400).json({ success: false, message: "Vui lòng nhập lớp cho học sinh." });
+    if (role === "student" && !isValidGrade89Class(cls)) return res.status(400).json({ success: false, message: "Tên lớp phải thuộc khối 8 hoặc 9 (VD: 8A1, 9A6)." });
     if (role === "student" && !classAllowed(ctx, cls)) return res.status(403).json({ success: false, message: `Lớp ${cls} không thuộc các lớp bạn phụ trách.` });
     let mail = String(email || "").trim().toLowerCase();
     if (!mail && role === "student") mail = await uniqueStudentEmail(fullName, cls);
@@ -924,6 +944,7 @@ app.post("/api/admin/users", requireLogin, requirePermission("users.manage", "st
     const [existing] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
     if (existing.length) return res.status(409).json({ success: false, message: "Email này đã tồn tại." });
     const id = await insertUser({ fullName: String(fullName).trim().slice(0, 100), email: mail, passwordHash: await bcrypt.hash(pw, BCRYPT_ROUNDS), role, className: cls, status: ctx.full ? status : "active" });
+    if (role === "student" && cls) await ensureClassInSettings(cls, req.user.userId);
     return res.status(201).json({ success: true, message: `Đã thêm tài khoản ${mail}.`, userId: id, email: mail });
   } catch (error) {
     return sendError(res, error, "Không thể thêm tài khoản.");
@@ -952,10 +973,12 @@ app.patch("/api/admin/users/:id", requireLogin, requirePermission("users.manage"
       sets.push("email = ?"); params.push(v);
     }
     if (b.className !== undefined && target.role === "student") {
-      const v = cleanClass(b.className);
+      const v = cleanClass(b.className, b.grade);
       if (!v) return res.status(400).json({ success: false, message: "Lớp không được để trống." });
+      if (!isValidGrade89Class(v)) return res.status(400).json({ success: false, message: "Tên lớp phải thuộc khối 8 hoặc 9 (VD: 8A1, 9A6)." });
       if (!classAllowed(ctx, v)) return res.status(403).json({ success: false, message: `Lớp ${v} không thuộc các lớp bạn phụ trách.` });
       sets.push("class_name = ?"); params.push(v);
+      await ensureClassInSettings(v, req.user.userId);
     }
     if (b.phone !== undefined && target.role === "parent") {
       const p = scope.normalizePhone(b.phone);
@@ -1090,8 +1113,9 @@ app.post("/api/admin/users/import", requireLogin, requirePermission("users.impor
           results.push(out);
           continue;
         }
-        const cls = role === "student" ? cleanClass(r.className) : null;
+        const cls = role === "student" ? cleanClass(r.className, r.grade) : null;
         if (role === "student" && !cls) throw Object.assign(new Error("Thiếu lớp"), { status: 400 });
+        if (role === "student" && !isValidGrade89Class(cls)) throw Object.assign(new Error("Lớp phải thuộc khối 8 hoặc 9"), { status: 400 });
         if (role === "student" && !classAllowed(ctx, cls)) throw Object.assign(new Error(`Lớp ${cls} ngoài phạm vi`), { status: 403 });
         let mail = String(r.email || "").trim().toLowerCase();
         let studentId = null;
@@ -1108,7 +1132,7 @@ app.post("/api/admin/users/import", requireLogin, requirePermission("users.impor
             const pw = String(r.password || defaultPassword);
             if (pw.length < 6) throw Object.assign(new Error("Mật khẩu dưới 6 ký tự"), { status: 400 });
             const id = await insertUser({ fullName: fullName.slice(0, 100), email: mail, passwordHash: await hashOf(pw), role, className: cls });
-            if (role === "student") studentId = id;
+            if (role === "student") { studentId = id; await ensureClassInSettings(cls, req.user.userId); }
             Object.assign(out, { status: "created", login: mail, message: `Mật khẩu ${r.password ? "theo file" : defaultPassword}` });
             created++;
           }
@@ -1128,6 +1152,145 @@ app.post("/api/admin/users/import", requireLogin, requirePermission("users.impor
     return res.json({ success: true, created, skipped, failed, parentsLinked, results, message: `Đã tạo ${created}, bỏ qua ${skipped}, lỗi ${failed}${parentsLinked ? `, liên kết ${parentsLinked} phụ huynh` : ""}.` });
   } catch (error) {
     return sendError(res, error, "Không nhập được danh sách.");
+  }
+});
+
+app.get("/api/admin/classes", requireLogin, requirePermission("users.manage", "students.manage", "classes.settings"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const [settingRows] = await pool.query("SELECT class_name, tier FROM class_settings").catch(() => [[]]);
+    const [countRows] = await pool.query("SELECT class_name, COUNT(*) AS cnt FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' GROUP BY class_name");
+    const tierMap = new Map();
+    for (const r of settingRows) {
+      const c = normalizeClassName(r.class_name);
+      if (c) tierMap.set(c, r.tier === "advanced" ? "advanced" : "regular");
+    }
+    const countMap = new Map();
+    for (const r of countRows) {
+      const c = normalizeClassName(r.class_name);
+      if (c) countMap.set(c, (countMap.get(c) || 0) + Number(r.cnt || 0));
+    }
+    const allNames = new Set(DEFAULT_CLASSES);
+    for (const c of tierMap.keys()) if (isGrade89Class(c) || (countMap.get(c) || 0) > 0) allNames.add(c);
+    for (const c of countMap.keys()) allNames.add(c);
+    const scopedSet = !ctx.full && ctx.sc.classes ? new Set(ctx.sc.classes.map(c => normalizeClassName(c))) : null;
+    const classes = [...allNames]
+      .filter(c => isGrade89Class(c) || (countMap.get(c) || 0) > 0)
+      .filter(c => !scopedSet || scopedSet.has(c))
+      .sort((a, b) => a.localeCompare(b, "vi", { numeric: true }))
+      .map(c => ({ className: c, grade: gradeOfClass(c), tier: tierMap.get(c) || "regular", studentCount: countMap.get(c) || 0 }));
+    return res.json({ success: true, classes });
+  } catch (error) {
+    return sendError(res, error, "Không tải được danh sách lớp.");
+  }
+});
+
+app.post("/api/admin/classes", requireLogin, requirePermission("users.manage", "classes.settings"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const { grade, className, tier = "regular" } = req.body || {};
+    const cls = normalizeClassName(className, grade);
+    if (!isValidGrade89Class(cls)) return res.status(400).json({ success: false, message: "Tên lớp không hợp lệ (VD: 8A1, 9A6)." });
+    const g = gradeOfClass(cls);
+    if (grade !== undefined && grade !== null && grade !== "" && Number(grade) !== g) {
+      return res.status(400).json({ success: false, message: `Lớp ${cls} không thuộc Khối ${grade}.` });
+    }
+    const safeTier = tier === "advanced" ? "advanced" : "regular";
+    await ensureClassInSettings(cls, req.user.userId, safeTier);
+    return res.status(201).json({ success: true, className: cls, grade: g, tier: safeTier, message: `Đã lưu lớp ${cls} (Khối ${g}).` });
+  } catch (error) {
+    return sendError(res, error, "Không tạo được lớp.");
+  }
+});
+
+app.delete("/api/admin/classes/:className", requireLogin, requirePermission("users.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const cls = normalizeClassName(req.params.className);
+    if (!cls) return res.status(400).json({ success: false, message: "Tên lớp không hợp lệ." });
+    const [rows] = await pool.execute("SELECT COUNT(*) AS cnt FROM users WHERE role = 'student' AND class_name = ?", [cls]);
+    if (Number(rows[0]?.cnt || 0) > 0) return res.status(400).json({ success: false, message: `Không thể xoá lớp ${cls} vì vẫn còn học sinh.` });
+    await pool.execute("DELETE FROM class_settings WHERE class_name = ?", [cls]);
+    try { await pool.execute("DELETE FROM teacher_classes WHERE class_name = ?", [cls]); } catch (e) {}
+    return res.json({ success: true, message: `Đã xoá lớp ${cls}.` });
+  } catch (error) {
+    return sendError(res, error, "Không xoá được lớp.");
+  }
+});
+
+app.post("/api/admin/classes/accounts", requireLogin, requirePermission("users.manage", "students.manage"), async (req, res) => {
+  try {
+    await assessmentReady;
+    const ctx = await manageContext(req);
+    const { grade, className, tier, mode = "shared", names = [], count = 1, fullName, defaultPassword = "123456" } = req.body || {};
+    const cls = normalizeClassName(className, grade);
+    if (!isValidGrade89Class(cls)) return res.status(400).json({ success: false, message: "Tên lớp phải thuộc khối 8 hoặc 9 (VD: 8A1, 9A6)." });
+    const g = gradeOfClass(cls);
+    if (grade !== undefined && grade !== null && grade !== "" && Number(grade) !== g) {
+      return res.status(400).json({ success: false, message: `Lớp ${cls} không thuộc Khối ${grade}.` });
+    }
+    if (!classAllowed(ctx, cls)) return res.status(403).json({ success: false, message: `Lớp ${cls} ngoài phạm vi bạn phụ trách.` });
+    const pw = String(defaultPassword || "123456");
+    if (pw.length < 6) return res.status(400).json({ success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." });
+    await ensureClassInSettings(cls, req.user.userId, ctx.full && (tier === "advanced" || tier === "regular") ? tier : null);
+    const hash = await bcrypt.hash(pw, BCRYPT_ROUNDS);
+    const results = [];
+    let created = 0, skipped = 0, failed = 0;
+
+    if (mode === "shared") {
+      const displayName = String(fullName || "").trim() || `Lớp ${cls}`;
+      const mail = `lop${cls.toLowerCase()}@engo.web`;
+      const [ex] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
+      if (ex.length) {
+        skipped++;
+        results.push({ row: 1, fullName: displayName, login: mail, password: "", status: "skipped" });
+      } else {
+        await insertUser({ fullName: displayName.slice(0, 100), email: mail, passwordHash: hash, role: "student", className: cls });
+        created++;
+        results.push({ row: 1, fullName: displayName, login: mail, password: pw, status: "created" });
+      }
+    } else if (mode === "list") {
+      const list = (Array.isArray(names) ? names : String(names || "").split(/\r?\n/))
+        .map(s => String(s || "").trim().replace(/\s+/g, " "))
+        .filter(Boolean)
+        .slice(0, 100);
+      if (!list.length) return res.status(400).json({ success: false, message: "Vui lòng nhập ít nhất 1 họ tên." });
+      for (let i = 0; i < list.length; i++) {
+        const name = list[i];
+        const [same] = await pool.execute("SELECT id, email FROM users WHERE role = 'student' AND full_name = ? AND class_name = ? LIMIT 1", [name, cls]);
+        if (same.length) {
+          skipped++;
+          results.push({ row: i + 1, fullName: name, login: same[0].email, password: "", status: "skipped" });
+        } else {
+          const mail = await uniqueStudentEmail(name, cls);
+          await insertUser({ fullName: name.slice(0, 100), email: mail, passwordHash: hash, role: "student", className: cls });
+          created++;
+          results.push({ row: i + 1, fullName: name, login: mail, password: pw, status: "created" });
+        }
+      }
+    } else if (mode === "batch") {
+      const n = Math.min(60, Math.max(1, Math.round(Number(count) || 1)));
+      for (let i = 1; i <= n; i++) {
+        const pad = String(i).padStart(2, "0");
+        const mail = `hs${pad}.${cls.toLowerCase()}@engo.web`;
+        const name = `Học sinh ${pad} · ${cls}`;
+        const [ex] = await pool.execute("SELECT id FROM users WHERE email = ? LIMIT 1", [mail]);
+        if (ex.length) {
+          skipped++;
+          results.push({ row: i, fullName: name, login: mail, password: "", status: "skipped" });
+        } else {
+          await insertUser({ fullName: name, email: mail, passwordHash: hash, role: "student", className: cls });
+          created++;
+          results.push({ row: i, fullName: name, login: mail, password: pw, status: "created" });
+        }
+      }
+    } else {
+      return res.status(400).json({ success: false, message: "Kiểu tạo tài khoản không hợp lệ." });
+    }
+    return res.json({ success: true, className: cls, grade: g, created, skipped, failed, results, message: `Lớp ${cls} (Khối ${g}): đã tạo ${created}, bỏ qua ${skipped}.` });
+  } catch (error) {
+    return sendError(res, error, "Không tạo được tài khoản lớp.");
   }
 });
 
@@ -1202,7 +1365,7 @@ app.get("/api/teacher/my-classes", requireLogin, requirePermission("classes.assi
     const mine = req.user.role === "teacher" ? await scope.teacherClasses(req.user.userId) : [];
     let known = [];
     try { const [rows] = await pool.query("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> ''"); known = rows.map(r => cleanClass(r.class_name)); } catch (e) {}
-    const available = [...new Set([...DEFAULT_CLASSES, ...known, ...mine])].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
+    const available = [...new Set([...DEFAULT_CLASSES, ...known, ...mine])].filter(c => isGrade89Class(c) || known.includes(c) || mine.includes(c)).sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
     return res.json({ success: true, classes: mine, available });
   } catch (error) {
     return sendError(res, error, "Không tải được lớp phụ trách.");
@@ -1320,8 +1483,8 @@ app.post("/api/tests/import-docx", requireLogin, requirePermission("tests.manage
     const buffer = Buffer.from(String(documentBase64).split(",").pop(), "base64");
     if (buffer.length > 12 * 1024 * 1024) return res.status(413).json({ success: false, message: "File đề vượt quá 12 MB." });
     const test = await readTestDocument(buffer, fileName, String(title || fileName).replace(/\.(docx|pdf)$/i, ""), String(fileName));
-    const assignedClass = String(className || "").trim() || null;
-    const safeGrade = [6, 7, 8, 9].includes(Number(grade)) ? Number(grade) : gradeOfClass(assignedClass);
+    const assignedClass = cleanClass(className, grade) || null;
+    const safeGrade = [8, 9].includes(Number(grade)) ? Number(grade) : gradeOfClass(assignedClass);
     const matrix = await loadMatrix(matrixId);
     const analysis = await analyzeAndBuildVariants(test, matrix);
     const duration = durationForTest(safeType, test, analysis);
@@ -1902,7 +2065,7 @@ app.get("/api/teacher/results/stats", requireLogin, requirePermission("results.v
       let base = sc.classes || [];
       if (sc.all) {
         const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
-        base = [...DEFAULT_CLASSES, ...classRows.map(r => r.class_name)];
+        base = [...new Set([...DEFAULT_CLASSES, ...classRows.map(r => cleanClass(r.class_name))])].filter(Boolean);
       }
       base.forEach(c => { if (!classStats[c]) classStats[c] = { submissions: 0, totalScore10: 0, gradedCount: 0, pendingCount: 0 }; });
     } catch (e) {}
@@ -2297,7 +2460,7 @@ app.get("/api/classes", requireLogin, async (req, res) => {
   let classes = [...DEFAULT_CLASSES];
   try {
     const [rows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> ''");
-    classes = [...new Set([...classes, ...rows.map(r => r.class_name)])];
+    classes = [...new Set([...classes, ...rows.map(r => cleanClass(r.class_name))])].filter(c => c);
   } catch (e) {}
   return res.json({ success: true, classes });
 });
@@ -2307,8 +2470,14 @@ app.get("/api/class-settings", requireLogin, async (req, res) => {
     await assessmentReady;
     const [rows] = await pool.execute("SELECT class_name, tier, updated_at FROM class_settings ORDER BY class_name");
     const [classRows] = await pool.execute("SELECT DISTINCT class_name FROM users WHERE role = 'student' AND class_name IS NOT NULL AND class_name <> '' ORDER BY class_name");
-    const known = [...new Set([...DEFAULT_CLASSES, ...classRows.map(r => r.class_name), ...rows.map(r => r.class_name)])];
-    return res.json({ success: true, settings: rows.map(r => ({ className: r.class_name, tier: r.tier })), knownClasses: known, tiers: DEFAULT_TIERS });
+    const studentClasses = new Set(classRows.map(r => cleanClass(r.class_name)).filter(Boolean));
+    const filteredSettings = rows
+      .map(r => ({ className: cleanClass(r.class_name), tier: r.tier }))
+      .filter(r => r.className && (isGrade89Class(r.className) || studentClasses.has(r.className)));
+    const known = [...new Set([...DEFAULT_CLASSES, ...studentClasses, ...filteredSettings.map(r => r.className)])]
+      .filter(c => isGrade89Class(c) || studentClasses.has(c))
+      .sort((a, b) => a.localeCompare(b, "vi", { numeric: true }));
+    return res.json({ success: true, settings: filteredSettings, knownClasses: known, tiers: DEFAULT_TIERS });
   } catch (error) {
     logSchemaError(error);
     return res.json({ success: true, settings: [], knownClasses: DEFAULT_CLASSES, tiers: DEFAULT_TIERS });
@@ -2320,7 +2489,7 @@ app.put("/api/teacher/class-settings", requireLogin, requirePermission("classes.
     await assessmentReady;
     const settings = Array.isArray(req.body.settings) ? req.body.settings : [];
     for (const s of settings) {
-      const cls = String(s.className || "").trim();
+      const cls = cleanClass(s.className);
       const tier = s.tier === "advanced" ? "advanced" : s.tier === "regular" ? "regular" : null;
       if (!cls) continue;
       if (!tier) { await pool.execute("DELETE FROM class_settings WHERE class_name = ?", [cls]); continue; }
@@ -2626,8 +2795,8 @@ app.post("/api/exams/specs/:id/import", requireLogin, requirePermission("tests.m
     const analysis = await analyzeAndBuildVariants(test, matrix);
     const safeType = String(spec.type || "KTTX").toLowerCase();
     const unitNo = spec.type === "KTTX" && Array.isArray(spec.units) && spec.units.length === 1 ? spec.units[0] : null;
-    const assignedClass = String(className || "").trim() || null;
-    const safeGrade = [6, 7, 8, 9].includes(Number(grade)) ? Number(grade) : gradeOfClass(assignedClass);
+    const assignedClass = cleanClass(className, grade) || null;
+    const safeGrade = [8, 9].includes(Number(grade)) ? Number(grade) : gradeOfClass(assignedClass);
     const duration = durationForTest(safeType, test, analysis);
     const [result] = hasCol("imported_tests", "grade")
       ? await pool.execute(
