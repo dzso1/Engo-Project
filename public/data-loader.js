@@ -78,7 +78,7 @@
 
   const FILES = {
     9: {
-      vocab: ["./data/vocab-units.js?v=6", "./data/vocab-decks.js?v=6", "./data/grammar-units.js?v=6", "./data/vocab-images.js?v=2"],
+      vocab: ["./data/vocab-units.js?v=6", "./data/vocab-decks.js?v=7", "./data/grammar-units.js?v=6", "./data/vocab-images.js?v=2"],
       speaking: ["./data/speaking-units.js?v=6", "./data/speaking-sets.js?v=6"],
       listening: ["./data/listening-units.js?v=6", "./data/listening-sets.js?v=6"],
       wordform: ["./data/vocab-units.js?v=6", "./data/word-families.js?v=2"],
@@ -86,10 +86,10 @@
       healing: ["./data/healing-bank.js?v=5"]
     },
     8: {
-      vocab: ["./data/grade8/vocab-units.js?v=1", "./data/grade8/vocab-decks.js?v=1", "./data/grade8/grammar-units.js?v=1", "./data/vocab-images.js?v=2"],
+      vocab: ["./data/grade8/vocab-units.js?v=2", "./data/grade8/vocab-decks.js?v=2", "./data/grade8/grammar-units.js?v=1", "./data/vocab-images.js?v=2"],
       speaking: ["./data/grade8/speaking-units.js?v=1", "./data/grade8/speaking-sets.js?v=1"],
       listening: ["./data/grade8/listening-units.js?v=1", "./data/grade8/listening-sets.js?v=1"],
-      wordform: ["./data/grade8/vocab-units.js?v=1", "./data/grade8/word-families.js?v=1"],
+      wordform: ["./data/grade8/vocab-units.js?v=2", "./data/grade8/word-families.js?v=1"],
       exam: ["./data/exam-bank.js?v=5"],
       healing: ["./data/healing-bank.js?v=5"]
     }
