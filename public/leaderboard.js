@@ -1,18 +1,25 @@
 (function () {
   "use strict";
-  const state = { by: "xp", scope: "class" };
+  const state = { by: "weekly", scope: "class" };
   const SCOPES = [["class", "Lớp tôi"], ["grade", "Cả khối"], ["school", "Toàn trường"]];
-  const BYS = [["xp", "Cấp độ", "military_tech"], ["carrots", "Cà rốt", "eco"]];
+  const BYS = [
+    ["weekly", "Tuần này", "calendar_view_week"],
+    ["improved", "Tiến bộ nhất", "trending_up"],
+    ["xp", "Tổng cấp độ", "military_tech"],
+    ["carrots", "Cà rốt", "eco"]
+  ];
   const medal = r => r === 1 ? "gold" : r === 2 ? "silver" : r === 3 ? "bronze" : "";
 
   function avatarCell(p) {
     const a = p.avatar || {};
-    return `<span class="lb-avatar${a.type === "image" ? " has-img" : ""}">${window.avatarHTML ? window.avatarHTML(a, p.name, "student") : ""}</span>`;
+    const fr = p.capybara && p.capybara.frame ? ` capy-frame-${p.capybara.frame}` : "";
+    return `<span class="lb-avatar${a.type === "image" ? " has-img" : ""}${fr}" title="${p.capybara ? window.escapeHTML(p.capybara.name) : ""}">${window.avatarHTML ? window.avatarHTML(a, p.name, "student") : ""}</span>`;
   }
   function scoreText(p, by) {
-    return by === "carrots"
-      ? `<b>${p.carrots}</b> <i class=ico-carrot></i>`
-      : `<b>Cấp ${p.level}</b> <span class="small muted">${p.xp} XP</span>`;
+    if (by === "carrots") return `<b>${p.carrots}</b> <i class=ico-carrot></i>`;
+    if (by === "weekly") return `<b>${p.weeklyXp || 0} XP</b> <span class="small muted">Cấp ${p.level}</span>`;
+    if (by === "improved") return `<b class="lb-delta">${p.delta >= 0 ? "+" : ""}${p.delta}%</b> <span class="small muted">${p.priorAvg}% → ${p.recentAvg}%</span>`;
+    return `<b>Cấp ${p.level}</b> <span class="small muted">${p.xp} XP</span>`;
   }
 
   window.renderLeaderboard = async function () {
@@ -41,8 +48,15 @@
     const podium = list.slice(0, 3);
     const rest = list.slice(3);
     const meInList = list.some(p => p.isMe);
-    host.querySelector("#lbBody").innerHTML = !list.length ? `<p class="small muted" style="padding:18px 4px">Chưa có học sinh nào trong ${esc(scopeLabel)}.</p>` : `
-      <p class="small muted lb-sub">${data.total} học sinh ${esc(scopeLabel)} · ${state.by === "carrots" ? "theo cà rốt" : "theo cấp độ (XP)"}</p>
+    const subLabel = state.by === "carrots" ? "theo cà rốt"
+      : state.by === "weekly" ? "XP tích lũy tuần này (reset thứ 2)"
+      : state.by === "improved" ? "mức tăng điểm 2 tuần gần đây so với 2 tuần trước"
+      : "theo tổng cấp độ (XP)";
+    const emptyMsg = state.by === "improved"
+      ? `Chưa đủ dữ liệu so sánh 2 tuần gần đây trong ${esc(scopeLabel)}.`
+      : `Chưa có học sinh nào trong ${esc(scopeLabel)}.`;
+    host.querySelector("#lbBody").innerHTML = !list.length ? `<p class="small muted" style="padding:18px 4px">${emptyMsg}</p>` : `
+      <p class="small muted lb-sub">${data.total} học sinh ${esc(scopeLabel)} · ${subLabel}</p>
       <div class="lb-podium">${[podium[1], podium[0], podium[2]].filter(Boolean).map(p => `
         <div class="lb-pod ${medal(p.rank)}${p.isMe ? " me" : ""}">
           <div class="lb-crown">${p.rank === 1 ? "<i class=mi>workspace_premium</i>" : `#${p.rank}`}</div>
@@ -58,6 +72,6 @@
           <span class="lb-who"><b>${esc(p.name)}</b>${state.scope !== "class" && p.className ? ` <span class="small muted">· ${esc(p.className)}</span>` : ""}</span>
           <span class="lb-val">${scoreText(p, state.by)}</span>
         </li>`).join("")}</ol>
-      ${!meInList && data.me ? `<div class="lb-me-row">Bạn đang đứng <b>hạng ${data.me.rank}</b> ${esc(scopeLabel)} với ${state.by === "carrots" ? `<b>${data.me.score}</b> cà rốt` : `<b>${data.me.score}</b> XP`}. Cố lên nhé!</div>` : ""}`;
+      ${!meInList && data.me ? `<div class="lb-me-row">Bạn đang đứng <b>hạng ${data.me.rank}</b> ${esc(scopeLabel)} (${state.by === "carrots" ? `<b>${data.me.score}</b> cà rốt` : state.by === "improved" ? `<b>${data.me.score >= 0 ? "+" : ""}${data.me.score}%</b>` : `<b>${data.me.score}</b> XP`}). Cố lên nhé!</div>` : ""}`;
   };
 })();

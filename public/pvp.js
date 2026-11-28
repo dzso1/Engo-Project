@@ -3,7 +3,7 @@
   const me = () => (typeof currentUser !== "undefined" ? currentUser : null);
   const sfx = n => { try { window.playSfx && window.playSfx(n); } catch (e) {} };
   const cheer = k => { try { window.cheer ? window.cheer(k) : sfx(k); } catch (e) {} };
-  const DIFF = { easy: { label: "Dễ", seconds: 15, carrots: 5, cls: "easy", icon: "sentiment_satisfied" }, normal: { label: "Thường", seconds: 10, carrots: 10, cls: "normal", icon: "bolt" }, hard: { label: "Khó", seconds: 5, carrots: 15, cls: "hard", icon: "local_fire_department" } };
+  const DIFF = { easy: { label: "Dễ", seconds: 15, carrots: 2, cls: "easy", icon: "sentiment_satisfied" }, normal: { label: "Thường", seconds: 10, carrots: 4, cls: "normal", icon: "bolt" }, hard: { label: "Khó", seconds: 5, carrots: 6, cls: "hard", icon: "local_fire_department" } };
   const S = { es: null, stats: null, online: [], screen: "lobby", match: null, q: null, answered: null, timer: null, searchStart: 0, searchTimer: null, room: null, lastBot: null, unit: "", grade: null, pendingInvites: new Map(), lb: [] };
   const root = () => document.getElementById("pvpRoot");
   const isStudent = () => { const u = me(); return Boolean(u && u.role === "student" && (!window.can || window.can("pvp.play"))); };
@@ -11,9 +11,10 @@
   function avatarHtml(p, cls = "") {
     if (!p) return "";
     if (p.bot) return `<span class="pv-av pv-bot ${cls}"><i class=mi>smart_toy</i></span>`;
-    if (p.avatar && p.avatar.type === "image" && p.avatar.value) return `<span class="pv-av ${cls}"><img src="${esc(p.avatar.value)}" alt=""></span>`;
+    const fr = p.capybaraFrame ? ` capy-frame-${p.capybaraFrame}` : "";
+    if (p.avatar && p.avatar.type === "image" && p.avatar.value) return `<span class="pv-av ${cls}${fr}"><img src="${esc(p.avatar.value)}" alt=""></span>`;
     const ini = String(p.name || "?").trim().split(/\s+/).slice(-2).map(x => x[0]).join("").toUpperCase();
-    return `<span class="pv-av ${cls}">${esc(ini)}</span>`;
+    return `<span class="pv-av ${cls}${fr}">${esc(ini)}</span>`;
   }
 
   function connect() {
@@ -55,18 +56,18 @@
     const host = root();
     if (!host) return;
     S.screen = "lobby";
-    const st = S.stats || { rating: 1000, wins: 0, losses: 0, draws: 0, matches: 0, streak: 0, recent: [], dailyLeft: 30, dailyCap: 30, botWins: {} };
+    const st = S.stats || { rating: 1000, wins: 0, losses: 0, draws: 0, matches: 0, streak: 0, recent: [], dailyLeft: 8, dailyCap: 8, botWins: {} };
     const g = window.ENGO_DATA ? window.ENGO_DATA.defaultGrade() : 9;
     S.grade = g;
     const units = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${String(S.unit) === String(i + 1) ? "selected" : ""}>Unit ${i + 1}</option>`).join("");
     host.innerHTML = `
       <div class="pv-hero card">
-        <div class="pv-hero-main">${avatarHtml({ name: me()?.fullName, avatar: me()?.avatar }, "lg")}<div><h2>Đấu trường ENGO</h2><p>Trả lời nhanh và chính xác để thắng — càng nhanh càng nhiều điểm!</p></div></div>
+        <div class="pv-hero-main">${avatarHtml({ name: me()?.fullName, avatar: me()?.avatar, capybaraFrame: st.capybara?.frame }, "lg")}<div><h2>Đấu trường ENGO</h2><p>Trả lời nhanh và chính xác để thắng — càng nhanh càng nhiều điểm!</p></div></div>
         <div class="pv-hero-stats">
           <div><i class=mi>emoji_events</i><b>${st.rating}</b><span>Điểm xếp hạng${st.rank ? ` · hạng ${st.rank}` : ""}</span></div>
           <div><b>${st.wins}<small>T</small> ${st.losses}<small>B</small> ${st.draws}<small>H</small></b><span>${st.matches} trận</span></div>
           <div><b>${st.streak}</b><span>Chuỗi thắng (cao nhất ${st.bestStreak || 0})</span></div>
-          <div><b>${st.dailyLeft}<i class=ico-carrot></i></b><span>Cà rốt còn nhận hôm nay</span></div>
+          <div><b>${st.dailyLeft}/${st.dailyCap || 8}<i class=ico-carrot></i></b><span>Cà rốt Đấu trường hôm nay</span></div>
         </div>
       </div>
       <div class="pv-modes">
@@ -312,7 +313,9 @@
           ${r.carrots ? `<span class="pv-rw carrot">+${r.carrots} <i class=ico-carrot></i></span>` : ""}
           ${r.xp ? `<span class="pv-rw">+${r.xp} XP</span>` : ""}
           ${d.mode === "human" && r.ratingDelta !== undefined ? `<span class="pv-rw ${r.ratingDelta >= 0 ? "up" : "down"}">${r.ratingDelta >= 0 ? "+" : ""}${r.ratingDelta} điểm xếp hạng → ${r.rating}</span>` : ""}
-          ${r.capped ? `<span class="pv-rw muted">Đã đạt giới hạn cà rốt hôm nay (${r.capped} chưa cộng)</span>` : ""}
+          ${r.capped ? `<span class="pv-rw muted">Đã đạt giới hạn cà rốt Đấu trường hôm nay (${r.capped} chưa cộng)</span>` : ""}
+          ${r.diminished ? `<span class="pv-rw muted">Đã vượt ngưỡng thưởng tối đa cho đối thủ/mức Bot này hôm nay</span>` : ""}
+          ${r.softCapped ? `<span class="pv-rw muted">Đã qua 300 XP/ngày: nhận 25% XP</span>` : ""}
         </div>
         <details class="pv-review"><summary>Xem lại ${d.total} câu</summary>${d.review.map((x, i) => `<div class="pv-rv ${x.correct ? "ok" : "bad"}"><span>${i + 1}.</span><div><b>${esc(x.prompt)}</b><small>Đáp án: ${esc(x.answer)}${x.correct ? "" : ` · Em chọn: ${esc(x.yours || "(không trả lời)")}`}</small></div></div>`).join("")}</details>
         <div class="pv-end-actions">${d.mode === "bot" ? `<button type="button" class="btn btn-primary" id="pvAgain"><i class=mi>replay</i> Đấu lại</button>` : `<button type="button" class="btn btn-primary" id="pvAgainQ"><i class=mi>travel_explore</i> Tìm trận mới</button>`}<button type="button" class="btn btn-light" id="pvLobby">Về sảnh</button></div>

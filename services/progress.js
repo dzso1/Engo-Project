@@ -2,6 +2,8 @@ const pool = require("../database/db");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const rewards = require("./rewards");
+const streaks = require("./streaks");
 
 let healingLabelCache = null;
 function healingLabels() {
@@ -210,7 +212,7 @@ function buildSkillScores({ tests, speaking, eventsInfo }) {
   };
 }
 
-function computeTitles({ tests, speaking, eventsInfo }) {
+function computeTitles({ tests, speaking, eventsInfo, bestStreak = 0, capybara = null }) {
   const titles = [];
   const push = (id, name, icon, desc, earned) => titles.push({ id, name, icon, desc, earned: Boolean(earned) });
   push("pron_king", "Vua Phát Âm", "mic", "Trung bình phát âm ≥ 85% với ít nhất 15 lượt luyện", speaking.totalAttempts >= 15 && speaking.avgAccuracy >= 85);
@@ -223,17 +225,23 @@ function computeTitles({ tests, speaking, eventsInfo }) {
   push("healer", "Bác Sĩ Ngữ Pháp", "stethoscope", "Chữa khỏi 10 lỗi trong Phòng chữa lỗi", eventsInfo.healing.healed >= 10);
   push("rising_star", "Tiến Bộ Vượt Bậc", "rocket_launch", "Điểm kiểm tra tăng ≥ 1.5 điểm so với lúc bắt đầu", tests.improvement >= 1.5);
   push("diligent", "Học Sinh Chăm Chỉ", "local_fire_department", "Hoạt động học tập trong 10 ngày khác nhau", eventsInfo.activeDays >= 10);
+  push("streak_7", "Chuỗi 7 Ngày", "local_fire_department", "Duy trì chuỗi điểm danh 7 ngày liên tiếp", bestStreak >= 7);
+  push("streak_30", "Chiến Binh 30 Ngày", "whatshot", "Duy trì chuỗi điểm danh 30 ngày liên tiếp", bestStreak >= 30);
+  push("streak_100", "Huyền Thoại 100 Ngày", "military_tech", "Duy trì chuỗi điểm danh 100 ngày liên tiếp", bestStreak >= 100);
+  push("capy_royal", "Bậc Thầy Capybara", "workspace_premium", "Nuôi Capybara đạt cấp 10 Hoàng Gia", Boolean(capybara && capybara.lv >= 10));
   return titles;
 }
 
 async function buildStudentProgress(studentId) {
-  const [tests, speaking, eventsInfo] = await Promise.all([
+  const [tests, speaking, eventsInfo, bestStreak, rw] = await Promise.all([
     getTestProgress(studentId),
     getSpeakingProgress(studentId),
-    getEventProgress(studentId)
+    getEventProgress(studentId),
+    streaks.getBestStreak(studentId).catch(() => 0),
+    rewards.getRewards(studentId).catch(() => null)
   ]);
   const skills = buildSkillScores({ tests, speaking, eventsInfo });
-  const titles = computeTitles({ tests, speaking, eventsInfo });
+  const titles = computeTitles({ tests, speaking, eventsInfo, bestStreak, capybara: rw && rw.capybara });
   const values = Object.values(skills);
   const overall = Math.round(values.reduce((s, v) => s + v, 0) / values.length);
   return {

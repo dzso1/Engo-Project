@@ -4,11 +4,11 @@ const rewards = require("./rewards");
 const unitsData = require("./units-data");
 
 const BOT = {
-  easy: { label: "Dễ", seconds: 15, carrots: 5, xp: 15, accuracy: 0.55, delay: [6, 13.5], name: "Bot Tập Sự" },
-  normal: { label: "Thường", seconds: 10, carrots: 10, xp: 25, accuracy: 0.72, delay: [3.2, 8.5], name: "Bot Chiến Binh" },
-  hard: { label: "Khó", seconds: 5, carrots: 15, xp: 40, accuracy: 0.88, delay: [1.2, 3.9], name: "Bot Cao Thủ" },
+  easy: { label: "Dễ", seconds: 15, carrots: 2, xp: 10, accuracy: 0.55, delay: [6, 13.5], name: "Bot Tập Sự" },
+  normal: { label: "Thường", seconds: 10, carrots: 4, xp: 20, accuracy: 0.72, delay: [3.2, 8.5], name: "Bot Chiến Binh" },
+  hard: { label: "Khó", seconds: 5, carrots: 6, xp: 35, accuracy: 0.88, delay: [1.2, 3.9], name: "Bot Cao Thủ" },
 };
-const HUMAN = { seconds: 10, carrots: 10, xp: 30 };
+const HUMAN = { seconds: 10, carrots: 4, xp: 25 };
 const TOTAL_QUESTIONS = 10;
 const CHEAT = {
   streak: Math.max(2, Number(process.env.PVP_CHEAT_STREAK) || 4),
@@ -104,8 +104,16 @@ async function playerInfo(userId) {
     if (pf.length) title = (JSON.parse(pf[0].data_json) || {}).displayTitle || null;
   } catch (e) {}
   let avatar = { type: "initials" };
-  try { avatar = (await rewards.avatarsFor([id]))[id] || avatar; } catch (e) {}
-  const info = { id, name: r.full_name, className: r.class_name, rating: Number(r.rating), title, avatar };
+  let capybaraFrame = "";
+  let capybaraLv = 1;
+  try {
+    const rw = await rewards.getRewards(id);
+    if (rw) {
+      avatar = rw.avatar || avatar;
+      if (rw.capybara) { capybaraFrame = rw.capybara.frame || ""; capybaraLv = rw.capybara.lv || 1; }
+    }
+  } catch (e) {}
+  const info = { id, name: r.full_name, className: r.class_name, rating: Number(r.rating), title, avatar, capybaraFrame, capybaraLv };
   infoCache.set(id, { at: Date.now(), info });
   return info;
 }
@@ -187,7 +195,7 @@ async function buildQuestions(unit, grade = 9) {
 }
 
 function publicPlayer(p) {
-  return { id: p.id, name: p.name, className: p.className, rating: p.rating, title: p.title, avatar: p.bot ? null : p.avatar, bot: Boolean(p.bot) };
+  return { id: p.id, name: p.name, className: p.className, rating: p.rating, title: p.title, avatar: p.bot ? null : p.avatar, capybaraFrame: p.bot ? "" : (p.capybaraFrame || ""), capybaraLv: p.bot ? 0 : (p.capybaraLv || 1), bot: Boolean(p.bot) };
 }
 
 function humanIds(m) { return m.players.filter(p => !p.bot).map(p => p.id); }
@@ -369,16 +377,36 @@ async function finish(m, forfeitBy) {
     }
     for (const [p, delta] of [[a, deltaA], [b, deltaB]]) {
       if (p.bot) continue;
+      const other = p === a ? b : a;
       const outcome = draw ? "draw" : winner === p ? "win" : "loss";
-      let reward = { grantedCarrots: 0, grantedXp: 0, cappedCarrots: 0 };
-      if (outcome === "win") {
-        const cfg = m.mode === "bot" ? BOT[m.difficulty] : HUMAN;
-        reward = await rewards.earn(p.id, cfg.xp, cfg.carrots, { maxCarrots: 15, maxXp: 60 });
-      } else if (outcome === "draw" || m.mode === "human") {
-        reward = await rewards.earn(p.id, outcome === "draw" ? 10 : 5, 0);
-      }
+      const activity = m.mode === "bot" ? "pvp_bot" : "pvp_human";
+      const refId = m.mode === "bot" ? `bot-${m.difficulty || "normal"}` : `vs-${other.id}`;
+      const reward = await rewards.earnActivity(p.id, {
+        activity,
+        refId,
+        score: p.correct,
+        maxScore: m.questions.length,
+        meta: {
+          outcome,
+          difficulty: m.difficulty,
+          myRating: p.rating,
+          opponentRating: other.rating,
+          opponentId: other.id
+        }
+      }, { serverTrusted: true });
       await recordStats(p.id, { outcome, mode: m.mode, difficulty: m.difficulty, ratingDelta: delta });
-      results[p.id] = { outcome, carrots: reward.grantedCarrots || 0, xp: reward.grantedXp || 0, capped: reward.cappedCarrots || 0, dailyLeft: reward.dailyLeft, ratingDelta: delta, rating: Math.max(100, p.rating + delta) };
+      results[p.id] = {
+        outcome,
+        carrots: reward.grantedCarrots || 0,
+        xp: reward.grantedXp || 0,
+        capped: reward.cappedCarrots || 0,
+        softCapped: Boolean(reward.softCapped),
+        diminished: Boolean(reward.diminished),
+        dailyLeft: reward.dailyPvpLeft,
+        dailyCap: reward.dailyPvpCap,
+        ratingDelta: delta,
+        rating: Math.max(100, p.rating + delta)
+      };
     }
     await pool.execute(
       "INSERT INTO pvp_matches (id, mode, difficulty, p1_id, p2_id, p1_score, p2_score, winner_id, result, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -591,7 +619,10 @@ async function stats(userId) {
   const rw = await rewards.getRewards(userId);
   return {
     rating: r.rating, rank: Number(rank[0].r), matches: r.matches, wins: r.wins, losses: r.losses, draws: r.draws, streak: r.streak, bestStreak: r.best_streak,
-    botWins: { easy: r.bot_easy_wins, normal: r.bot_normal_wins, hard: r.bot_hard_wins }, dailyLeft: rw.dailyLeft, dailyCap: rw.dailyCap,
+    botWins: { easy: r.bot_easy_wins, normal: r.bot_normal_wins, hard: r.bot_hard_wins },
+    dailyLeft: rw.dailyPvpLeft, dailyCap: rw.dailyPvpCap,
+    studyDailyLeft: rw.dailyStudyLeft, studyDailyCap: rw.dailyStudyCap,
+    capybara: rw.capybara,
     recent: recent.map(x => {
       const mine = Number(x.p1_id) === Number(userId);
       const detail = typeof x.detail_json === "string" ? JSON.parse(x.detail_json) : (x.detail_json || {});

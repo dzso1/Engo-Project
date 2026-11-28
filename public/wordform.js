@@ -160,7 +160,7 @@
     const percent = max ? Math.round((score / max) * 100) : 0;
     try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "wordform", refId: `${grade === 8 ? "g8-" : ""}unit${state.unit}`, title: `Word form (Khối ${grade}) · ${unitName(state.unit, grade)}`, score, maxScore: max, meta: { grade, unit: state.unit, percent, ...meta } }) }); } catch (e) {}
     if (typeof studentProgress !== "undefined") { try { studentProgress = null; } catch (e) {} }
-    if (typeof gainRewards === "function" && percent >= 50) gainRewards(Math.round(percent / 5), percent >= 80 ? 3 : 1, "Luyện word form");
+    if (typeof window.recordReward === "function") window.recordReward("wordform", { refId: (grade === 8 ? "g8-" : "") + "unit" + state.unit, score, maxScore: max }, "Luyện word form");
     return percent;
   }
 

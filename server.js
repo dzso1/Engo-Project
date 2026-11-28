@@ -22,6 +22,9 @@ const speakingScorer = require("./services/speaking-scorer");
 const { extractDocumentText } = require("./services/document-text");
 const progressService = require("./services/progress");
 const rewards = require("./services/rewards");
+const streaks = require("./services/streaks");
+const quests = require("./services/quests");
+rewards.setActivityHook((userId, info) => quests.recordProgress(userId, info));
 const userData = require("./services/user-data");
 const unitsData = require("./services/units-data");
 const rbac = require("./services/rbac");
@@ -699,11 +702,50 @@ app.get("/api/rewards/me", requireLogin, async (req, res) => {
 
 app.post("/api/rewards/earn", requireLogin, requirePermission("learning.record"), async (req, res) => {
   try {
-    const { xp, carrots } = req.body || {};
-    return res.json({ success: true, rewards: await rewards.earn(req.user.userId, xp, carrots) });
+    return res.json({ success: true, rewards: await rewards.earnActivity(req.user.userId, req.body || {}) });
   } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
     console.error(error);
     return res.status(500).json({ success: false, message: "Không cộng được điểm thưởng." });
+  }
+});
+
+app.get("/api/streak/me", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, streak: await streaks.getStreak(req.user.userId) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không tải được chuỗi ngày học." });
+  }
+});
+
+app.post("/api/streak/claim", requireLogin, requirePermission("learning.record"), async (req, res) => {
+  try {
+    const data = await streaks.claim(req.user.userId);
+    return res.json({ success: true, streak: data, rewards: data.rewards });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không điểm danh được hôm nay." });
+  }
+});
+
+app.get("/api/quests/today", requireLogin, async (req, res) => {
+  try {
+    return res.json({ success: true, ...(await quests.getToday(req.user.userId)) });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không tải được nhiệm vụ hôm nay." });
+  }
+});
+
+app.post("/api/quests/claim", requireLogin, requirePermission("learning.record"), async (req, res) => {
+  try {
+    const data = await quests.claimQuest(req.user.userId, req.body || {});
+    return res.json({ success: true, ...data });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Không nhận được thưởng nhiệm vụ." });
   }
 });
 
@@ -735,7 +777,7 @@ app.post("/api/me/avatar", requireLogin, async (req, res) => {
 
 app.get("/api/leaderboard", requireLogin, async (req, res) => {
   try {
-    const by = req.query.by === "carrots" ? "carrots" : "xp";
+    const by = ["weekly", "improved", "xp", "carrots"].includes(req.query.by) ? req.query.by : "weekly";
     const scope = ["class", "grade", "school"].includes(req.query.scope) ? req.query.scope : "class";
     return res.json({ success: true, ...(await rewards.leaderboard(req.user.userId, { by, scope, limit: req.query.limit })) });
   } catch (error) {

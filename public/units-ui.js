@@ -13,7 +13,7 @@
   const esc = s => String(s ?? "").replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[m]));
   const toast = m => (window.showToast ? window.showToast(m) : null);
   const say = (t, rate, onDone) => (window.speakEnglishText ? window.speakEnglishText(t, { rate: rate || 0.85, onDone }) : onDone && onDone());
-  const reward = (xp, carrots, why) => { try { window.gainRewards && window.gainRewards(xp, carrots, why || ""); } catch (_) {} };
+  const reward = (activity, payload, why) => { try { if (window.recordReward) window.recordReward(activity, payload, why || ""); } catch (_) {} };
   const cheerUp = kind => { try { window.cheer ? window.cheer(kind) : window.playSfx && window.playSfx(kind); } catch (_) {} };
   const $ = (sel, root) => (root || document).querySelector(sel);
   const CU = () => { try { return typeof currentUser !== "undefined" ? currentUser : null; } catch (_) { return null; } };
@@ -268,8 +268,10 @@
     if (wrongList.length && typeof recordUnitGrammarErrors === "function") recordUnitGrammarErrors(u, gram.title || `Unit ${u}`, wrongList);
     wrongList.forEach(() => api.pushError(gPrefix() + "U" + u));
     logEvent("grammar", gPrefix() + "unit" + u, `Ngữ pháp Unit ${u} (Khối ${g}): ${gram.title || ""}`, right, total, { grade: g, unit: u, percent: pct });
-    if (pct >= 80 && markDone("grammar", gPrefix() + "u" + u)) { reward(30, 3, `Ngữ pháp Unit ${u} (Khối ${g})`); cheerUp(pct === 100 ? "perfect" : "unitDone"); toast(`Hoàn thành ngữ pháp Unit ${u}: +30 XP, +3`); }
-    else if (pct < 80) toast(`Đúng ${right}/${total}. Xem giải thích và làm lại để đạt ≥ 80% nhé!`);
+    if (pct >= 80) markDone("grammar", gPrefix() + "u" + u);
+    reward("grammar", { refId: gPrefix() + "u" + u, score: right, maxScore: total }, `Ngữ pháp Unit ${u} (Khối ${g})`);
+    if (pct >= 80) cheerUp(pct === 100 ? "perfect" : "unitDone");
+    else toast(`Đúng ${right}/${total}. Xem giải thích và làm lại để đạt ≥ 80% nhé!`);
   }
 
   async function mountVocab() {
@@ -319,11 +321,9 @@
               if (!ok) api.pushError(q.dataset.code);
             });
             $("#unitGrammarScore").textContent = `Đúng ${right}/${qs.length}`;
-            if (right === qs.length && markDone("grammar", gPrefix() + "u" + state.vocabUnit)) {
-              reward(30, 3, `Ngữ pháp Unit ${state.vocabUnit}`);
-              cheerUp("perfect");
-              toast(`Hoàn thành ngữ pháp Unit ${state.vocabUnit}: +30 XP, +3`);
-            }
+            if (right === qs.length) markDone("grammar", gPrefix() + "u" + state.vocabUnit);
+            reward("grammar", { refId: gPrefix() + "u" + state.vocabUnit, score: right, maxScore: qs.length }, `Ngữ pháp Unit ${state.vocabUnit}`);
+            if (right === qs.length) cheerUp("perfect");
           }
         }
       });
@@ -479,10 +479,11 @@
           if (pb) pb.disabled = false;
           host.querySelectorAll(`[data-task="${ti}"] .unit-why`).forEach(w => w.classList.remove("hidden"));
           logEvent("listening", key, `Nghe Unit ${curU} (Khối ${GRADE()}) · ${t.title}`, right, t.qs.length, { grade: GRADE(), unit: curU, level: t.level, ai: Boolean(t.ai) });
-          if (right >= Math.ceil(t.qs.length * 0.8) && markDone("listen", key)) {
-            reward(30, 3, `Nghe Unit ${curU} cấp ${t.level} (Khối ${GRADE()})`);
+          const passListen = right >= Math.ceil(t.qs.length * 0.8);
+          if (passListen) markDone("listen", key);
+          reward("listening", { refId: key, score: right, maxScore: t.qs.length }, `Nghe Unit ${curU} cấp ${t.level} (Khối ${GRADE()})`);
+          if (passListen) {
             cheerUp(right === t.qs.length ? "perfect" : "taskDone");
-            toast(`Hoàn thành đoạn nghe: +30 XP, +3`);
             const b = document.getElementById("listenProgressBadge");
             if (b) b.textContent = `${Object.keys(loadProg().listen || {}).filter(k => GRADE() === 8 ? k.startsWith("g8-") : !k.startsWith("g8-")).length} / ${UNITS.reduce((a, x) => a + listeningTasks(x).length, 0)} đoạn`;
           }

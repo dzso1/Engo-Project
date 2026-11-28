@@ -209,7 +209,7 @@ function paintAvatar(el, av, name, role) {
 function updateUserUI(user) {
   currentUser = user;
   paintAvatar(avatar, user.avatar, user.fullName, user.role);
-  if (user.role === "student") syncRewardsFromServer();
+  if (user.role === "student") { syncRewardsFromServer(); syncStreakFromServer(); loadDailyQuests(); }
   const welcome = document.getElementById("welcomeHeading");
   if (welcome && user.role === "student") {
     const shortName = String(user.fullName || "học sinh").trim().split(/\s+/).slice(-2).join(" ");
@@ -421,7 +421,24 @@ function updateStudyStreak(stats) {
   const days = Math.round((new Date(today + "T00:00:00") - new Date(stats.lastStudyDate + "T00:00:00")) / 86400000);
   stats.streak = days === 1 ? Math.max(1, stats.streak + 1) : 1; stats.lastStudyDate = today;
 }
-function getXPMultiplier() { return getCapybaraProgress(getLearningStats().fedCarrots || 0).isMax ? 1.5 : 1.0; }
+function needForLevel(lv) { return Math.min(400, 100 + 25 * Math.max(0, lv - 1)); }
+function levelOf(xp) {
+  let rem = Math.max(0, Number(xp) || 0), lv = 1;
+  while (lv < 1000) {
+    const need = needForLevel(lv);
+    if (rem < need) return { level: lv, within: rem, needed: need, percent: Math.round((rem / need) * 100) };
+    rem -= need; lv++;
+  }
+  return { level: lv, within: rem, needed: 400, percent: 100 };
+}
+function levelTitle(lv) {
+  if (lv >= 30) return "Huyền thoại ENGO";
+  if (lv >= 20) return "Bậc thầy ENGO";
+  if (lv >= 12) return "Học giả thành thạo";
+  if (lv >= 6) return "Người học kiên trì";
+  if (lv >= 3) return "Người học tiến bộ";
+  return "Người học khởi động";
+}
 let serverRewards = null;
 function applyServerRewards(r) {
   if (!r) return;
@@ -434,10 +451,13 @@ function applyServerRewards(r) {
 }
 function renderDailyCarrots() {
   const r = serverRewards; if (!r) return;
+  const sCur = r.dailyStudyCarrots ?? r.dailyCarrots ?? 0, sCap = r.dailyStudyCap ?? 16;
+  const pCur = r.dailyPvpCarrots ?? 0, pCap = r.dailyPvpCap ?? 8;
+  const dx = r.dailyXp ?? 0, dCap = r.dailyXpSoftCap ?? 300;
   document.querySelectorAll("[data-daily-carrots]").forEach(el => {
-    el.innerHTML = `<i class=ico-carrot></i> Hôm nay ${r.dailyCarrots}/${r.dailyCap}`;
-    el.classList.toggle("full", r.dailyLeft <= 0);
-    el.title = r.dailyLeft > 0 ? `Còn ${r.dailyLeft} cà rốt có thể kiếm hôm nay` : "Đã đủ cà rốt hôm nay, mai quay lại nhé!";
+    el.innerHTML = `<i class=ico-carrot></i> Học ${sCur}/${sCap} · Đấu trường ${pCur}/${pCap}`;
+    el.classList.toggle("full", (r.dailyLeft ?? 0) <= 0);
+    el.title = `Cà rốt học tập hôm nay: ${sCur}/${sCap} · Đấu trường: ${pCur}/${pCap} · XP hôm nay: ${dx}/${dCap}${dx >= dCap ? " (đã qua ngưỡng 100% — vẫn nhận 25% XP)" : ""}`;
   });
 }
 async function syncRewardsFromServer() {
@@ -451,100 +471,229 @@ async function syncRewardsFromServer() {
     applyServerRewards(rewards);
   } catch (e) {}
 }
-function gainRewards(xp = 0, carrots = 0, reason = "") {
-  const stats = getLearningStats();
-  const gainedXp = Math.round((Number(xp) || 0) * getXPMultiplier());
-  const wantCarrots = Math.max(0, Number(carrots) || 0);
-  updateStudyStreak(stats); setLearningStats(stats);
-  if (!currentUser || currentUser.role !== "student") return;
-  apiRequest("/api/rewards/earn", { method: "POST", body: JSON.stringify({ xp: gainedXp, carrots: wantCarrots }) })
-    .then(({ rewards }) => {
-      applyServerRewards(rewards);
-      if (!reason) return;
-      const parts = [`+${rewards.grantedXp} XP`];
-      if (rewards.grantedCarrots) parts.push(`+${rewards.grantedCarrots} cà rốt`);
-      showToast(parts.join(", ") + " · " + reason + (rewards.cappedCarrots > 0 ? ` (đã đủ ${rewards.dailyCap} cà rốt hôm nay)` : ""));
-    })
-    .catch(() => { if (reason) showToast("Chưa lưu được điểm thưởng, kiểm tra kết nối mạng nhé."); });
+function formatRewardToast(r, reason) {
+  const parts = [];
+  if (r.grantedXp) parts.push(`+${r.grantedXp} XP`);
+  if (r.grantedCarrots) parts.push(`+${r.grantedCarrots} cà rốt`);
+  if (!parts.length) parts.push("+0 XP");
+  let msg = parts.join(", ") + (reason ? ` · ${reason}` : "");
+  const notes = [];
+  if (r.personalBest) notes.push("Kỷ lục mới (+50% XP)!");
+  else if (r.diminished) notes.push("làm lại trong ngày");
+  if (r.softCapped) notes.push("qua 300 XP/ngày: nhận 25% XP");
+  if (r.cappedCarrots > 0) notes.push("đã đủ cà rốt mục này hôm nay");
+  if (notes.length) msg += ` (${notes.join(" · ")})`;
+  return msg;
 }
-function gainCarrots(amount, reason) { gainRewards(0, amount, reason); }
-function gainXP(amount) { gainRewards(amount, 0, ""); }
+window.recordReward = function recordReward(activity, payload = {}, reason = "") {
+  const stats = getLearningStats();
+  updateStudyStreak(stats); setLearningStats(stats);
+  if (!currentUser || currentUser.role !== "student") return Promise.resolve(null);
+  return apiRequest("/api/rewards/earn", {
+    method: "POST",
+    body: JSON.stringify({ activity, ...(payload || {}) })
+  }).then(({ rewards }) => {
+    applyServerRewards(rewards);
+    if (reason) showToast(formatRewardToast(rewards, reason));
+    loadDailyQuests();
+    return rewards;
+  }).catch(() => {
+    if (reason) showToast("Chưa lưu được điểm thưởng, kiểm tra kết nối mạng nhé.");
+    return null;
+  });
+};
 
-const STREAK_CHECKIN_REWARDS = [
-  { day: 1, carrots: 2, xp: 20, icon: "<i class=ico-carrot></i>" }, { day: 2, carrots: 3, xp: 30, icon: "<i class=ico-carrot></i>" }, { day: 3, carrots: 4, xp: 40, icon: "<i class=ico-carrot></i>" },
-  { day: 4, carrots: 5, xp: 50, icon: "<i class=ico-carrot></i>" }, { day: 5, carrots: 6, xp: 60, icon: "<i class=ico-carrot></i>" }, { day: 6, carrots: 8, xp: 80, icon: "<i class=ico-carrot></i>" }, { day: 7, carrots: 10, xp: 100, icon: "<i class=mi>workspace_premium</i>" }
+let serverStreak = null;
+const DEFAULT_STREAK_TRACK = [
+  { day: 1, carrots: 1, xp: 15, icon: "<i class=ico-carrot></i>" },
+  { day: 2, carrots: 1, xp: 20, icon: "<i class=ico-carrot></i>" },
+  { day: 3, carrots: 2, xp: 25, icon: "<i class=ico-carrot></i>" },
+  { day: 4, carrots: 2, xp: 30, icon: "<i class=ico-carrot></i>" },
+  { day: 5, carrots: 3, xp: 35, icon: "<i class=ico-carrot></i>" },
+  { day: 6, carrots: 3, xp: 40, icon: "<i class=ico-carrot></i>" },
+  { day: 7, carrots: 5, xp: 60, freezeCard: 1, icon: "<i class=mi>workspace_premium</i>" }
 ];
-function getStreakCheckinData() { try { return JSON.parse(localStorage.getItem(getUserStorageKey("engoStreakCheckinV2")) || "") || { streak: 1, lastClaimDate: "", totalClaimed: 0 }; } catch { return { streak: 1, lastClaimDate: "", totalClaimed: 0 }; } }
-function setStreakCheckinData(data) { localStorage.setItem(getUserStorageKey("engoStreakCheckinV2"), JSON.stringify(data)); }
-function calculateStreakInfo() {
-  const today = dateKey(), data = getStreakCheckinData(), stats = getLearningStats();
-  let streak = data.streak || stats.streak || 1;
-  const alreadyClaimed = data.lastClaimDate === today;
-  if (!data.lastClaimDate) streak = 1;
-  else if (!alreadyClaimed) {
-    const diffDays = Math.round((new Date(today + "T00:00:00") - new Date(data.lastClaimDate + "T00:00:00")) / 86400000);
-    if (diffDays === 1) streak += 1; else if (diffDays > 1) streak = 1;
-  }
-  const cycleDay = ((streak - 1) % 7) + 1;
-  return { today, streak, cycleDay, alreadyClaimed, reward: STREAK_CHECKIN_REWARDS[cycleDay - 1], data, stats };
+async function syncStreakFromServer(openIfUnclaimed = false) {
+  if (!currentUser || currentUser.role !== "student") return null;
+  try {
+    const res = await apiRequest("/api/streak/me");
+    serverStreak = res.streak || null;
+    updateStreakTopbarUI();
+    if (openIfUnclaimed && serverStreak && !serverStreak.alreadyClaimed) renderDailyStreakModal(false);
+    return serverStreak;
+  } catch (e) { return null; }
 }
 function updateStreakTopbarUI() {
-  const info = calculateStreakInfo();
-  const top = document.getElementById("topStreakCount"); if (top) top.textContent = info.streak;
-  const capy = document.getElementById("capybaraStreakCount"); if (capy) capy.innerHTML = `<i class=mi>local_fire_department</i> <strong>${info.streak}</strong> ngày streak`;
-  const dash = document.getElementById("dashboardStreak"); if (dash) dash.textContent = `${info.streak} ngày`;
+  const st = serverStreak ? Math.max(serverStreak.alreadyClaimed ? serverStreak.streak : serverStreak.nextStreak, serverStreak.streak || 0) : (getLearningStats().streak || 1);
+  const display = serverStreak ? serverStreak.streak : st;
+  const top = document.getElementById("topStreakCount"); if (top) top.textContent = display;
+  const capy = document.getElementById("capybaraStreakCount");
+  if (capy) {
+    const f = serverStreak && serverStreak.freezeCards ? ` · <i class=mi>ac_unit</i>${serverStreak.freezeCards}` : "";
+    capy.innerHTML = `<i class=mi>local_fire_department</i> <strong>${display}</strong> ngày streak${f}`;
+  }
+  const dash = document.getElementById("dashboardStreak"); if (dash) dash.textContent = `${display} ngày`;
 }
-function renderDailyStreakModal(forceOpen = false) {
+async function renderDailyStreakModal(forceOpen = false) {
   const modal = document.getElementById("dailyStreakModal"); if (!modal) return;
-  const info = calculateStreakInfo();
+  if (!serverStreak) await syncStreakFromServer(false);
+  const info = serverStreak || { streak: 0, nextStreak: 1, bestStreak: 0, cycleDay: 1, alreadyClaimed: false, freezeCards: 0, maxFreezeCards: 2, willUseFreeze: false, broken: false, reward: DEFAULT_STREAK_TRACK[0], track: DEFAULT_STREAK_TRACK };
   if (!forceOpen && info.alreadyClaimed) { updateStreakTopbarUI(); return; }
-  document.getElementById("streakHeroCount").textContent = info.streak;
-  document.getElementById("streakHeroDesc").textContent = info.alreadyClaimed ? `Bạn đã điểm danh hôm nay (chuỗi ${info.streak} ngày)! Quay lại vào ngày mai nhé.` : `Bạn đang có chuỗi ${info.streak} ngày học liên tiếp! Nhận quà hôm nay để giữ chuỗi nhé!`;
- document.getElementById("streakTrackStatus").textContent = info.alreadyClaimed ?"Đã nhận hôm nay":`Hôm nay: Ngày ${info.cycleDay}/7`;
+  const track = info.track || DEFAULT_STREAK_TRACK;
+  document.getElementById("streakHeroCount").textContent = info.alreadyClaimed ? info.streak : info.nextStreak;
+  let desc = info.alreadyClaimed
+    ? `Bạn đã điểm danh hôm nay (chuỗi ${info.streak} ngày · kỷ lục ${info.bestStreak} ngày)! Quay lại ngày mai nhé.`
+    : info.willUseFreeze
+      ? `Hôm qua bạn nghỉ học nhưng đã có Thẻ đóng băng bảo vệ chuỗi ${info.streak} ngày! Điểm danh để lên ${info.nextStreak} ngày!`
+      : info.broken
+        ? "Chuỗi cũ đã nghỉ quá lâu, hôm nay bắt đầu lại Ngày 1 cùng Bé Capybara nhé!"
+        : `Điểm danh để nối tiếp chuỗi ${info.nextStreak} ngày học cùng Bé Capybara!`;
+  document.getElementById("streakHeroDesc").textContent = desc;
+  const freezePill = document.getElementById("streakFreezePill");
+  if (freezePill) {
+    freezePill.innerHTML = `<i class=mi>ac_unit</i> Thẻ đóng băng: <b>${info.freezeCards || 0}/${info.maxFreezeCards || 2}</b> · Đủ 7 ngày tặng +1 thẻ (tự bảo vệ khi lỡ nghỉ 1 ngày)`;
+  }
+  document.getElementById("streakTrackStatus").textContent = info.alreadyClaimed ? "Đã nhận hôm nay" : `Hôm nay: Ngày ${info.cycleDay}/7`;
   const grid = document.getElementById("streakDaysGrid");
-  grid.innerHTML = STREAK_CHECKIN_REWARDS.map(r => {
+  grid.innerHTML = track.map(r => {
     let cls = "locked";
-    if (r.day < info.cycleDay || (r.day === info.cycleDay && info.alreadyClaimed)) cls = "claimed"; else if (r.day === info.cycleDay) cls = "today";
-    return `<div class="streak-day-item ${cls}"><span class="day-label">Ngày ${r.day}</span><span class="reward-icon">${r.icon}</span><span class="reward-amount">${cls === "claimed" ? "<i class=mi>check</i> Đã nhận" : `+${r.carrots} <i class=ico-carrot></i>`}</span></div>`;
+    if (r.day < info.cycleDay || (r.day === info.cycleDay && info.alreadyClaimed)) cls = "claimed";
+    else if (r.day === info.cycleDay) cls = "today";
+    const fcNote = r.freezeCard ? " +<i class=mi>ac_unit</i>" : "";
+    return `<div class="streak-day-item ${cls}"><span class="day-label">Ngày ${r.day}</span><span class="reward-icon">${r.icon}</span><span class="reward-amount">${cls === "claimed" ? "<i class=mi>check</i> Đã nhận" : `+${r.carrots} <i class=ico-carrot></i>${fcNote}`}</span></div>`;
   }).join("");
- document.getElementById("streakCapySpeech").textContent = info.alreadyClaimed ?"Hôm nay bạn đã nhận thưởng rồi! Cùng học thật vui và quay lại điểm danh ngày mai nha!":`Oa, bạn chăm chỉ quá! Nhận ngay +${info.reward.carrots} Cà rốt để Capybara nạp năng lượng cùng bạn nha!`;
+  document.getElementById("streakCapySpeech").textContent = info.alreadyClaimed
+    ? "Hôm nay bạn đã điểm danh rồi! Hoàn thành 3 nhiệm vụ ngày để kiếm thêm cà rốt nha!"
+    : `Điểm danh ngay nhận +${info.reward.carrots} Cà rốt và +${info.reward.xp} XP${info.reward.freezeCard ? " + 1 Thẻ đóng băng" : ""}!`;
   const claimBtn = document.getElementById("streakClaimBtn"), claimText = document.getElementById("streakClaimBtnText");
   claimBtn.disabled = info.alreadyClaimed;
- claimText.textContent = info.alreadyClaimed ? "Đã Nhận Thưởng Hôm Nay" : `Nhận Thưởng (+${info.reward.carrots} cà rốt, +${info.reward.xp} XP)`;
+  claimText.textContent = info.alreadyClaimed ? "Đã Nhận Thưởng Hôm Nay" : `Nhận Thưởng (+${info.reward.carrots} cà rốt, +${info.reward.xp} XP)`;
   updateStreakTopbarUI(); modal.classList.remove("hidden");
 }
-function claimDailyStreakReward() {
-  const info = calculateStreakInfo();
- if (info.alreadyClaimed) { showToast("Hôm nay bạn đã nhận thưởng rồi! Hãy quay lại vào ngày mai"); return; }
-  const { data, stats, reward, today, streak } = info;
-  data.streak = streak; data.lastClaimDate = today; data.totalClaimed = (data.totalClaimed || 0) + 1; setStreakCheckinData(data);
-  stats.streak = streak; stats.lastStudyDate = today; setLearningStats(stats);
-  gainRewards(reward.xp, reward.carrots, `Điểm danh chuỗi ${streak} ngày`);
-  playSuccessSound();
-  renderDailyStreakModal(true);
-  setTimeout(() => closeModal("dailyStreakModal"), 1500);
+async function claimDailyStreakReward() {
+  const claimBtn = document.getElementById("streakClaimBtn");
+  if (claimBtn) claimBtn.disabled = true;
+  try {
+    const res = await apiRequest("/api/streak/claim", { method: "POST", body: "{}" });
+    serverStreak = res.streak || serverStreak;
+    if (res.rewards) applyServerRewards(res.rewards);
+    updateStreakTopbarUI();
+    playSuccessSound();
+    const extra = serverStreak?.usedFreeze ? " (đã dùng 1 Thẻ đóng băng giữ chuỗi!)" : serverStreak?.earnedFreeze ? " + 1 Thẻ đóng băng!" : "";
+    showToast(`+${res.streak?.grantedXp || 0} XP, +${res.streak?.grantedCarrots || 0} cà rốt · Chuỗi ${serverStreak?.streak || 1} ngày${extra}`);
+    renderDailyStreakModal(true);
+    setTimeout(() => closeModal("dailyStreakModal"), 1500);
+  } catch (e) {
+    if (claimBtn) claimBtn.disabled = false;
+    showToast(e.message || "Chưa điểm danh được, thử lại nhé.");
+  }
 }
 document.getElementById("streakModalClose")?.addEventListener("click", () => closeModal("dailyStreakModal"));
 document.getElementById("streakTopBtn")?.addEventListener("click", () => renderDailyStreakModal(true));
 document.getElementById("streakClaimBtn")?.addEventListener("click", claimDailyStreakReward);
 document.getElementById("capybaraStreakCount")?.addEventListener("click", () => renderDailyStreakModal(true));
 
+let dailyQuestsCache = null;
+async function loadDailyQuests() {
+  if (!currentUser || currentUser.role !== "student") return;
+  try {
+    const data = await apiRequest("/api/quests/today");
+    dailyQuestsCache = data;
+    renderDailyQuests(data);
+  } catch (e) {
+    const host = document.getElementById("dailyQuestsList");
+    if (host) host.innerHTML = '<p class="small muted">Chưa tải được nhiệm vụ hôm nay.</p>';
+  }
+}
+function renderDailyQuests(data) {
+  const listEl = document.getElementById("dailyQuestsList");
+  const chestEl = document.getElementById("dailyQuestChestBar");
+  const badgeEl = document.getElementById("dailyQuestsBadge");
+  if (!listEl || !data) return;
+  const qs = data.quests || [];
+  if (badgeEl) badgeEl.textContent = `${data.completedCount || 0}/${data.totalCount || 3}`;
+  listEl.innerHTML = qs.map(q => {
+    const pct = Math.min(100, Math.round((q.progress / Math.max(1, q.targetCount)) * 100));
+    const cls = q.claimed ? "done claimed" : q.done ? "done" : "";
+    const action = q.claimed
+      ? `<span class="badge green"><i class=mi>check</i> Đã nhận</span>`
+      : q.done
+        ? `<button type="button" class="btn btn-primary btn-sm dq-claim" data-slot="${q.slot}">Nhận thưởng</button>`
+        : `<button type="button" class="btn btn-soft btn-sm dq-go" data-view="${escapeHTML(q.targetView)}">Làm ngay</button>`;
+    return `<div class="dq-row ${cls}">
+      <div class="dq-main">
+        <div class="dq-title">${escapeHTML(q.title)}</div>
+        <div class="dq-meta">
+          <span class="dq-prog"><span style="width:${pct}%"></span></span>
+          <span>${q.progress}/${q.targetCount}</span>
+        </div>
+      </div>
+      <div class="dq-act">
+        <span class="dq-reward">+${q.rewardXp} XP · +${q.rewardCarrots} <i class=ico-carrot></i></span>
+        ${action}
+      </div>
+    </div>`;
+  }).join("");
+  if (chestEl && data.chest) {
+    const c = data.chest;
+    chestEl.className = `dq-chest${c.ready && !c.claimed ? " ready" : ""}`;
+    chestEl.innerHTML = `
+      <div>
+        <strong><i class=mi>redeem</i> Rương thưởng hoàn thành cả 3 nhiệm vụ</strong>
+        <div class="small muted">+${c.rewardXp} XP · +${c.rewardCarrots} <i class=ico-carrot></i> (không tính vào giới hạn ngày)</div>
+      </div>
+      <div>${c.claimed ? '<span class="badge green"><i class=mi>check</i> Đã mở rương</span>' : `<button type="button" class="btn btn-primary btn-sm" id="claimQuestChestBtn" ${c.ready ? "" : "disabled"}>Mở rương</button>`}</div>`;
+  }
+  listEl.querySelectorAll(".dq-go").forEach(b => b.addEventListener("click", () => switchView(b.dataset.view)));
+  listEl.querySelectorAll(".dq-claim").forEach(b => b.addEventListener("click", () => claimDailyQuest({ slot: Number(b.dataset.slot) }, b)));
+  document.getElementById("claimQuestChestBtn")?.addEventListener("click", e => claimDailyQuest({ chest: true }, e.currentTarget));
+}
+async function claimDailyQuest(body, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiRequest("/api/quests/claim", { method: "POST", body: JSON.stringify(body) });
+    dailyQuestsCache = res;
+    if (res.rewards) applyServerRewards(res.rewards);
+    renderDailyQuests(res);
+    playSuccessSound();
+    showToast(`+${res.grantedXp} XP, +${res.grantedCarrots} cà rốt · ${body.chest ? "Mở rương nhiệm vụ!" : "Hoàn thành nhiệm vụ ngày!"}`);
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    showToast(e.message || "Chưa nhận được thưởng nhiệm vụ.");
+  }
+}
+
 const capybaraQuotesByLevel = {
- 1: ["Chào bạn mới! Cùng mình bắt đầu từ những câu đơn giản nhé!","Đừng ngại phát âm chưa chuẩn, mình luôn lắng nghe bạn!","Mỗi ngày học 5 từ vựng mới là bạn đã giỏi hơn hôm qua!"],
- 2: ["Bạn đang duy trì chuỗi học rất tốt, tiếp tục phát huy nào!","Luyện nói 5 phút mỗi ngày giúp bạn tự tin hơn nhiều!"],
- 3: ["Bạn đã nắm vững nhiều cấu trúc rồi, thử sức với hội thoại giai đoạn 2 nhé!","Kỹ năng phát âm của bạn đang tiến bộ vượt bậc!"],
- 4: ["Sắp chạm tới đỉnh cao Bậc Thầy rồi!","Chú ý các bẫy ngữ pháp: đuôi -s, -ed nhé!"],
- 5: ["Xin chào Bậc Thầy ENGO! Bạn đã mở khóa toàn bộ đặc quyền!","Đỉnh cao ngữ pháp và phát âm! Điểm 9-10 trong tầm tay!"]
+  1: ["Chào bạn mới! Cùng mình bắt đầu từ những câu đơn giản nhé!", "Mỗi ngày học một chút là bạn đã giỏi hơn hôm qua!"],
+  2: ["Bạn đang giữ nhịp học rất tốt, tiếp tục phát huy nào!", "Luyện nói 5 phút mỗi ngày giúp bạn tự tin hơn nhiều!"],
+  3: ["Bạn đã quen dần rồi đấy, thử hoàn thành 3 nhiệm vụ hôm nay nhé!", "Chú ý nghe kỹ và ôn từ vựng mỗi ngày nha!"],
+  4: ["Tuyệt lắm! Cố gắng đạt kỷ lục mới ở các bài luyện tập nhé!", "Hãy vào Phòng chữa lỗi để biến điểm yếu thành điểm mạnh!"],
+  5: ["Khung Bạc đã mở! Capybara Thông Thái tự hào về sự kiên trì của bạn!", "Thử sức với hội thoại giai đoạn 2 nhé!"],
+  6: ["Năng lực của bạn đang tăng rõ rệt từng tuần!", "Đấu trường từ vựng đang chờ bạn thử thách đấy!"],
+  7: ["Khung Vàng lấp lánh! Đừng quên điểm danh giữ chuỗi 7 ngày để nhận Thẻ đóng băng!", "Giữ phong độ ổn định còn quý hơn cày nhanh một hôm!"],
+  8: ["Danh hiệu Bạn Thân Capybara! Bạn là hình mẫu chăm chỉ của lớp!", "Chú ý các bẫy ngữ pháp -s/-ed nhé!"],
+  9: ["Khung Kim Cương rực sáng! Chỉ còn một bước nữa tới cấp Hoàng Gia!", "Đỉnh cao ngữ pháp và phát âm ngay trong tầm tay!"],
+  10: ["Xin chào Capybara Hoàng Gia! Bạn đã mở khóa hào quang tối thượng!", "Kiên trì mỗi ngày chính là sức mạnh thật sự của bạn!"]
 };
 function getCapybaraProgress(fed = 0) {
-  let remaining = Number(fed) || 0;
-  const levels = [[10, "Capybara Mầm Non", "Capybara Chăm Chỉ"], [20, "Capybara Chăm Chỉ", "Capybara Học Giả"], [35, "Capybara Học Giả", "Capybara Thông Thái"], [50, "Capybara Thông Thái", "Capybara Bậc Thầy"]];
+  let remaining = Math.max(0, Number(fed) || 0);
+  const levels = [
+    [10, "Capybara Mầm Non", "Capybara Chăm Chỉ", "", ""],
+    [20, "Capybara Chăm Chỉ", "Capybara Năng Động", "", ""],
+    [35, "Capybara Năng Động", "Capybara Học Giả", "", ""],
+    [50, "Capybara Học Giả", "Capybara Thông Thái", "", ""],
+    [70, "Capybara Thông Thái", "Capybara Tài Năng", "silver", "Khung Bạc"],
+    [90, "Capybara Tài Năng", "Capybara Thủ Lĩnh", "silver", "Khung Bạc"],
+    [110, "Capybara Thủ Lĩnh", "Capybara Huyền Thoại", "gold", "Khung Vàng"],
+    [130, "Capybara Huyền Thoại", "Capybara Tinh Anh", "gold", "Danh hiệu Bạn Thân Capybara"],
+    [150, "Capybara Tinh Anh", "Capybara Hoàng Gia", "diamond", "Khung Kim Cương"]
+  ];
   for (let i = 0; i < levels.length; i++) {
-    const [need, name, next] = levels[i];
-    if (remaining < need) return { lv: i + 1, name, currentInLevel: remaining, neededForNext: need, percent: Math.round((remaining / need) * 100), nextName: next, isMax: false };
+    const [need, name, next, frame, perk] = levels[i];
+    if (remaining < need) return { lv: i + 1, name, currentInLevel: remaining, neededForNext: need, percent: Math.round((remaining / need) * 100), nextName: next, frame, perk, isMax: false };
     remaining -= need;
   }
-  return { lv: 5, name: "Capybara Bậc Thầy", currentInLevel: remaining, neededForNext: 0, percent: 100, nextName: "", isMax: true };
+  return { lv: 10, name: "Capybara Hoàng Gia", currentInLevel: remaining, neededForNext: 0, percent: 100, nextName: "", frame: "royal", perk: "Hào quang Hoàng Gia & Danh hiệu Bậc Thầy", isMax: true };
 }
 let currentCapyAudio = null;
 function capybaraSpeak(text) {
@@ -560,19 +709,29 @@ function capybaraSpeak(text) {
 }
 function renderCapybaraCompanion() {
   const stats = getLearningStats();
-  const progress = getCapybaraProgress(stats.fedCarrots || 0);
+  const progress = (serverRewards && serverRewards.capybara) ? serverRewards.capybara : getCapybaraProgress(stats.fedCarrots || 0);
   const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
   set("capybaraBadgeLv", `Lv.${progress.lv}`);
-  set("capybaraSubtitle", `Cấp độ ${progress.lv}: ${progress.name}`);
+  set("capybaraSubtitle", `Cấp độ ${progress.lv}/10: ${progress.name}`);
   set("capybaraCarrotCount", `<i class=ico-carrot></i> <strong>${stats.carrots || 0}</strong> Cà rốt`);
-  set("capybaraLevelNextLabel", progress.isMax ? `<i class=mi>workspace_premium</i> <strong>Đã đạt cấp độ Bậc Thầy!</strong>` : `Tiến hóa lên Lv.${progress.lv + 1} (${progress.nextName}): <strong>${progress.currentInLevel} / ${progress.neededForNext} <i class=ico-carrot></i></strong>`);
+  set("capybaraLevelNextLabel", progress.isMax ? `<i class=mi>workspace_premium</i> <strong>Đã đạt cấp độ Hoàng Gia (10/10)!</strong>` : `Tiến hóa lên Lv.${progress.lv + 1} (${progress.nextName}): <strong>${progress.currentInLevel} / ${progress.neededForNext} <i class=ico-carrot></i></strong>`);
   set("capybaraLevelPercent", `${progress.percent}%`);
   const fill = document.getElementById("capybaraLevelProgressFill"); if (fill) fill.style.width = `${progress.percent}%`;
   set("capybaraLevelHint", progress.isMax ? "Bạn và Capybara đã chinh phục đỉnh cao!" : `Cần thêm ${progress.neededForNext - progress.currentInLevel} Cà rốt để tiến hóa`);
-  document.getElementById("capybaraCompanionCard")?.classList.toggle("capybara-master-tier", progress.isMax);
-  const perks = document.getElementById("capybaraMasterPerks"); if (perks) perks.style.display = progress.isMax ? "block" : "none";
+  document.getElementById("capybaraCompanionCard")?.classList.toggle("capybara-master-tier", progress.lv >= 7);
+  const avImg = document.getElementById("capybaraAvatarImg");
+  if (avImg) {
+    avImg.classList.remove("capy-frame-silver", "capy-frame-gold", "capy-frame-diamond", "capy-frame-royal");
+    if (progress.frame) avImg.classList.add(`capy-frame-${progress.frame}`);
+  }
+  const perks = document.getElementById("capybaraMasterPerks");
+  if (perks) {
+    perks.style.display = progress.lv >= 5 ? "block" : "none";
+    set("capybaraPerkBadge", `<i class=mi>workspace_premium</i> ${progress.isMax ? "ĐẶC QUYỀN CAPYBARA HOÀNG GIA" : `ĐẶC QUYỀN CẤP ${progress.lv}`}`);
+    set("capybaraPerkList", `<span><i class=mi>auto_awesome</i> <strong>${escapeHTML(progress.perk || "Khung đặc biệt")}</strong></span><span><i class=mi>star</i> Hiển thị trên Bảng xếp hạng &amp; Đấu trường</span>`);
+  }
   const feedBtn = document.getElementById("feedCapybaraBtn");
- if (feedBtn) { const c = stats.carrots || 0; feedBtn.textContent = c >= 5 ?"Cho ăn Cà rốt (-5)": c > 0 ?`Cho ăn Cà rốt (-${c})`:"Hết Cà rốt (luyện tập để kiếm)"; }
+  if (feedBtn) { const c = stats.carrots || 0; feedBtn.textContent = c >= 5 ? "Cho ăn Cà rốt (-5)" : c > 0 ? `Cho ăn Cà rốt (-${c})` : "Hết Cà rốt (luyện tập để kiếm)"; }
   set("speakingCarrotBadge", `<i class=ico-carrot></i> ${stats.carrots || 0} Cà rốt`);
   set("speakingScoreBadge", `<i class=mi>star</i> Điểm cao nhất: ${stats.bestSpeakingScore || 0}%`);
   set("progressPoints", `${stats.points || 0} XP`);
@@ -640,6 +799,7 @@ function titleChip(t) { return `<span class="title-chip" title="${escapeHTML(t.d
 async function renderStudentDashboard(force = false) {
   if (!currentUser || currentUser.role !== "student") return;
   renderCapybaraCompanion();
+  loadDailyQuests();
   const p = await loadStudentProgress(force);
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   if (!p) {
@@ -1013,7 +1173,7 @@ async function submitQuiz() {
     document.getElementById("resultReviewList").innerHTML = wrong.length ? `<h4 style="margin:14px 0 8px">Các câu chưa đúng (${wrong.length})</h4>` + wrong.map(r => `<div class="review-item"><div class="small muted">${escapeHTML(r.section)}${r.instruction ? " · " + richText(r.instruction) : ""}</div>${r.images?.length ? `<div class="q-images">${r.images.map(im => qImageHTML(im)).join("")}</div>` : ""}<div>${gapText(r.prompt)}</div><div class="review-ans"><div>Bạn chọn: <b class="ans-wrong">${richText(String(r.selectedLabel || r.selected || "—"))}</b></div><div>Đáp án đúng: <b class="ans-right">${richText(String(r.correctLabel || r.correctAnswer || ""))}</b></div></div>${r.aiNote ? `<div class="small muted">AI: ${escapeHTML(r.aiNote)}</div>` : ""}</div></div>`).join("") : '<div class="small" style="color:#16a34a;text-align:center;margin-top:10px"><i class=mi>celebration</i> Không có câu trắc nghiệm nào sai!</div>';
     recordTestErrorsForHealing(wrong, activeImportedTest.title);
     const st = getLearningStats(); st.quizCount = (st.quizCount || 0) + 1; st.bestScore = Math.max(st.bestScore || 0, scoreOnTen); setLearningStats(st);
-    gainRewards(scoreOnTen >= 8 ? 40 : 25, scoreOnTen >= 8 ? 3 : 1, "Hoàn thành bài kiểm tra");
+    recordReward("test", { refId: "test-" + activeImportedTest.id, score: scoreOnTen, maxScore: 10 }, "Hoàn thành bài kiểm tra");
     studentProgress = null;
     openModal("resultModal"); showToast(result.message);
     if (scoreOnTen >= 9) cheer("perfect"); else if (scoreOnTen >= 6) cheer("unitDone"); else playSfx("wrong");
@@ -1082,17 +1242,18 @@ const achievementDefs = [
  { icon:"auto_stories", name:"Kho từ vựng", desc:"Hoàn thành 3 bộ từ vựng", rule: (s, p) => (p?.vocab.setsCompleted || 0) >= 3 },
  { icon:"healing", name:"Tự chữa lành", desc:"Chữa khỏi 3 lỗi", rule: (s, p) => (p?.healing.healed || 0) >= 3 },
  { icon:"bolt", name:"Tích lũy 100 XP", desc:"Đạt tổng cộng 100 XP", rule: s => s.points >= 100 },
- { icon:"emoji_events", name:"Chuỗi 7 ngày", desc:"Học liên tục trong 7 ngày", rule: s => calculateStreakInfo().streak >= 7 }
+ { icon:"emoji_events", name:"Chuỗi 7 ngày", desc:"Học liên tục trong 7 ngày", rule: () => (serverStreak?.bestStreak || serverStreak?.streak || 0) >= 7 }
 ];
 async function renderAchievements() {
   const stats = getLearningStats();
   const p = await loadStudentProgress();
-  const level = Math.floor(stats.points / 100) + 1, within = stats.points % 100;
+  const lvInfo = levelOf(stats.points || 0);
+  const level = lvInfo.level;
   document.getElementById("achievementLevel").textContent = level;
   document.getElementById("achievementPoints").textContent = `${stats.points} XP`;
-  document.getElementById("achievementLevelName").textContent = level >= 5 ? "Bậc thầy ENGO" : level >= 3 ? "Người học kiên trì" : level >= 2 ? "Người học tiến bộ" : "Người học khởi động";
-  document.getElementById("achievementProgress").style.width = `${within}%`;
-  document.getElementById("achievementProgressText").textContent = `${within}/100 XP đến cấp tiếp theo`;
+  document.getElementById("achievementLevelName").textContent = levelTitle(level);
+  document.getElementById("achievementProgress").style.width = `${lvInfo.percent}%`;
+  document.getElementById("achievementProgressText").textContent = `${lvInfo.within}/${lvInfo.needed} XP đến cấp tiếp theo`;
   const titles = p?.titles || [];
   const earned = titles.filter(t => t.earned);
   document.getElementById("achievementTitleLine").innerHTML = earned.length ? `Danh hiệu của bạn: ${earned.map(titleChip).join(" ")}` : "Chưa có danh hiệu. Hãy luyện nói, làm bài kiểm tra và học từ vựng để mở khóa!";
@@ -1359,14 +1520,14 @@ async function finishVocabQuiz() {
   records[recKey] = { ...prev, best: Math.max(percent, prev.best || 0), last: percent, at, modes };
   setVocabRecords(records);
   document.dispatchEvent(new CustomEvent("engo:vocab-record", { detail: { deck: activeDeck, grade: activeGradeNum(), mode: q.mode, percent } }));
-  gainRewards(good ? 30 : 10, good ? 3 : 0, `Hoàn thành bộ ${q.deck.name} (Khối ${activeGradeNum()})`);
+  recordReward("vocab", { refId: recKey, score: q.correct, maxScore: q.total }, `Hoàn thành bộ ${q.deck.name} (Khối ${activeGradeNum()})`);
   const st = getLearningStats(); st.vocabSets = (st.vocabSets || 0) + 1; setLearningStats(st);
   try { await apiRequest("/api/learning-events", { method: "POST", body: JSON.stringify({ type: "vocab", refId: recKey, title: `${q.deck.name} (Khối ${activeGradeNum()})`, score: q.correct, maxScore: q.total, meta: { grade: activeGradeNum(), mode: q.mode, percent } }) }); studentProgress = null; } catch (e) {}
   document.getElementById("vocabQuizProgress").style.width = "100%";
   document.getElementById("vocabQuizBody").innerHTML = `<div style="text-align:center;padding:20px 0">
     <div class="result-score" style="background:conic-gradient(${good ? "#22c55e" : "#f59e0b"} 0 ${percent}%, #e5e7eb ${percent}% 100%)"><div><strong>${percent}%</strong><span class="small muted">đúng</span></div></div>
     <h3 style="margin:0 0 6px">${good ? "<i class=mi>celebration</i> Xuất sắc! Bạn đã thuộc bộ từ này" : "<i class=mi>thumb_up</i> Hoàn thành! Ôn lại các từ chưa nhớ nhé"}</h3>
-    <p class="muted">Đúng ${q.correct}/${q.total} · Thưởng ${good ? "+30 XP & +3 <i class=ico-carrot></i>" : "+10 XP"}</p>
+    <p class="muted">Đúng ${q.correct}/${q.total}${good ? " · Đạt ≥ 80% — đã ghi nhận điểm thưởng!" : " · Cần ≥ 80% để nhận cà rốt"}</p>
     <p class="small muted"><i class=mi>save</i> Đã lưu kết quả · Tốt nhất dạng này: ${modes[q.mode].best}%${prevMode ? ` · Lần trước: ${prevMode.last}%` : ""}</p>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><button class="btn btn-light" id="vqRetry">Học lại bộ thẻ</button><button class="btn btn-primary" id="vqOther">Làm dạng ${q.mode === "mc" ? "nối từ" : "trắc nghiệm"}</button></div></div>`;
   if (percent === 100) cheer("perfect"); else if (good) cheer("unitDone"); else playSfx("taskDone");
@@ -1609,7 +1770,7 @@ async function finishSpeakingTask() {
   const summary = document.getElementById("speakingSummary");
   summary.classList.remove("hidden");
   summary.innerHTML = `<h4 style="margin:0 0 6px"><i class=mi>celebration</i> Hoàn thành bài "${escapeHTML(task.title)}"</h4><div class="stage-metrics"><div><b>${avg}%</b><span>Trung bình</span></div><div><b>${results.length}/${task.items.length}</b><span>Câu đã đọc</span></div><div><b>${Math.max(...results.map(r => r.accuracy))}%</b><span>Câu tốt nhất</span></div></div><p class="small muted" id="speakingSubmitStatus">Đang lưu kết quả...</p>`;
-  gainRewards(verdict.xp, verdict.carrots, "Hoàn thành bài luyện nói");
+  recordReward("speaking", { refId: String(task.id || task.title), score: avg, maxScore: 100 }, "Hoàn thành bài luyện nói");
   if (task.assignmentId) {
     try {
       const res = await apiRequest("/api/student/speaking-submissions", { method: "POST", body: JSON.stringify({ assignmentId: task.assignmentId, itemsResult: task.items.map((_, i) => speakingItemResults[i] && !speakingItemResults[i].tts ? { index: i, accuracy: speakingItemResults[i].accuracy, transcript: speakingItemResults[i].transcript } : null).filter(Boolean), spokenTranscript: results.map(r => r.transcript).join(" | ") }) });
@@ -1738,7 +1899,7 @@ async function renderHealingRoom() {
       const pr = getHealingProfile(); const removed = (pr.unitGrammar || []).filter(t => String(t.unit) === b.dataset.unit).length;
       pr.unitGrammar = (pr.unitGrammar || []).filter(t => String(t.unit) !== b.dataset.unit);
       pr.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "grammar", title: `Ôn lại ${removed} câu ngữ pháp Unit ${b.dataset.unit}`, healedAt: new Date().toISOString(), score: `${removed} câu` });
-      saveHealingProfile(pr); logHealingEvent(`Ôn lại ngữ pháp Unit ${b.dataset.unit}`, { category: "grammar", unit: Number(b.dataset.unit), count: removed }); gainRewards(5 * removed, 0, "Ôn lại ngữ pháp"); renderHealingRoom();
+      saveHealingProfile(pr); logHealingEvent(`Ôn lại ngữ pháp Unit ${b.dataset.unit}`, { category: "grammar", unit: Number(b.dataset.unit), count: removed }); recordReward("healing_review", { refId: "gram-u" + b.dataset.unit, score: removed, maxScore: removed }, "Ôn lại ngữ pháp"); renderHealingRoom();
     }));
   }
   document.getElementById("healingStatGrammar").textContent = profile.grammar.length + ug.length;
@@ -1753,7 +1914,7 @@ async function renderHealingRoom() {
     const pr = getHealingProfile();
     pr.test.forEach(t => { if (ids.includes(t.id)) t.reviewed = true; });
     pr.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "test", title: `Xem lại ${ids.length} câu sai · ${title}`, healedAt: new Date().toISOString(), score: `${ids.length} câu` });
-    saveHealingProfile(pr); logHealingEvent(`Xem lại câu sai: ${title}`, { category: "test", count: ids.length }); renderHealingRoom(); gainRewards(5 * ids.length, 0, "Xem lại câu sai");
+    saveHealingProfile(pr); logHealingEvent(`Xem lại câu sai: ${title}`, { category: "test", count: ids.length }); renderHealingRoom(); recordReward("healing_review", { refId: "test-" + String(title || "all").slice(0, 40), score: ids.length, maxScore: ids.length }, "Xem lại câu sai");
   };
   testList.querySelectorAll(".review-one").forEach(b => b.addEventListener("click", () => { const t = pendingTest.find(x => x.id === b.dataset.id); markReviewed([b.dataset.id], t?.testTitle || ""); }));
   testList.querySelectorAll(".review-all-test").forEach(b => b.addEventListener("click", () => markReviewed(byTest[b.dataset.title].map(t => t.id), b.dataset.title)));
@@ -1801,7 +1962,7 @@ document.getElementById("pronDrillMic").addEventListener("click", () => {
           pr.pronunciation = pr.pronunciation.filter(p => p.id !== drillItem.id);
           pr.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "pronunciation", title: `Phát âm chuẩn từ "${drillItem.word}"`, healedAt: new Date().toISOString(), score: `${res.accuracy}%` });
           pr.healingStreak = (pr.healingStreak || 0) + 1; saveHealingProfile(pr);
-          gainRewards(10, 1, "Chữa khỏi lỗi phát âm"); logHealingEvent(`Chữa lỗi phát âm: ${drillItem.word}`, { category: "pronunciation", accuracy: res.accuracy });
+          recordReward("healing_pron", { refId: "pron-" + drillItem.word, score: res.accuracy, maxScore: 100 }, "Chữa khỏi lỗi phát âm"); logHealingEvent(`Chữa lỗi phát âm: ${drillItem.word}`, { category: "pronunciation", accuracy: res.accuracy });
           cheer("taskDone"); setTimeout(() => { closeModal("pronDrillModal"); renderHealingRoom(); }, 1400);
         } else playWrongSound();
       } catch (e) { out.innerHTML = `<div class="small" style="color:red">${escapeHTML(e.message)}</div>`; }
@@ -1832,7 +1993,7 @@ function renderHealingModalStep() {
       profile.healedHistory.unshift({ id: `healed-${Date.now()}`, category: "grammar", title: s.label, healedAt: new Date().toISOString(), score: `${s.correctCount}/${s.questions.length}` });
       profile.heatmapStatus[s.errorCode] = s.correctCount === 3 ? "mastered" : "shaky";
       profile.healingStreak = (profile.healingStreak || 0) + 1; saveHealingProfile(profile);
-      gainRewards(15, 1, "Chữa khỏi lỗi ngữ pháp"); logHealingEvent(`Chữa lỗi ngữ pháp: ${s.label}`, { category: "grammar", code: s.errorCode, score: s.correctCount }); cheer("taskDone");
+      recordReward("healing_grammar", { refId: "heal-" + s.errorCode, score: s.correctCount, maxScore: s.questions.length }, "Chữa khỏi lỗi ngữ pháp"); logHealingEvent(`Chữa lỗi ngữ pháp: ${s.label}`, { category: "grammar", code: s.errorCode, score: s.correctCount }); cheer("taskDone");
     }
     modalBody.innerHTML = `<div style="text-align:center;padding:20px 0"><h3 style="color:${passed ? "#16a34a" : "#d97706"};margin:0 0 8px">${passed ? "CHỮA LỖI THÀNH CÔNG!" : "CHƯA ĐẠT — THỬ LẠI NHÉ"}</h3><p style="line-height:1.5">Bạn làm đúng <strong>${s.correctCount}/${s.questions.length}</strong> câu dạng <strong>${escapeHTML(s.label)}</strong>.${passed ? " Lỗi này đã được đánh dấu trên Bản đồ ngữ pháp!" : " Cần đúng ít nhất 2/3 câu để chữa khỏi."}</p>${passed ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:inline-block;margin-bottom:20px"><strong style="color:#15803d"><i class=mi>redeem</i> +15 XP & +1 Cà rốt</strong></div>' : ""}<button class="btn btn-primary" id="finishHealingSessionBtn" style="width:100%;font-weight:700">${passed ? "Hoàn tất" : "Làm lại 3 câu khác"}</button></div>`;
     document.getElementById("finishHealingSessionBtn").addEventListener("click", () => { if (passed) { closeModal("healingExerciseModal"); renderHealingRoom(); } else startHealingExercise(s.errorCode, s.errorId); });

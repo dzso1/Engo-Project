@@ -12,8 +12,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./fonts.css?v=3" />
-  <link rel="stylesheet" href="./styles.css?v=20" />
-  <link rel="stylesheet" href="./themes.css?v=35" />
+  <link rel="stylesheet" href="./styles.css?v=21" />
+  <link rel="stylesheet" href="./themes.css?v=36" />
 </head>
 <body>
 
@@ -177,8 +177,8 @@
                   <div class="small muted" id="capybaraLevelHint">Cần thêm 10 Cà rốt để tiến hóa cấp tiếp theo</div>
                 </div>
                 <div class="capybara-master-perks" id="capybaraMasterPerks" style="display:none">
-                  <div class="master-perk-badge"><i class=mi>workspace_premium</i> ĐẶC QUYỀN BẬC THẦY HOÀNG GIA ĐÃ KÍCH HOẠT</div>
-                  <div class="master-perks-list"><span><i class=mi>bolt</i> <strong>Buff x1.5 XP</strong> vĩnh viễn</span><span><i class=mi>star</i> <strong>Hào quang Vương miện Vàng</strong></span></div>
+                  <div class="master-perk-badge" id="capybaraPerkBadge"><i class=mi>workspace_premium</i> ĐẶC QUYỀN TRANG TRÍ CAPYBARA</div>
+                  <div class="master-perks-list" id="capybaraPerkList"><span><i class=mi>auto_awesome</i> <strong>Khung &amp; Hào quang riêng</strong> trên BXH &amp; Đấu trường</span></div>
                 </div>
                 <div class="capybara-actions-row">
                   <button class="btn btn-soft btn-sm" id="talkToCapybaraBtn"><i class=mi>volume_up</i> Trò chuyện cùng Capybara</button>
@@ -187,6 +187,18 @@
                 </div>
               </div>
             </div>
+          </section>
+
+          <section class="section card panel daily-quests-card" id="dailyQuestsCard">
+            <div class="section-head">
+              <div>
+                <h3><i class=mi>checklist</i> Nhiệm vụ hôm nay</h3>
+                <p class="small muted" id="dailyQuestsHint">Mỗi ngày hoàn thành 3 nhiệm vụ để nhận thêm cà rốt &amp; mở rương thưởng.</p>
+              </div>
+              <span class="badge green" id="dailyQuestsBadge">0/3</span>
+            </div>
+            <div class="dq-list" id="dailyQuestsList"><p class="small muted">Đang tải nhiệm vụ hôm nay...</p></div>
+            <div class="dq-chest" id="dailyQuestChestBar"></div>
           </section>
 
           <div class="grid stats-grid stats-grid-6">
@@ -856,6 +868,7 @@
         <div class="streak-hero-icon-wrap"><span class="streak-hero-flame"><i class=mi>local_fire_department</i></span><span class="streak-hero-carrot"><i class=ico-carrot></i></span></div>
         <h2 class="streak-hero-title">Chuỗi Học Tập: <span id="streakHeroCount" class="highlight-orange">1</span> Ngày!</h2>
         <p class="streak-hero-desc" id="streakHeroDesc">Mỗi ngày mở ENGO nhận ngay Cà rốt và tích lũy chuỗi học tập cùng Bé Capybara!</p>
+        <div class="streak-freeze-pill" id="streakFreezePill"></div>
       </div>
       <div class="streak-track-container">
         <div class="streak-track-header"><span class="streak-track-title"><i class=mi>redeem</i> Lịch nhận thưởng 7 ngày</span><span class="streak-track-status" id="streakTrackStatus">Điểm danh hôm nay</span></div>
@@ -922,15 +935,15 @@
   <script src="./data-loader.js?v=4" defer></script>
   <script src="./settings.js?v=8" defer></script>
   <script src="./sfx.js?v=1" defer></script>
-  <script src="./script.js?v=33" defer></script>
-  <script src="./units-ui.js?v=18" defer></script>
-  <script src="./leaderboard.js?v=3" defer></script>
+  <script src="./script.js?v=34" defer></script>
+  <script src="./units-ui.js?v=19" defer></script>
+  <script src="./leaderboard.js?v=4" defer></script>
   <script src="./access.js?v=3" defer></script>
   <script src="./manage.js?v=5" defer></script>
   <script src="./report.js?v=2" defer></script>
-  <script src="./wordform.js?v=4" defer></script>
+  <script src="./wordform.js?v=5" defer></script>
   <script src="./results.js?v=2" defer></script>
-  <script src="./pvp.js?v=7" defer></script>
+  <script src="./pvp.js?v=8" defer></script>
   <script src="./social.js?v=5" defer></script>
 </body>
 </html>
